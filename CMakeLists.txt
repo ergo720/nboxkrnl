@@ -19,11 +19,21 @@ add_compile_options(
  /kernel
 )
 
-file (GLOB SOURCES
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/Main.cpp"
+file (GLOB HEADERS
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
 )
 
-add_executable(cxbxrkrnl ${SOURCES})
+file (GLOB SOURCES
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/main.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/thread.cpp"
+)
+
+source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
+source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
+
+add_executable(cxbxrkrnl ${HEADERS} ${SOURCES})
 
 set_target_properties(cxbxrkrnl PROPERTIES
  LINK_FLAGS "
@@ -36,6 +46,7 @@ set_target_properties(cxbxrkrnl PROPERTIES
  /OPT:ICF \
  /SUBSYSTEM:NATIVE \
  /ENTRY:KernelEntry \
+ /IGNORE:4210 \
  "
 )
 
