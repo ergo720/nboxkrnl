@@ -9,7 +9,7 @@
 
 [[noreturn]] void KernelEntry()
 {
-	// Assumptions: cs/ds/ss/es/fs/gs base=0 nad flags=valid; physical memory and contiguous memory identity mapped with large pages;
+	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
 	// protected mode and paging on, cpl=0, stack=valid
 
 	__asm {
