@@ -15,7 +15,7 @@ using KGDT = uint64_t;
 using KIRQL = UCHAR;
 
 #pragma pack(1)
-typedef struct _FLOATING_SAVE_AREA {
+struct FLOATING_SAVE_AREA {
     USHORT  ControlWord;
     USHORT  StatusWord;
     USHORT  TagWord;
@@ -30,7 +30,7 @@ typedef struct _FLOATING_SAVE_AREA {
     UCHAR   XmmRegisterArea[SIZE_OF_FPU_REGISTERS];
     UCHAR   Reserved2[224];
     ULONG   Cr0NpxState;
-} FLOATING_SAVE_AREA;
+};
 #pragma pack()
 
 struct FX_SAVE_AREA {
