@@ -32,7 +32,7 @@ KTSS KiTss = {
 	0x18,      // fs
 	0x10,      // gs
 	0,         // ldt selector
-	0x68 << 2  // i/o map table
+	0x67 << 16 // i/o map table address
 };
 
 const KGDT KiGdt[] = {
@@ -45,8 +45,44 @@ const KGDT KiGdt[] = {
 	// 32bit data segment, rw, present (used for fs)
 	(((uint64_t)&KiPcr & 0x00FFFFFF) << 16) | (((uint64_t)&KiPcr & 0xFF000000) << 32) | ((uint64_t)0xC093 << 40),
 	// 32bit tss, present
-	(((uint64_t)&KiTss & 0x00FFFFFF) << 16) | (((uint64_t)&KiTss & 0xFF000000) << 32) | ((uint64_t)0x89 << 40) | ((uint64_t)0x68)
+	(((uint64_t)&KiTss & 0x00FFFFFF) << 16) | (((uint64_t)&KiTss & 0xFF000000) << 32) | ((uint64_t)0x89 << 40) | ((uint64_t)0x67)
 };
+
+const KIDT KiIdt[] = {
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap0 & 0x0000FFFF) | (((uint64_t)&KiTrap0 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap1 & 0x0000FFFF) | (((uint64_t)&KiTrap1 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap2 & 0x0000FFFF) | (((uint64_t)&KiTrap2 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap3 & 0x0000FFFF) | (((uint64_t)&KiTrap3 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap4 & 0x0000FFFF) | (((uint64_t)&KiTrap4 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap5 & 0x0000FFFF) | (((uint64_t)&KiTrap5 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap6 & 0x0000FFFF) | (((uint64_t)&KiTrap6 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap7 & 0x0000FFFF) | (((uint64_t)&KiTrap7 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap8 & 0x0000FFFF) | (((uint64_t)&KiTrap8 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap10 & 0x0000FFFF) | (((uint64_t)&KiTrap10 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap11 & 0x0000FFFF) | (((uint64_t)&KiTrap11 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap12 & 0x0000FFFF) | (((uint64_t)&KiTrap12 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap13 & 0x0000FFFF) | (((uint64_t)&KiTrap13 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap14 & 0x0000FFFF) | (((uint64_t)&KiTrap14 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap16 & 0x0000FFFF) | (((uint64_t)&KiTrap16 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap17 & 0x0000FFFF) | (((uint64_t)&KiTrap17 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap18 & 0x0000FFFF) | (((uint64_t)&KiTrap18 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap18 & 0x0000FFFF) | (((uint64_t)&KiTrap19 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32)
+};
+
 
 void InitializeCrt()
 {

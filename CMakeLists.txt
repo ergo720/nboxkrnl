@@ -27,6 +27,7 @@ file (GLOB HEADERS
 
 file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/main.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/exception.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/thread.cpp"
 )

@@ -12,6 +12,7 @@
 #define SIZE_OF_FPU_REGISTERS        128
 
 using KGDT = uint64_t;
+using KIDT = uint64_t;
 using KTSS = uint32_t[26];
 using KIRQL = UCHAR;
 
@@ -90,7 +91,29 @@ extern uint8_t KiIdleThreadStack[KERNEL_STACK_SIZE];
 
 extern KTSS KiTss;
 extern const KGDT KiGdt[5];
-inline constexpr uint16_t KiGdtSize = sizeof(KiGdt);
+extern const KIDT KiIdt[32];
+inline constexpr uint16_t KiGdtLimit = sizeof(KiGdt) - 1;
+inline constexpr uint16_t KiIdtLimit = sizeof(KiIdt) - 1;
 
 
 void InitializeCrt();
+
+void KiTrap0();
+void KiTrap1();
+void KiTrap2();
+void KiTrap3();
+void KiTrap4();
+void KiTrap5();
+void KiTrap6();
+void KiTrap7();
+void KiTrap8();
+void KiTrap10();
+void KiTrap11();
+void KiTrap12();
+void KiTrap13();
+void KiTrap14();
+void KiTrap16();
+void KiTrap17();
+void KiTrap18();
+void KiTrap19();
+void KiUnexpectedInterrupt();

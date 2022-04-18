@@ -24,7 +24,7 @@
 		call InitializeCrt
 
 		// Load the GDT from the hardcoded KiGdt
-		mov ax, KiGdtSize
+		mov ax, KiGdtLimit
 		mov WORD PTR [esp], ax
 		mov DWORD PTR [esp+2], offset KiGdt
 		lgdt [esp]
@@ -46,6 +46,12 @@
 		// Load the tss from the hardcoded KiTss
 		mov ax, 0x20
 		ltr ax
+
+		// Load the IDT from the hardcoded KiIdt
+		mov ax, KiIdtLimit
+		mov WORD PTR [esp], ax
+		mov DWORD PTR [esp + 2], offset KiIdt
+		lidt [esp]
 
 		cli
 		hlt
