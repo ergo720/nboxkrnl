@@ -17,6 +17,7 @@ add_compile_options(
  /GS-
  /GR-
  /kernel
+ /wd4731
 )
 
 file (GLOB HEADERS

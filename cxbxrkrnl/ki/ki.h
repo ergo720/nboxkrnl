@@ -12,6 +12,7 @@
 #define SIZE_OF_FPU_REGISTERS        128
 
 using KGDT = uint64_t;
+using KTSS = uint32_t[26];
 using KIRQL = UCHAR;
 
 #pragma pack(1)
@@ -87,7 +88,8 @@ using PKPCR = KPCR *;
 extern KPCR KiPcr;
 extern uint8_t KiIdleThreadStack[KERNEL_STACK_SIZE];
 
-extern const KGDT KiGdt[4];
+extern KTSS KiTss;
+extern const KGDT KiGdt[5];
 inline constexpr uint16_t KiGdtSize = sizeof(KiGdt);
 
 

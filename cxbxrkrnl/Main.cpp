@@ -43,6 +43,10 @@
 		mov ax, 0x18
 		mov fs, ax
 
+		// Load the tss from the hardcoded KiTss
+		mov ax, 0x20
+		ltr ax
+
 		cli
 		hlt
 	}
