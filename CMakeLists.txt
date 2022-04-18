@@ -37,6 +37,21 @@ source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
 add_executable(cxbxrkrnl ${HEADERS} ${SOURCES})
 
+target_link_libraries(cxbxrkrnl
+ debug libcmtd.lib
+ optimized libcmt.lib
+)
+
+target_link_libraries(cxbxrkrnl
+ debug libvcruntimed.lib
+ optimized libvcruntime.lib
+)
+
+target_link_libraries(cxbxrkrnl
+ debug libucrtd.lib
+ optimized libucrt.lib
+)
+
 set_target_properties(cxbxrkrnl PROPERTIES
  LINK_FLAGS "
  /BASE:0x10000 \
