@@ -68,7 +68,7 @@ const KIDT KiIdt[] = {
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap16 & 0x0000FFFF) | (((uint64_t)&KiTrap16 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap17 & 0x0000FFFF) | (((uint64_t)&KiTrap17 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap18 & 0x0000FFFF) | (((uint64_t)&KiTrap18 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
-	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap18 & 0x0000FFFF) | (((uint64_t)&KiTrap19 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap19 & 0x0000FFFF) | (((uint64_t)&KiTrap19 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
