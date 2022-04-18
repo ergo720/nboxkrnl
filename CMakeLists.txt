@@ -54,7 +54,7 @@ target_link_libraries(cxbxrkrnl
 
 set_target_properties(cxbxrkrnl PROPERTIES
  LINK_FLAGS "
- /BASE:0x10000 \
+ /BASE:0x80010000 \
  /DYNAMICBASE:NO \
  /FIXED \
  /LARGEADDRESSAWARE \

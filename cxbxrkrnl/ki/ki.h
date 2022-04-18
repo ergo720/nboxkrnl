@@ -7,7 +7,7 @@
 #include "..\types.h"
 
 #define KERNEL_STACK_SIZE 12288
-#define KERNEL_BASE 0x10000
+#define KERNEL_BASE 0x80010000
 
 #define SIZE_OF_FPU_REGISTERS        128
 
