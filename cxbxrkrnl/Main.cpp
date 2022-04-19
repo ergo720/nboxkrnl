@@ -18,7 +18,7 @@
 
 		// Use the global KiIdleThreadStack as the stack of the startup thread
 		xor ebp, ebp
-		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE
+		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - SIZE FX_SAVE_AREA
 
 		// Initialize the CRT of the kernel executable
 		call InitializeCrt
@@ -26,7 +26,7 @@
 		// Load the GDT from the hardcoded KiGdt
 		mov ax, KiGdtLimit
 		mov WORD PTR [esp], ax
-		mov DWORD PTR [esp+2], offset KiGdt
+		mov DWORD PTR [esp + 2], offset KiGdt
 		lgdt [esp]
 
 		// Load the segment selectors
@@ -53,6 +53,11 @@
 		mov DWORD PTR [esp + 2], offset KiIdt
 		lidt [esp]
 
+	}
+
+	KiInitializeKernel();
+
+	__asm {
 		cli
 		hlt
 	}

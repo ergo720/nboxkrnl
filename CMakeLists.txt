@@ -21,15 +21,20 @@ add_compile_options(
 )
 
 file (GLOB HEADERS
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/util/util.h"
 )
 
 file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/main.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/exception.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/thread.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
 )
 
 source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})

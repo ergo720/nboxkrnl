@@ -3,6 +3,7 @@
  */
 
 #include "ki.h"
+#include "..\kernel.h"
 #include <cstring>
 
 
@@ -108,4 +109,24 @@ void InitializeCrt()
 		(*initializer)();
 		++initializer;
 	}
+}
+
+void KiInitializeKernel()
+{
+	KiPcr.SelfPcr = &KiPcr;
+	KiPcr.Prcb = &KiPcr.PrcbData;
+
+	KiPcr.NtTib.ExceptionList = EXCEPTION_CHAIN_END;
+	KiPcr.NtTib.StackLimit = KiIdleThreadStack;
+	KiPcr.NtTib.StackBase = KiIdleThreadStack + KERNEL_STACK_SIZE - KiFxAreaSize;
+	KiPcr.PrcbData.CurrentThread = &KiIdleThread;
+
+	KiIdleThread.NpxState = NPX_STATE_NOT_LOADED;
+	KiIdleThread.StackLimit = KiPcr.NtTib.StackLimit;
+	KiIdleThread.StackBase = static_cast<uint8_t *>(KiPcr.NtTib.StackBase) + KiFxAreaSize;
+
+	InitializeListHead(&KiPcr.Prcb->DpcListHead);
+	KiPcr.Prcb->DpcRoutineActive = FALSE;
+
+	KiInitSystem();
 }
