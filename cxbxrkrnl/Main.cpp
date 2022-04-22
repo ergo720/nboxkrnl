@@ -2,9 +2,9 @@
  * ergo720                Copyright (c) 2022
  */
 
-#define _HAS_EXCEPTIONS 0
 
 #include "ki\ki.h"
+#include "ke\bug_codes.h"
 
 
 [[noreturn]] void KernelEntry()
@@ -52,13 +52,10 @@
 		mov WORD PTR [esp], ax
 		mov DWORD PTR [esp + 2], offset KiIdt
 		lidt [esp]
-
 	}
 
 	KiInitializeKernel();
 
-	__asm {
-		cli
-		hlt
-	}
+	// We should never return from the entry point
+	KeBugCheck(BUG_KI_INIT);
 }

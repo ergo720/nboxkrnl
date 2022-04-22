@@ -6,6 +6,8 @@
 #include "..\ki\ki.h"
 
 
+EXPORTNUM(156) volatile DWORD KeTickCount = 0;
+
 VOID XBOXAPI KiTimerExpiration
 (
 	PKDPC Dpc,

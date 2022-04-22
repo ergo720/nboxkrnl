@@ -4,22 +4,31 @@
 
 #pragma once
 
+#ifndef _HAS_EXCEPTIONS
+#define _HAS_EXCEPTIONS 0
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 
 #define TRUE 1
 #define FALSE 0
 
-#define XBOXAPI __stdcall
+#define XBOXAPI  __stdcall
+#define FASTCALL __fastcall
+#define CDECL    __cdecl
+
+#define EXPORTNUM(n)
 
 
 using VOID = void;
 using PVOID = void *;
 using BYTE = uint8_t;
-using UCHAR = uint8_t;
-using CHAR = int8_t;
+using UCHAR = unsigned char;
+using CHAR = char;
 using SCHAR = CHAR;
 using CCHAR = CHAR;
+using PCHAR = CHAR *;
 using BOOLEAN = uint8_t;
 using USHORT = uint16_t;
 using CSHORT = int16_t;
@@ -27,10 +36,14 @@ using WORD = uint16_t;
 using DWORD = uint32_t;
 using ULONG = uint32_t;
 using LONG = int32_t;
-using ULONG_PTR = uint32_t;
-using LONG_PTR = int32_t;
+using PLONG = LONG *;
+using ULONG_PTR = uintptr_t;
+using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
 using DWORDLONG = uint64_t;
+using NTSTATUS = LONG;
+
+#include "ntstatus.h"
 
 struct LIST_ENTRY {
 	LIST_ENTRY *Flink;

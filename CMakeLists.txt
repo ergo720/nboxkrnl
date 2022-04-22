@@ -35,6 +35,7 @@ add_compile_options(
  /kernel
  /wd4731
  /wd26812
+ /arch:IA32
 )
 
 include_directories(
@@ -49,15 +50,23 @@ link_directories(
 file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/dbg.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/halp.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
 )
 
 file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/main.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/debug.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/hal.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/exception.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
 )
@@ -66,6 +75,8 @@ source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
 source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
 add_executable(cxbxrkrnl ${HEADERS} ${SOURCES})
+
+add_dependencies(cxbxrkrnl pdclib)
 
 target_link_libraries(cxbxrkrnl PUBLIC
  pdclib.lib

@@ -6,7 +6,7 @@
 #include "ke.h"
 
 
-VOID XBOXAPI KeInitializeDpc
+EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
 (
     PKDPC Dpc,
     PKDEFERRED_ROUTINE DeferredRoutine,

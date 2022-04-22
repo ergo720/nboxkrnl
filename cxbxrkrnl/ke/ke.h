@@ -95,7 +95,7 @@ using PKKERNEL_ROUTINE = VOID(XBOXAPI *)(
     PVOID *SystemArgument2
     );
 
-using PKRUNDOWN_ROUTINE = VOID(*)(
+using PKRUNDOWN_ROUTINE = VOID(XBOXAPI *)(
     struct KAPC *Apc
     );
 
@@ -189,9 +189,33 @@ struct KDPC {
 using PKDPC = KDPC *;
 
 
-VOID XBOXAPI KeInitializeDpc
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+EXPORTNUM(95) VOID XBOXAPI KeBugCheck
+(
+    ULONG BugCheckCode
+);
+
+EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
+(
+    ULONG BugCheckCode,
+    ULONG_PTR BugCheckParameter1,
+    ULONG_PTR BugCheckParameter2,
+    ULONG_PTR BugCheckParameter3,
+    ULONG_PTR BugCheckParameter4
+);
+
+EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
 (
     PKDPC Dpc,
     PKDEFERRED_ROUTINE DeferredRoutine,
     PVOID DeferredContext
 );
+
+EXPORTNUM(156) extern volatile DWORD KeTickCount;
+
+#ifdef __cplusplus
+}
+#endif
