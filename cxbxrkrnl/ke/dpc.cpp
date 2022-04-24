@@ -13,7 +13,7 @@ VOID XBOXAPI KeInitializeDpc
     PVOID DeferredContext
 )
 {
-    Dpc->Type = to_underlying(KOBJECTS::DpcObject);
+    Dpc->Type = DpcObject;
     Dpc->Inserted = FALSE;
     Dpc->DeferredRoutine = DeferredRoutine;
     Dpc->DeferredContext = DeferredContext;

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
+#include <stdint.h>
+#include <stddef.h>
 
 #define TRUE 1
 #define FALSE 0

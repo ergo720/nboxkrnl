@@ -1,23 +1,49 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(cxbxrkrnl)
 
+set(CMAKE_SUPPRESS_REGENERATION true)
+
 if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${cxbxrkrnl_BINARY_DIR}/bin")
+ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 endif()
 
 set(CMAKE_CXX_STANDARD_LIBRARIES "")
-STRING (REGEX REPLACE "/RTC(su|[1su])" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+foreach(flag_var
+    CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+  string(REGEX REPLACE "/RTC(su|[1su])" "" ${flag_var} "${${flag_var}}")
+endforeach(flag_var)
 
 set(CXBXRKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
+add_subdirectory("${CXBXRKRNL_ROOT_DIR}/import/pdclib")
+
+add_compile_definitions(
+ _PDCLIB_STATIC_DEFINE
+ __STDC_NO_THREADS__
+)
+
 add_compile_options(
  /GS-
  /GR-
+ /sdl-
+ /Zc:preprocessor
  /kernel
  /wd4731
+ /wd26812
+)
+
+include_directories(
+ "${CXBXRKRNL_ROOT_DIR}/import/pdclib/include"
+ "${CXBXRKRNL_ROOT_DIR}/import/pdclib/platform/xbox/include"
+)
+
+link_directories(
+ "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}"
 )
 
 file (GLOB HEADERS
@@ -25,7 +51,6 @@ file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/util/util.h"
 )
 
 file (GLOB SOURCES
@@ -42,19 +67,10 @@ source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
 add_executable(cxbxrkrnl ${HEADERS} ${SOURCES})
 
-target_link_libraries(cxbxrkrnl
+target_link_libraries(cxbxrkrnl PUBLIC
+ pdclib.lib
  debug libcmtd.lib
  optimized libcmt.lib
-)
-
-target_link_libraries(cxbxrkrnl
- debug libvcruntimed.lib
- optimized libvcruntime.lib
-)
-
-target_link_libraries(cxbxrkrnl
- debug libucrtd.lib
- optimized libucrt.lib
 )
 
 set_target_properties(cxbxrkrnl PROPERTIES
@@ -63,9 +79,11 @@ set_target_properties(cxbxrkrnl PROPERTIES
  /DYNAMICBASE:NO \
  /FIXED \
  /LARGEADDRESSAWARE \
+ /NODEFAULTLIB \
  /INCREMENTAL:NO \
  /OPT:REF \
  /OPT:ICF \
+ /LTCG \
  /SUBSYSTEM:NATIVE \
  /ENTRY:KernelEntry \
  /IGNORE:4210 \
@@ -79,6 +97,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
  /O2 \
+ /GL \
  /MT \
  "
 )

@@ -5,19 +5,18 @@
 #pragma once
 
 #include "..\types.h"
-#include "..\util\util.h"
 
 
 using KIRQL = UCHAR;
 using KPROCESSOR_MODE = CCHAR;
 
-enum class MODE : int {
+enum MODE {
     KernelMode,
     UserMode,
     MaximumMode
 };
 
-enum class KOBJECTS : int {
+enum KOBJECTS {
     EventNotificationObject = 0,
     EventSynchronizationObject = 1,
     MutantObject = 2,
@@ -45,7 +44,7 @@ enum class KOBJECTS : int {
 };
 
 struct KAPC_STATE {
-    LIST_ENTRY ApcListHead[to_underlying(MODE::MaximumMode)];
+    LIST_ENTRY ApcListHead[MaximumMode];
     struct KPROCESS *Process;
     BOOLEAN KernelApcInProgress;
     BOOLEAN KernelApcPending;
@@ -133,7 +132,7 @@ struct KTHREAD {
     PVOID KernelStack;
     PVOID TlsData;
     UCHAR State;
-    BOOLEAN Alerted[to_underlying(MODE::MaximumMode)];
+    BOOLEAN Alerted[MaximumMode];
     BOOLEAN Alertable;
     UCHAR NpxState;
     CHAR Saturation;
