@@ -50,6 +50,7 @@ const KGDT KiGdt[] = {
 };
 
 const KIDT KiIdt[] = {
+	// These are the exception handlers, as specified in the x86 architecture
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap0 & 0x0000FFFF) | (((uint64_t)&KiTrap0 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap1 & 0x0000FFFF) | (((uint64_t)&KiTrap1 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap2 & 0x0000FFFF) | (((uint64_t)&KiTrap2 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
@@ -81,9 +82,46 @@ const KIDT KiIdt[] = {
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
-	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32)
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
+
+	// The following 16 vectors can be used internally by the kernel (if the need arises)
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+
+	// The following 16 vectors are used for hw interrupts. They need to be connected first with KeConnectInterrupt
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0
 };
 
+static_assert((KiIdtLimit + 1) / sizeof(KIDT) == 64);
 
 void InitializeCrt()
 {
@@ -118,15 +156,25 @@ void KiInitializeKernel()
 
 	KiPcr.NtTib.ExceptionList = EXCEPTION_CHAIN_END;
 	KiPcr.NtTib.StackLimit = KiIdleThreadStack;
-	KiPcr.NtTib.StackBase = KiIdleThreadStack + KERNEL_STACK_SIZE - KiFxAreaSize;
+	KiPcr.NtTib.StackBase = KiIdleThreadStack + KERNEL_STACK_SIZE;
+	KiPcr.NtTib.Self = &KiPcr.NtTib;
 	KiPcr.PrcbData.CurrentThread = &KiIdleThread;
-
-	KiIdleThread.NpxState = NPX_STATE_NOT_LOADED;
-	KiIdleThread.StackLimit = KiPcr.NtTib.StackLimit;
-	KiIdleThread.StackBase = static_cast<uint8_t *>(KiPcr.NtTib.StackBase) + KiFxAreaSize;
 
 	InitializeListHead(&KiPcr.Prcb->DpcListHead);
 	KiPcr.Prcb->DpcRoutineActive = FALSE;
 
 	KiInitSystem();
+
+	KiInitializeProcess(&KiIdleProcess, 0, 127);
+	KiInitializeProcess(&KiUniqueProcess, NORMAL_BASE_PRIORITY, THREAD_QUANTUM);
+
+	KeInitializeThread(&KiIdleThread, KiIdleThreadStack + KERNEL_STACK_SIZE,
+		KERNEL_STACK_SIZE, 0, nullptr, nullptr, nullptr, &KiIdleProcess);
+
+	KiIdleThread.Priority = HIGH_PRIORITY;
+	KiIdleThread.State = Running;
+	KiIdleThread.WaitIrql = DISPATCH_LEVEL;
+
+	KiPcr.Prcb->NextThread = nullptr;
+	KiPcr.Prcb->IdleThread = &KiIdleThread;
 }

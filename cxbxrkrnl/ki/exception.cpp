@@ -9,7 +9,7 @@
 // These should probably call KeBugCheck in the future
 
 // Divide Error
-void __declspec(naked) KiTrap0()
+void __declspec(naked) XBOXAPI KiTrap0()
 {
 	__asm {
 		cli
@@ -18,7 +18,7 @@ void __declspec(naked) KiTrap0()
 }
 
 // Debug breakpoint
-void __declspec(naked) KiTrap1()
+void __declspec(naked) XBOXAPI KiTrap1()
 {
 	__asm {
 		cli
@@ -27,7 +27,7 @@ void __declspec(naked) KiTrap1()
 }
 
 // NMI interrupt
-void __declspec(naked) KiTrap2()
+void __declspec(naked) XBOXAPI KiTrap2()
 {
 	__asm {
 		cli
@@ -36,7 +36,7 @@ void __declspec(naked) KiTrap2()
 }
 
 // Breakpoint (int 3)
-void __declspec(naked) KiTrap3()
+void __declspec(naked) XBOXAPI KiTrap3()
 {
 	__asm {
 		cli
@@ -45,7 +45,7 @@ void __declspec(naked) KiTrap3()
 }
 
 // Overflow (int O)
-void __declspec(naked) KiTrap4()
+void __declspec(naked) XBOXAPI KiTrap4()
 {
 	__asm {
 		cli
@@ -54,7 +54,7 @@ void __declspec(naked) KiTrap4()
 }
 
 // Bound range exceeded
-void __declspec(naked) KiTrap5()
+void __declspec(naked) XBOXAPI KiTrap5()
 {
 	__asm {
 		cli
@@ -63,7 +63,7 @@ void __declspec(naked) KiTrap5()
 }
 
 // Invalid opcode
-void __declspec(naked) KiTrap6()
+void __declspec(naked) XBOXAPI KiTrap6()
 {
 	__asm {
 		cli
@@ -72,7 +72,7 @@ void __declspec(naked) KiTrap6()
 }
 
 // No math coprocessor
-void __declspec(naked) KiTrap7()
+void __declspec(naked) XBOXAPI KiTrap7()
 {
 	__asm {
 		cli
@@ -81,7 +81,7 @@ void __declspec(naked) KiTrap7()
 }
 
 // Double fault
-void __declspec(naked) KiTrap8()
+void __declspec(naked) XBOXAPI KiTrap8()
 {
 	__asm {
 		cli
@@ -90,7 +90,7 @@ void __declspec(naked) KiTrap8()
 }
 
 // Invalid tss
-void __declspec(naked) KiTrap10()
+void __declspec(naked) XBOXAPI KiTrap10()
 {
 	__asm {
 		cli
@@ -99,7 +99,7 @@ void __declspec(naked) KiTrap10()
 }
 
 // Segment not present
-void __declspec(naked) KiTrap11()
+void __declspec(naked) XBOXAPI KiTrap11()
 {
 	__asm {
 		cli
@@ -108,7 +108,7 @@ void __declspec(naked) KiTrap11()
 }
 
 // Stack-segment fault
-void __declspec(naked) KiTrap12()
+void __declspec(naked) XBOXAPI KiTrap12()
 {
 	__asm {
 		cli
@@ -117,7 +117,7 @@ void __declspec(naked) KiTrap12()
 }
 
 // General protection
-void __declspec(naked) KiTrap13()
+void __declspec(naked) XBOXAPI KiTrap13()
 {
 	__asm {
 		cli
@@ -126,7 +126,7 @@ void __declspec(naked) KiTrap13()
 }
 
 // Page fault
-void __declspec(naked) KiTrap14()
+void __declspec(naked) XBOXAPI KiTrap14()
 {
 	__asm {
 		cli
@@ -135,7 +135,7 @@ void __declspec(naked) KiTrap14()
 }
 
 // Math fault
-void __declspec(naked) KiTrap16()
+void __declspec(naked) XBOXAPI KiTrap16()
 {
 	__asm {
 		cli
@@ -144,7 +144,7 @@ void __declspec(naked) KiTrap16()
 }
 
 // Alignment check
-void __declspec(naked) KiTrap17()
+void __declspec(naked) XBOXAPI KiTrap17()
 {
 	__asm {
 		cli
@@ -153,7 +153,7 @@ void __declspec(naked) KiTrap17()
 }
 
 // Machine check
-void __declspec(naked) KiTrap18()
+void __declspec(naked) XBOXAPI KiTrap18()
 {
 	__asm {
 		cli
@@ -162,7 +162,7 @@ void __declspec(naked) KiTrap18()
 }
 
 // SIMD floating-point exception
-void __declspec(naked) KiTrap19()
+void __declspec(naked) XBOXAPI KiTrap19()
 {
 	__asm {
 		cli
@@ -171,7 +171,7 @@ void __declspec(naked) KiTrap19()
 }
 
 // Used to catch any intel-reserved exception
-void __declspec(naked) KiUnexpectedInterrupt()
+void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 {
 	__asm {
 		cli

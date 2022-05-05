@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "ke\bug_codes.h"
 
 #define TRUE 1
 #define FALSE 0
@@ -42,6 +43,7 @@ using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
 using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
+using KPRIORITY = LONG;
 
 #include "ntstatus.h"
 

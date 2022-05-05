@@ -7,7 +7,9 @@
 #include "..\kernel.h"
 
 
-KPCR KiPcr;
+KPCR KiPcr = { 0 };
+KPROCESS KiUniqueProcess = { 0 };
+KPROCESS KiIdleProcess = { 0 };
 
 
 void KiInitSystem()
@@ -20,4 +22,12 @@ void KiInitSystem()
 		KiTimerTableListHead[i].Time.u.HighPart = 0xFFFFFFFF;
 		KiTimerTableListHead[i].Time.u.LowPart = 0;
 	}
+}
+
+VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum)
+{
+	InitializeListHead(&Process->ReadyListHead);
+	InitializeListHead(&Process->ThreadListHead);
+	Process->BasePriority = BasePriority;
+	Process->ThreadQuantum = ThreadQuantum;
 }

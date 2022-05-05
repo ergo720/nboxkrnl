@@ -6,6 +6,17 @@
 
 #include "..\types.h"
 
+#define THREAD_QUANTUM 60
+#define NORMAL_BASE_PRIORITY 8
+#define HIGH_PRIORITY 31
+
+#define HIGH_LEVEL 31
+#define DISPATCH_LEVEL 2
+#define APC_LEVEL 1
+#define PASSIVE_LEVEL 0
+
+#define IDT_INT_VECTOR_BASE 0x30
+
 
 using KIRQL = UCHAR;
 using KPROCESSOR_MODE = CCHAR;
@@ -41,6 +52,26 @@ enum KOBJECTS {
     EventPairObject,
     InterruptObject,
     ProfileObject
+};
+
+enum TIMER_TYPE {
+    NotificationTimer,
+    SynchronizationTimer
+};
+
+enum WAIT_TYPE {
+    WaitAll,
+    WaitAny
+};
+
+enum KTHREAD_STATE {
+    Initialized,
+    Ready,
+    Running,
+    Standby,
+    Terminated,
+    Waiting,
+    Transition
 };
 
 struct KAPC_STATE {
@@ -99,6 +130,15 @@ using PKRUNDOWN_ROUTINE = VOID(XBOXAPI *)(
     struct KAPC *Apc
     );
 
+using PKSTART_ROUTINE = VOID(XBOXAPI *)(
+    VOID *StartContext
+    );
+
+using PKSYSTEM_ROUTINE = VOID(XBOXAPI *)(
+    PKSTART_ROUTINE StartRoutine,
+    VOID *StartContext
+    );
+
 struct KAPC {
     CSHORT Type;
     CSHORT Size;
@@ -122,6 +162,20 @@ struct KSEMAPHORE {
     LONG Limit;
 };
 using PKSEMAPHORE = KSEMAPHORE *;
+
+struct KSTART_FRAME {
+    PKSYSTEM_ROUTINE SystemRoutine;
+    PKSTART_ROUTINE StartRoutine;
+    PVOID StartContext;
+};
+using PKSTART_FRAME = KSTART_FRAME *;
+
+struct KSWITCHFRAME {
+    PVOID ExceptionList;
+    DWORD Eflags;
+    PVOID RetAddr;
+};
+using PKSWITCHFRAME = KSWITCHFRAME *;
 
 struct KTHREAD {
     DISPATCHER_HEADER Header;
@@ -166,7 +220,18 @@ struct KTHREAD {
     KSEMAPHORE SuspendSemaphore;
     LIST_ENTRY ThreadListEntry;
 };
-using PKTREAD = KTHREAD *;
+using PKTHREAD = KTHREAD *;
+
+struct KPROCESS {
+    LIST_ENTRY ReadyListHead;
+    LIST_ENTRY ThreadListHead;
+    ULONG StackCount;
+    LONG ThreadQuantum;
+    SCHAR BasePriority;
+    BOOLEAN DisableBoost;
+    BOOLEAN DisableQuantum;
+};
+using PKPROCESS = KPROCESS *;
 
 using PKDEFERRED_ROUTINE = VOID(XBOXAPI *)(
     struct KDPC *Dpc,
@@ -207,6 +272,17 @@ EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
     ULONG_PTR BugCheckParameter4
 );
 
+EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
+(
+    PKAPC Apc,
+    PKTHREAD Thread,
+    PKKERNEL_ROUTINE KernelRoutine,
+    PKRUNDOWN_ROUTINE RundownRoutine,
+    PKNORMAL_ROUTINE NormalRoutine,
+    KPROCESSOR_MODE ApcMode,
+    PVOID NormalContext
+);
+
 EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
 (
     PKDPC Dpc,
@@ -214,8 +290,35 @@ EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
     PVOID DeferredContext
 );
 
+EXPORTNUM(112) VOID XBOXAPI KeInitializeSemaphore
+(
+    PKSEMAPHORE Semaphore,
+    LONG Count,
+    LONG Limit
+);
+
+EXPORTNUM(113) VOID XBOXAPI KeInitializeTimerEx
+(
+    PKTIMER Timer,
+    TIMER_TYPE Type
+);
+
+EXPORTNUM(129) KIRQL XBOXAPI KeRaiseIrqlToDpcLevel();
+
 EXPORTNUM(156) extern volatile DWORD KeTickCount;
+
+EXPORTNUM(161) VOID FASTCALL KfLowerIrql
+(
+    KIRQL NewIrql
+);
 
 #ifdef __cplusplus
 }
 #endif
+
+VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
+VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument);
+VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSize, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine,
+    PVOID StartContext, PKPROCESS Process);
+
+VOID XBOXAPI KeInitializeTimer(PKTIMER Timer);

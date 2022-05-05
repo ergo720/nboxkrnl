@@ -117,40 +117,38 @@ inline KDPC KiTimerExpireDpc;
 extern KPCR KiPcr;
 extern KTSS KiTss;
 extern const KGDT KiGdt[5];
-extern const KIDT KiIdt[32];
+extern const KIDT KiIdt[64];
 inline constexpr uint16_t KiGdtLimit = sizeof(KiGdt) - 1;
 inline constexpr uint16_t KiIdtLimit = sizeof(KiIdt) - 1;
 inline constexpr size_t KiFxAreaSize = sizeof(FX_SAVE_AREA);
+extern KPROCESS KiUniqueProcess;
+extern KPROCESS KiIdleProcess;
 
 
 void InitializeCrt();
 void KiInitializeKernel();
 void KiInitSystem();
 
-void KiTrap0();
-void KiTrap1();
-void KiTrap2();
-void KiTrap3();
-void KiTrap4();
-void KiTrap5();
-void KiTrap6();
-void KiTrap7();
-void KiTrap8();
-void KiTrap10();
-void KiTrap11();
-void KiTrap12();
-void KiTrap13();
-void KiTrap14();
-void KiTrap16();
-void KiTrap17();
-void KiTrap18();
-void KiTrap19();
-void KiUnexpectedInterrupt();
+VOID XBOXAPI KiTrap0();
+VOID XBOXAPI KiTrap1();
+VOID XBOXAPI KiTrap2();
+VOID XBOXAPI KiTrap3();
+VOID XBOXAPI KiTrap4();
+VOID XBOXAPI KiTrap5();
+VOID XBOXAPI KiTrap6();
+VOID XBOXAPI KiTrap7();
+VOID XBOXAPI KiTrap8();
+VOID XBOXAPI KiTrap10();
+VOID XBOXAPI KiTrap11();
+VOID XBOXAPI KiTrap12();
+VOID XBOXAPI KiTrap13();
+VOID XBOXAPI KiTrap14();
+VOID XBOXAPI KiTrap16();
+VOID XBOXAPI KiTrap17();
+VOID XBOXAPI KiTrap18();
+VOID XBOXAPI KiTrap19();
+VOID XBOXAPI KiUnexpectedInterrupt();
 
-VOID XBOXAPI KiTimerExpiration
-(
-    PKDPC Dpc,
-    PVOID DeferredContext,
-    PVOID SystemArgument1,
-    PVOID SystemArgument2
-);
+VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
+
+VOID XBOXAPI KiTimerExpiration(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);

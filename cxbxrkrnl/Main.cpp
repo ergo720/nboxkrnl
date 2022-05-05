@@ -4,7 +4,6 @@
 
 
 #include "ki\ki.h"
-#include "ke\bug_codes.h"
 
 
 [[noreturn]] void KernelEntry()
@@ -18,7 +17,7 @@
 
 		// Use the global KiIdleThreadStack as the stack of the startup thread
 		xor ebp, ebp
-		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - SIZE FX_SAVE_AREA
+		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)
 
 		// Initialize the CRT of the kernel executable
 		call InitializeCrt
@@ -57,5 +56,5 @@
 	KiInitializeKernel();
 
 	// We should never return from the entry point
-	KeBugCheck(BUG_KI_INIT);
+	KeBugCheck(INIT_FAILURE);
 }
