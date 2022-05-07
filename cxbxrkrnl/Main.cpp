@@ -9,12 +9,9 @@
 [[noreturn]] void KernelEntry()
 {
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
-	// protected mode and paging on, cpl=0, stack=valid
+	// protected mode and paging=on; cpl=0; stack=valid; interrupts=off
 
 	__asm {
-		// Disable interrupts
-		cli
-
 		// Use the global KiIdleThreadStack as the stack of the startup thread
 		xor ebp, ebp
 		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)
@@ -23,6 +20,7 @@
 		call InitializeCrt
 
 		// Load the GDT from the hardcoded KiGdt
+		sub esp, 8
 		mov ax, KiGdtLimit
 		mov WORD PTR [esp], ax
 		mov DWORD PTR [esp + 2], offset KiGdt

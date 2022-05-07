@@ -107,7 +107,8 @@ using PKTIMER_TABLE_ENTRY = KTIMER_TABLE_ENTRY *;
 
 
 inline KTHREAD KiIdleThread;
-inline uint8_t KiIdleThreadStack[KERNEL_STACK_SIZE];
+inline uint8_t alignas(4) KiIdleThreadStack[KERNEL_STACK_SIZE];
+
 inline LIST_ENTRY KiWaitInListHead;
 
 inline KTIMER_TABLE_ENTRY KiTimerTableListHead[TIMER_TABLE_SIZE];

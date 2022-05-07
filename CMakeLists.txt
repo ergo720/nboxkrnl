@@ -31,6 +31,7 @@ add_compile_options(
  /GS-
  /GR-
  /sdl-
+ /X
  /Zc:preprocessor
  /kernel
  /wd4731

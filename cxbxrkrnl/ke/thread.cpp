@@ -29,7 +29,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 
 	StackAddress -= sizeof(FX_SAVE_AREA);
 	PFX_SAVE_AREA FxSaveArea = reinterpret_cast<PFX_SAVE_AREA>(StackAddress);
-	memset_(FxSaveArea, 0, sizeof(FX_SAVE_AREA));
+	memset(FxSaveArea, 0, sizeof(FX_SAVE_AREA));
 
 	FxSaveArea->FloatSave.ControlWord = 0x27F;
 	FxSaveArea->FloatSave.MXCsr = 0x1F80;
@@ -40,7 +40,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 	StackAddress -= TlsDataSize;
 	if (TlsDataSize) {
 		Thread->TlsData = reinterpret_cast<PVOID>(StackAddress);
-		memset_(Thread->TlsData, 0, TlsDataSize);
+		memset(Thread->TlsData, 0, TlsDataSize);
 	}
 	else {
 		Thread->TlsData = nullptr;
