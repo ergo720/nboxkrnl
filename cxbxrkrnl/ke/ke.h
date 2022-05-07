@@ -261,12 +261,12 @@ using PKDPC = KDPC *;
 extern "C" {
 #endif
 
-EXPORTNUM(95) VOID XBOXAPI KeBugCheck
+EXPORTNUM(95) DLLEXPORT VOID XBOXAPI KeBugCheck
 (
     ULONG BugCheckCode
 );
 
-EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
+EXPORTNUM(96) DLLEXPORT VOID XBOXAPI KeBugCheckEx
 (
     ULONG BugCheckCode,
     ULONG_PTR BugCheckParameter1,
@@ -275,7 +275,7 @@ EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
     ULONG_PTR BugCheckParameter4
 );
 
-EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
+EXPORTNUM(105) DLLEXPORT VOID XBOXAPI KeInitializeApc
 (
     PKAPC Apc,
     PKTHREAD Thread,
@@ -286,36 +286,36 @@ EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
     PVOID NormalContext
 );
 
-EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
+EXPORTNUM(107) DLLEXPORT VOID XBOXAPI KeInitializeDpc
 (
     PKDPC Dpc,
     PKDEFERRED_ROUTINE DeferredRoutine,
     PVOID DeferredContext
 );
 
-EXPORTNUM(112) VOID XBOXAPI KeInitializeSemaphore
+EXPORTNUM(112) DLLEXPORT VOID XBOXAPI KeInitializeSemaphore
 (
     PKSEMAPHORE Semaphore,
     LONG Count,
     LONG Limit
 );
 
-EXPORTNUM(113) VOID XBOXAPI KeInitializeTimerEx
+EXPORTNUM(113) DLLEXPORT VOID XBOXAPI KeInitializeTimerEx
 (
     PKTIMER Timer,
     TIMER_TYPE Type
 );
 
-EXPORTNUM(129) KIRQL XBOXAPI KeRaiseIrqlToDpcLevel();
+EXPORTNUM(129) DLLEXPORT KIRQL XBOXAPI KeRaiseIrqlToDpcLevel();
 
-EXPORTNUM(156) extern volatile DWORD KeTickCount;
+EXPORTNUM(156) DLLEXPORT extern volatile DWORD KeTickCount;
 
-EXPORTNUM(161) VOID FASTCALL KfLowerIrql
+EXPORTNUM(161) DLLEXPORT VOID FASTCALL KfLowerIrql
 (
     KIRQL NewIrql
 );
 
-EXPORTNUM(321) extern XBOX_KEY_DATA XboxEEPROMKey;
+EXPORTNUM(321) DLLEXPORT extern XBOX_KEY_DATA XboxEEPROMKey;
 
 #ifdef __cplusplus
 }

@@ -20,6 +20,7 @@
 #define CDECL    __cdecl
 
 #define EXPORTNUM(n)
+#define DLLEXPORT __declspec(dllexport)
 
 
 using VOID = void;

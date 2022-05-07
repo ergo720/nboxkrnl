@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-EXPORTNUM(8) ULONG CDECL DbgPrint
+EXPORTNUM(8) DLLEXPORT ULONG CDECL DbgPrint
 (
 	const CHAR *Format,
 	...
