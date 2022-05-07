@@ -3,6 +3,7 @@
  */
 
 #include "ex.h"
+#include "..\ke\ke.h"
 
 
 EXPORTNUM(51) LONG FASTCALL InterlockedCompareExchange
@@ -29,3 +30,5 @@ EXPORTNUM(54) LONG FASTCALL InterlockedExchange
 		xchg [ecx], eax
 	}
 }
+
+EXPORTNUM(321) XBOX_KEY_DATA XboxEEPROMKey;

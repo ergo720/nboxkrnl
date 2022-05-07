@@ -6,6 +6,8 @@
 
 #include "..\types.h"
 
+#define XBOX_KEY_LENGTH 16
+
 #define THREAD_QUANTUM 60
 #define NORMAL_BASE_PRIORITY 8
 #define HIGH_PRIORITY 31
@@ -20,6 +22,7 @@
 
 using KIRQL = UCHAR;
 using KPROCESSOR_MODE = CCHAR;
+using XBOX_KEY_DATA = uint8_t[XBOX_KEY_LENGTH];
 
 enum MODE {
     KernelMode,
@@ -312,9 +315,13 @@ EXPORTNUM(161) VOID FASTCALL KfLowerIrql
     KIRQL NewIrql
 );
 
+EXPORTNUM(321) extern XBOX_KEY_DATA XboxEEPROMKey;
+
 #ifdef __cplusplus
 }
 #endif
+
+extern XBOX_KEY_DATA XboxCERTKey;
 
 VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
 VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument);

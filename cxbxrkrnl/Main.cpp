@@ -6,12 +6,21 @@
 #include "ki\ki.h"
 
 
-[[noreturn]] void KernelEntry()
+[[noreturn]] __declspec(naked) VOID KernelEntry()
 {
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
-	// protected mode and paging=on; cpl=0; stack=valid; interrupts=off
+	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0
 
 	__asm {
+		// Load the eeprom and certificate keys. The host should have passed them in the stack
+		mov esi, esp
+		mov edi, offset XboxEEPROMKey
+		mov ecx, 4
+		rep movsd
+		mov edi, offset XboxCERTKey
+		mov ecx, 4
+		rep movsd
+
 		// Use the global KiIdleThreadStack as the stack of the startup thread
 		xor ebp, ebp
 		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)

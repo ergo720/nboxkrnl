@@ -75,6 +75,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/semaphore.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/thread.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/xe/xe.cpp"
 )
 
 source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
