@@ -3,6 +3,7 @@
  */
 
 #include "ki.h"
+#include "..\mm\mm.h"
 #include "..\kernel.h"
 #include <string.h>
 
@@ -177,4 +178,6 @@ void KiInitializeKernel()
 
 	KiPcr.Prcb->NextThread = nullptr;
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
+
+	MmInitSystem();
 }

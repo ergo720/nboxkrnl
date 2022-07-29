@@ -6,9 +6,7 @@
 
 #include "..\types.h"
 #include "..\ke\ke.h"
-
-#define KERNEL_STACK_SIZE 12288
-#define KERNEL_BASE 0x80010000
+#include "..\kernel.h"
 
 #define EXCEPTION_CHAIN_END reinterpret_cast<struct EXCEPTION_REGISTRATION_RECORD *>(0xFFFFFFFF)
 

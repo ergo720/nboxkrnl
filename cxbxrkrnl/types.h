@@ -30,7 +30,6 @@ using UCHAR = unsigned char;
 using CHAR = char;
 using SCHAR = CHAR;
 using CCHAR = CHAR;
-using PCHAR = CHAR *;
 using BOOLEAN = uint8_t;
 using USHORT = uint16_t;
 using CSHORT = int16_t;
@@ -38,10 +37,15 @@ using WORD = uint16_t;
 using DWORD = uint32_t;
 using ULONG = uint32_t;
 using LONG = int32_t;
+using ULONGLONG = uint64_t;
+using PCHAR = CHAR *;
+using PULONG = ULONG *;
+using PUCHAR = UCHAR *;
 using PLONG = LONG *;
 using ULONG_PTR = uintptr_t;
 using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
+using SIZE_T = ULONG_PTR;
 using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
 using KPRIORITY = LONG;
@@ -53,6 +57,23 @@ struct LIST_ENTRY {
 	LIST_ENTRY *Blink;
 };
 using PLIST_ENTRY = LIST_ENTRY *;
+
+struct SINGLE_LIST_ENTRY {
+    struct _SINGLE_LIST_ENTRY *Next;
+};
+using SLIST_ENTRY = SINGLE_LIST_ENTRY;
+using PSINGLE_LIST_ENTRY = SINGLE_LIST_ENTRY *;
+using PSLIST_ENTRY = SLIST_ENTRY *;
+
+union SLIST_HEADER {
+    ULONGLONG Alignment;
+    struct {
+        SINGLE_LIST_ENTRY Next;
+        USHORT Depth;
+        USHORT Sequence;
+    };
+};
+using PSLIST_HEADER = SLIST_HEADER *;
 
 struct DISPATCHER_HEADER {
     UCHAR Type;

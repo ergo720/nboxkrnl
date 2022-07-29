@@ -261,12 +261,12 @@ using PKDPC = KDPC *;
 extern "C" {
 #endif
 
-EXPORTNUM(95) DLLEXPORT VOID XBOXAPI KeBugCheck
+[[noreturn]] EXPORTNUM(95) DLLEXPORT VOID XBOXAPI KeBugCheck
 (
     ULONG BugCheckCode
 );
 
-EXPORTNUM(96) DLLEXPORT VOID XBOXAPI KeBugCheckEx
+[[noreturn]] EXPORTNUM(96) DLLEXPORT VOID XBOXAPI KeBugCheckEx
 (
     ULONG BugCheckCode,
     ULONG_PTR BugCheckParameter1,

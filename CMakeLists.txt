@@ -57,6 +57,7 @@ file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.h"
 )
 
@@ -72,9 +73,12 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/apc.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/semaphore.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/thread.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/xe/xe.cpp"
 )
 

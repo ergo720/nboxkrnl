@@ -36,7 +36,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 
 	Thread->NpxState = NPX_STATE_NOT_LOADED;
 
-	TlsDataSize = ALIGN_UP(TlsDataSize, ULONG);
+	TlsDataSize = ROUND_UP(TlsDataSize, 4);
 	StackAddress -= TlsDataSize;
 	if (TlsDataSize) {
 		Thread->TlsData = reinterpret_cast<PVOID>(StackAddress);

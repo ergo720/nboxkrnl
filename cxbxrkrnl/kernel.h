@@ -8,18 +8,27 @@
 #include "types.h"
 
 
-void inline InitializeListHead(PLIST_ENTRY pListHead)
-{
-	pListHead->Flink = pListHead->Blink = pListHead;
-}
+// We use i/o instructions to communicate with the host that's running us
+// The list of i/o ports used on the xbox is at https://xboxdevwiki.net/Memory, so avoid using one of those
 
-void inline InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
-{
-	PLIST_ENTRY _EX_ListHead = pListHead;
-	PLIST_ENTRY _EX_Blink = _EX_ListHead->Blink;
+// Output debug strings to the host
+#define DBG_OUTPUT_STR_PORT 0x0200
+// Get the system type that we should use
+#define KE_SYSTEM_TYPE 0x0204
 
-	pEntry->Flink = _EX_ListHead;
-	pEntry->Blink = _EX_Blink;
-	_EX_Blink->Flink = pEntry;
-	_EX_ListHead->Blink = pEntry;
-}
+#define KERNEL_STACK_SIZE 12288
+#define KERNEL_BASE 0x80010000
+
+enum SystemType {
+	SYSTEM_XBOX,
+	SYSTEM_CHIHIRO,
+	SYSTEM_DEVKIT
+};
+
+
+VOID FASTCALL OutputToHost(ULONG Value, USHORT Port);
+ULONG FASTCALL InputFromHost(USHORT Port);
+
+VOID InitializeListHead(PLIST_ENTRY pListHead);
+VOID InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry);
+VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry);
