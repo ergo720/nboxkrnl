@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(cxbxrkrnl)
 
-set(CMAKE_SUPPRESS_REGENERATION true)
-
 if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${cxbxrkrnl_BINARY_DIR}/bin")
  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -73,7 +71,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/apc.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/kernel.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/semaphore.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/thread.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
