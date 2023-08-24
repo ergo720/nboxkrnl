@@ -31,10 +31,9 @@ add_compile_options(
  /sdl-
  /X
  /Zc:preprocessor
- /kernel
  /wd4731
  /wd26812
- /arch:IA32
+ /arch:SSE
 )
 
 include_directories(
