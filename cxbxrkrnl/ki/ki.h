@@ -53,6 +53,24 @@ using PFX_SAVE_AREA = FX_SAVE_AREA *;
 // must be 16-bytes aligned
 static_assert(alignof(FX_SAVE_AREA) == 16);
 
+struct CONTEXT {
+    DWORD ContextFlags;
+    FLOATING_SAVE_AREA FloatSave;
+    DWORD Edi;
+    DWORD Esi;
+    DWORD Ebx;
+    DWORD Edx;
+    DWORD Ecx;
+    DWORD Eax;
+    DWORD Ebp;
+    DWORD Eip;
+    DWORD SegCs;
+    DWORD EFlags;
+    DWORD Esp;
+    DWORD SegSs;
+};
+using PCONTEXT = CONTEXT *;
+
 struct KPRCB {
     struct KTHREAD *CurrentThread;
     struct KTHREAD *NextThread;

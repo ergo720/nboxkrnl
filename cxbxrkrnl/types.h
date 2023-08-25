@@ -4,10 +4,6 @@
 
 #pragma once
 
-#ifndef _HAS_EXCEPTIONS
-#define _HAS_EXCEPTIONS 0
-#endif
-
 #include <stdint.h>
 #include <stddef.h>
 #include "ke\bug_codes.h"

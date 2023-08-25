@@ -23,6 +23,7 @@ add_subdirectory("${CXBXRKRNL_ROOT_DIR}/import/pdclib")
 add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
+ _HAS_EXCEPTIONS=0
 )
 
 add_compile_options(
@@ -32,6 +33,7 @@ add_compile_options(
  /X
  /Zc:preprocessor
  /wd4731
+ /wd4733
  /wd26812
  /arch:SSE
 )
@@ -54,6 +56,7 @@ file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.h"
 )
@@ -67,6 +70,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/exception.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/apc.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
@@ -106,6 +110,7 @@ set_target_properties(cxbxrkrnl PROPERTIES
  /SUBSYSTEM:NATIVE \
  /ENTRY:KernelEntry \
  /IGNORE:4210 \
+ /SAFESEH:NO \
  "
 )
 
