@@ -13,7 +13,7 @@ extern "C" int _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_RE
 	return 0;
 }
 
-// Check https://reactos-blog.blogspot.com/2009/08/inside-mind-of-reactos-developer.html for information about __SEH_prolog
+// Check https://reactos-blog.blogspot.com/2009/08/inside-mind-of-reactos-developer.html for information about __SEH_prolog / __SEH_epilog
 
 __declspec(naked) VOID __SEH_prolog()
 {
@@ -36,6 +36,22 @@ __declspec(naked) VOID __SEH_prolog()
 		mov DWORD PTR [ebp - 4], -1
 		lea eax, DWORD PTR [ebp - 16]
 		mov DWORD PTR fs:[0], eax
+		ret
+	}
+}
+
+__declspec(naked) VOID __SEH_epilog()
+{
+	__asm {
+		mov ecx, DWORD PTR [ebp - 16]
+		mov DWORD PTR fs:[0], ecx
+		pop ecx
+		pop edi
+		pop esi
+		pop ebx
+		mov esp, ebp
+		pop ebp
+		push ecx
 		ret
 	}
 }

@@ -38,10 +38,18 @@ struct EXCEPTION_REGISTRATION_SEH : EXCEPTION_REGISTRATION_RECORD {
 };
 
 VOID __SEH_prolog();
+VOID __SEH_epilog();
 
-// NOTE: every function invoking SEH_Create must use __declspec(naked), or else the prologue emitted by the compiler will break the call to __SEH_prolog
+// NOTE1: every function invoking SEH_Create must use __declspec(naked), or else the prologue emitted by the compiler will break the call to __SEH_prolog. Also, every
+// call to SEH_Create must have a corresponding call to SEH_Destroy used as the epilog of the function
+// NOTE2: StackUsedByArgs is the size, in bytes, of the stack used by the arguments of the function. This is used for stdcall and fastcall functions, since they must release
+// that number of bytes before returning. On the contrary, cdecl functions don't release them (the caller does), and so StackUsedByArgs must be zero instead
 
 #define SEH_Create(SEHTable) \
     __asm push __LOCAL_SIZE \
     __asm push offset SEHTable \
     __asm call offset __SEH_prolog
+
+#define SEH_Destroy(StackUsedByArgs) \
+    __asm call offset __SEH_epilog \
+    __asm ret StackUsedByArgs
