@@ -19,6 +19,8 @@
 
 #define IDT_INT_VECTOR_BASE 0x30
 
+#define KeGetPcr() (&KiPcr)
+
 
 using KIRQL = UCHAR;
 using KPROCESSOR_MODE = CCHAR;

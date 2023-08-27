@@ -12,6 +12,7 @@
 
 // cr0 flags
 #define CR0_TS (1 << 3) // task switched
+#define CR0_EM (1 << 2) // emulation
 #define CR0_MP (1 << 1) // monitor coprocessor
 
 #define SIZE_OF_FPU_REGISTERS        128
@@ -52,6 +53,12 @@ using PFX_SAVE_AREA = FX_SAVE_AREA *;
 // Sanity check: this struct is used to save the npx state with the fxsave instruction, and the Intel docs require that the buffer
 // must be 16-bytes aligned
 static_assert(alignof(FX_SAVE_AREA) == 16);
+
+#define CONTEXT_i386                0x00010000
+#define CONTEXT_CONTROL             (CONTEXT_i386 | 0x00000001L)
+#define CONTEXT_INTEGER             (CONTEXT_i386 | 0x00000002L)
+#define CONTEXT_FLOATING_POINT      (CONTEXT_i386 | 0x00000008L)
+#define CONTEXT_EXTENDED_REGISTERS  (CONTEXT_i386 | 0x00000020L)
 
 struct CONTEXT {
     DWORD ContextFlags;
@@ -134,7 +141,7 @@ inline KDPC KiTimerExpireDpc;
 extern KPCR KiPcr;
 extern KTSS KiTss;
 extern const KGDT KiGdt[5];
-extern const KIDT KiIdt[64];
+extern KIDT KiIdt[64];
 inline constexpr uint16_t KiGdtLimit = sizeof(KiGdt) - 1;
 inline constexpr uint16_t KiIdtLimit = sizeof(KiIdt) - 1;
 inline constexpr size_t KiFxAreaSize = sizeof(FX_SAVE_AREA);
@@ -145,26 +152,6 @@ extern KPROCESS KiIdleProcess;
 void InitializeCrt();
 void KiInitializeKernel();
 void KiInitSystem();
-
-VOID XBOXAPI KiTrap0();
-VOID XBOXAPI KiTrap1();
-VOID XBOXAPI KiTrap2();
-VOID XBOXAPI KiTrap3();
-VOID XBOXAPI KiTrap4();
-VOID XBOXAPI KiTrap5();
-VOID XBOXAPI KiTrap6();
-VOID XBOXAPI KiTrap7();
-VOID XBOXAPI KiTrap8();
-VOID XBOXAPI KiTrap10();
-VOID XBOXAPI KiTrap11();
-VOID XBOXAPI KiTrap12();
-VOID XBOXAPI KiTrap13();
-VOID XBOXAPI KiTrap14();
-VOID XBOXAPI KiTrap16();
-VOID XBOXAPI KiTrap17();
-VOID XBOXAPI KiTrap18();
-VOID XBOXAPI KiTrap19();
-VOID XBOXAPI KiUnexpectedInterrupt();
 
 VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
 

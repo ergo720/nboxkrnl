@@ -6,6 +6,7 @@
 
 #include "..\types.h"
 #include "..\ki\ki.h"
+#include "..\ki\hw_exp.h"
 
 
 // This is used to track sw/hw interrupts currently pending. First four are for sw interrupts,

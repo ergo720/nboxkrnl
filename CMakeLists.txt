@@ -55,10 +55,12 @@ file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/halp.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.h"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.h"
 )
 
 file (GLOB SOURCES
@@ -67,7 +69,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/interrupt.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/hal.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/exception.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.cpp"
@@ -80,6 +82,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/xe/xe.cpp"
 )
 

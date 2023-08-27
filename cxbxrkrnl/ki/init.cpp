@@ -3,6 +3,7 @@
  */
 
 #include "ki.h"
+#include "hw_exp.h"
 #include "..\mm\mm.h"
 #include "..\kernel.h"
 #include <string.h>
@@ -50,7 +51,7 @@ const KGDT KiGdt[] = {
 	(((uint64_t)&KiTss & 0x00FFFFFF) << 16) | (((uint64_t)&KiTss & 0xFF000000) << 32) | ((uint64_t)0x89 << 40) | ((uint64_t)0x67)
 };
 
-const KIDT KiIdt[] = {
+KIDT KiIdt[] = {
 	// These are the exception handlers, as specified in the x86 architecture
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap0 & 0x0000FFFF) | (((uint64_t)&KiTrap0 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiTrap1 & 0x0000FFFF) | (((uint64_t)&KiTrap1 & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
