@@ -31,8 +31,8 @@
 		// Load the GDT from the hardcoded KiGdt
 		sub esp, 8
 		mov ax, KiGdtLimit
-		mov WORD PTR [esp], ax
-		mov DWORD PTR [esp + 2], offset KiGdt
+		mov word ptr [esp], ax
+		mov dword ptr [esp + 2], offset KiGdt
 		lgdt [esp]
 
 		// Load the segment selectors
@@ -55,8 +55,8 @@
 
 		// Load the IDT from the hardcoded KiIdt
 		mov ax, KiIdtLimit
-		mov WORD PTR [esp], ax
-		mov DWORD PTR [esp + 2], offset KiIdt
+		mov word ptr [esp], ax
+		mov dword ptr [esp + 2], offset KiIdt
 		lidt [esp]
 	}
 

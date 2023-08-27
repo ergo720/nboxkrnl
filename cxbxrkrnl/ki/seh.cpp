@@ -52,10 +52,10 @@ extern "C" void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, i
 	nestedUnwindFrame.Handler = reinterpret_cast<void *>(_nested_unwind_handler);
 
 	__asm {
-		mov eax, DWORD PTR fs:[0]
-		mov DWORD PTR [nestedUnwindFrame].Prev, eax
+		mov eax, dword ptr fs:[0]
+		mov dword ptr [nestedUnwindFrame].Prev, eax
 		lea eax, nestedUnwindFrame
-		mov DWORD PTR fs:[0], eax
+		mov dword ptr fs:[0], eax
 	}
 
 	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
@@ -83,8 +83,8 @@ extern "C" void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, i
 
 	// Manually remove exception handler frame
 	__asm {
-		mov eax, DWORD PTR [nestedUnwindFrame].Prev
-		mov DWORD PTR fs:[0], eax
+		mov eax, dword ptr [nestedUnwindFrame].Prev
+		mov dword ptr fs:[0], eax
 	}
 }
 
@@ -170,23 +170,23 @@ __declspec(naked) VOID __SEH_prolog()
 {
 	__asm {
 		push offset _except_handler3
-		mov eax, DWORD PTR fs:[0]
+		mov eax, dword ptr fs:[0]
 		push eax
 		mov eax, [esp + 16]
-		mov DWORD PTR [esp + 16], ebp
+		mov dword ptr [esp + 16], ebp
 		lea ebp, [esp + 16]
 		sub esp, eax
 		push ebx
 		push esi
 		push edi
-		mov DWORD PTR [ebp - 24], esp
-		mov eax, DWORD PTR [ebp - 8]
+		mov dword ptr [ebp - 24], esp
+		mov eax, dword ptr [ebp - 8]
 		push eax
 		mov eax, [ebp - 4]
-		mov DWORD PTR [ebp - 8], eax
-		mov DWORD PTR [ebp - 4], TRYLEVEL_NONE
-		lea eax, DWORD PTR [ebp - 16]
-		mov DWORD PTR fs:[0], eax
+		mov dword ptr [ebp - 8], eax
+		mov dword ptr [ebp - 4], TRYLEVEL_NONE
+		lea eax, dword ptr [ebp - 16]
+		mov dword ptr fs:[0], eax
 		ret
 	}
 }
@@ -194,8 +194,8 @@ __declspec(naked) VOID __SEH_prolog()
 __declspec(naked) VOID __SEH_epilog()
 {
 	__asm {
-		mov ecx, DWORD PTR [ebp - 16]
-		mov DWORD PTR fs:[0], ecx
+		mov ecx, dword ptr [ebp - 16]
+		mov dword ptr fs:[0], ecx
 		pop ecx
 		pop edi
 		pop esi
