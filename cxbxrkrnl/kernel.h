@@ -14,7 +14,9 @@
 // Output debug strings to the host
 #define DBG_OUTPUT_STR_PORT 0x0200
 // Get the system type that we should use
-#define KE_SYSTEM_TYPE 0x0204
+#define KE_SYSTEM_TYPE 0x0201
+// Request an abort interrupt to terminate execution
+#define KE_ABORT 0x202
 
 #define KERNEL_STACK_SIZE 12288
 #define KERNEL_BASE 0x80010000

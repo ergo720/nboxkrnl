@@ -3,6 +3,7 @@
  */
 
 #include "ki.h"
+#include "..\hal\halp.h"
 
 
 // We don't expect any exceptions at the moment, so we will just abort if we do get them.
@@ -11,170 +12,113 @@
 // Divide Error
 void __declspec(naked) XBOXAPI KiTrap0()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Debug breakpoint
 void __declspec(naked) XBOXAPI KiTrap1()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // NMI interrupt
 void __declspec(naked) XBOXAPI KiTrap2()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Breakpoint (int 3)
 void __declspec(naked) XBOXAPI KiTrap3()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Overflow (int O)
 void __declspec(naked) XBOXAPI KiTrap4()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Bound range exceeded
 void __declspec(naked) XBOXAPI KiTrap5()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Invalid opcode
 void __declspec(naked) XBOXAPI KiTrap6()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // No math coprocessor
 void __declspec(naked) XBOXAPI KiTrap7()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Double fault
 void __declspec(naked) XBOXAPI KiTrap8()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Invalid tss
 void __declspec(naked) XBOXAPI KiTrap10()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Segment not present
 void __declspec(naked) XBOXAPI KiTrap11()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Stack-segment fault
 void __declspec(naked) XBOXAPI KiTrap12()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // General protection
 void __declspec(naked) XBOXAPI KiTrap13()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Page fault
 void __declspec(naked) XBOXAPI KiTrap14()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Math fault
 void __declspec(naked) XBOXAPI KiTrap16()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Alignment check
 void __declspec(naked) XBOXAPI KiTrap17()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Machine check
 void __declspec(naked) XBOXAPI KiTrap18()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // SIMD floating-point exception
 void __declspec(naked) XBOXAPI KiTrap19()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 // Used to catch any intel-reserved exception
 void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 {
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }

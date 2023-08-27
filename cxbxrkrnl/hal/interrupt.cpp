@@ -8,19 +8,13 @@
 VOID XBOXAPI HalpSwIntApc()
 {
 	// Apc interrupt not implemented yet
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 VOID XBOXAPI HalpSwIntDpc()
 {
 	// Dpc interrupt not implemented yet
-	__asm {
-		cli
-		hlt
-	}
+	HalpShutdownSystem();
 }
 
 VOID XBOXAPI HalpHwInt0()
