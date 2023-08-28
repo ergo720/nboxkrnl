@@ -3,8 +3,8 @@
  * cxbxr devs
  */
 
-#include "ki.h"
-#include "..\kernel.h"
+#include "ki.hpp"
+#include "..\kernel.hpp"
 
 
 KPCR KiPcr = { 0 };

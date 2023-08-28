@@ -2,7 +2,7 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "mi.h"
+#include "mi.hpp"
 
 
 VOID MiFlushEntireTlb()
