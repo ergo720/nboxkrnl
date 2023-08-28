@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "..\kernel.h"
+#include "..\kernel.hpp"
 
 
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)

@@ -2,7 +2,7 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "rtl.h"
+#include "rtl.hpp"
 
 BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
 {

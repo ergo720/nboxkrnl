@@ -3,7 +3,7 @@
  */
 
 
-#include "ki\ki.h"
+#include "ki\ki.hpp"
 
 
 [[noreturn]] __declspec(naked) VOID KernelEntry()

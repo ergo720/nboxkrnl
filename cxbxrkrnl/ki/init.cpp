@@ -2,10 +2,10 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "ki.h"
-#include "hw_exp.h"
-#include "..\mm\mm.h"
-#include "..\kernel.h"
+#include "ki.hpp"
+#include "hw_exp.hpp"
+#include "..\mm\mm.hpp"
+#include "..\kernel.hpp"
 #include <string.h>
 
 

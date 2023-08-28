@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\ki\ki.h"
-#include "..\ki\hw_exp.h"
+#include "..\ki\ki.hpp"
+#include "..\ki\hw_exp.hpp"
 
 
 BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord);

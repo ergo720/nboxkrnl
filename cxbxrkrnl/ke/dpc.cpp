@@ -3,7 +3,7 @@
  * cxbxr devs
  */
 
-#include "ke.h"
+#include "ke.hpp"
 
 
 EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc

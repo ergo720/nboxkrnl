@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "..\types.h"
+#include "..\types.hpp"
 
 #define XBOX_KEY_LENGTH 16
 

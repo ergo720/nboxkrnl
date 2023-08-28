@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\types.h"
-#include "ki.h"
+#include "..\types.hpp"
+#include "ki.hpp"
 
 #define EXCEPTION_NONCONTINUABLE  0x01
 #define EXCEPTION_UNWINDING       0x02

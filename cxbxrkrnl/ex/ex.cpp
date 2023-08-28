@@ -2,8 +2,8 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "ex.h"
-#include "..\ke\ke.h"
+#include "ex.hpp"
+#include "..\ke\ke.hpp"
 
 
 EXPORTNUM(51) LONG FASTCALL InterlockedCompareExchange

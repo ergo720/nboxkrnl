@@ -3,8 +3,8 @@
  * cxbxr devs
  */
 
-#include "..\ki\ki.h"
-#include "..\kernel.h"
+#include "..\ki\ki.hpp"
+#include "..\kernel.hpp"
 
 
 EXPORTNUM(156) volatile DWORD KeTickCount = 0;

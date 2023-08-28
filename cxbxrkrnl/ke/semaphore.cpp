@@ -3,8 +3,8 @@
  * cxbxr devs
  */
 
-#include "ke.h"
-#include "..\kernel.h"
+#include "ke.hpp"
+#include "..\kernel.hpp"
 
 
 EXPORTNUM(112) VOID XBOXAPI KeInitializeSemaphore

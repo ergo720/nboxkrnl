@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "..\types.h"
+#include "..\types.hpp"
 
 #define KiB(x) ((x) *    1024 ) // = 0x00000400
 #define MiB(x) ((x) * KiB(1024)) // = 0x00100000

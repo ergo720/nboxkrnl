@@ -3,11 +3,11 @@
  * cxbxr devs
  */
 
-#include "ke.h"
-#include "..\ki\ki.h"
-#include "..\kernel.h"
-#include "..\mm\mm.h"
-#include "..\hal\halp.h"
+#include "ke.hpp"
+#include "..\ki\ki.hpp"
+#include "..\kernel.hpp"
+#include "..\mm\mm.hpp"
+#include "..\hal\halp.hpp"
 #include <string.h>
 
 

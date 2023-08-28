@@ -2,10 +2,10 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "ki.h"
-#include "hw_exp.h"
-#include "..\hal\halp.h"
-#include "..\rtl\rtl.h"
+#include "ki.hpp"
+#include "hw_exp.hpp"
+#include "..\hal\halp.hpp"
+#include "..\rtl\rtl.hpp"
 #include <string.h>
 
 

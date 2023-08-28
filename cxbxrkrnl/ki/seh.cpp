@@ -4,7 +4,7 @@
  * Lucas Jansson          Copyright (c) 2021
  */
 
-#include "seh.h"
+#include "seh.hpp"
 
 #define DISPOSITION_DISMISS           0
 #define DISPOSITION_CONTINUE_SEARCH   1

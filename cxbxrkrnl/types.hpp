@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "ke\bug_codes.h"
+#include "ke\bug_codes.hpp"
 
 #define TRUE 1
 #define FALSE 0
@@ -46,7 +46,7 @@ using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
 using KPRIORITY = LONG;
 
-#include "ntstatus.h"
+#include "ntstatus.hpp"
 
 struct LIST_ENTRY {
 	LIST_ENTRY *Flink;

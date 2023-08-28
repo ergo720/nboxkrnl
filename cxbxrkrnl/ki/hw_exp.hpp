@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "..\types.h"
-#include "ki.h"
-#include "seh.h"
+#include "..\types.hpp"
+#include "ki.hpp"
+#include "seh.hpp"
 
 
 #pragma pack(1)

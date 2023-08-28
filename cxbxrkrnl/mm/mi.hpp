@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "..\kernel.h"
-#include "mm.h"
+#include "..\kernel.hpp"
+#include "mm.hpp"
 
 
 using PFN = ULONG;

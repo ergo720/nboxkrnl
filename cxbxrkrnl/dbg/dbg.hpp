@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "..\types.h"
+#include "..\types.hpp"
 
 #ifdef __cplusplus
 extern "C" {

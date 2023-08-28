@@ -2,8 +2,8 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "..\kernel.h"
-#include "dbg.h"
+#include "..\kernel.hpp"
+#include "dbg.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>

@@ -48,19 +48,20 @@ link_directories(
 )
 
 file (GLOB HEADERS
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/dbg.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/halp.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.h"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.h"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ntstatus.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/dbg.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/halp.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.hpp"
 )
 
 file (GLOB SOURCES

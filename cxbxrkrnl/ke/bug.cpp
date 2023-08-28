@@ -2,9 +2,9 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "ke.h"
-#include "..\hal\halp.h"
-#include "..\dbg\dbg.h"
+#include "ke.hpp"
+#include "..\hal\halp.hpp"
+#include "..\dbg\dbg.hpp"
 
 
 EXPORTNUM(95) VOID XBOXAPI KeBugCheck

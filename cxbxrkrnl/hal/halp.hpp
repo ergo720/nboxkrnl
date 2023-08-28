@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "..\types.h"
-#include "..\ki\ki.h"
-#include "..\ki\hw_exp.h"
+#include "..\types.hpp"
+#include "..\ki\ki.hpp"
+#include "..\ki\hw_exp.hpp"
 
 
 // This is used to track sw/hw interrupts currently pending. First four are for sw interrupts,

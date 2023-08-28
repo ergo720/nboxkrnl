@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "..\types.h"
-#include "..\ke\ke.h"
-#include "..\kernel.h"
+#include "..\types.hpp"
+#include "..\ke\ke.hpp"
+#include "..\kernel.hpp"
 
 #define EXCEPTION_CHAIN_END reinterpret_cast<struct EXCEPTION_REGISTRATION_RECORD *>(0xFFFFFFFF)
 

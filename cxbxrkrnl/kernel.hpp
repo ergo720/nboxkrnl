@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "types.h"
+#include "types.hpp"
 
 
 // We use i/o instructions to communicate with the host that's running us

@@ -3,10 +3,10 @@
  * cxbxr devs
  */
 
-#include "..\kernel.h"
-#include "..\ke\ke.h"
-#include "mm.h"
-#include "mi.h"
+#include "..\kernel.hpp"
+#include "..\ke\ke.hpp"
+#include "mm.hpp"
+#include "mi.hpp"
 #include <string.h>
 
 
