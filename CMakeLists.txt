@@ -61,6 +61,7 @@ file (GLOB HEADERS
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.hpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.hpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.hpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/exp_sup.hpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.hpp"
 )
 
@@ -84,6 +85,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/exp_sup.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/xe/xe.cpp"
 )
