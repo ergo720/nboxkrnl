@@ -10,11 +10,10 @@
 extern "C" {
 #endif
 
-EXPORTNUM(8) DLLEXPORT ULONG CDECL DbgPrint
-(
-	const CHAR *Format,
-	...
-);
+EXPORTNUM(8)
+DLLEXPORT ULONG CDECL DbgPrint(
+	const CHAR* Format,
+	...);
 
 #ifdef __cplusplus
 }

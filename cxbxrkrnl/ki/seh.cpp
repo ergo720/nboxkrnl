@@ -6,15 +6,17 @@
 
 #include "seh.hpp"
 
-#define TRYLEVEL_NONE                -1
+#define TRYLEVEL_NONE -1
 
-#define EXCEPTION_EXECUTE_HANDLER     1
-#define EXCEPTION_CONTINUE_SEARCH     0
-#define EXCEPTION_CONTINUE_EXECUTION  (-1)
+#define EXCEPTION_EXECUTE_HANDLER    1
+#define EXCEPTION_CONTINUE_SEARCH    0
+#define EXCEPTION_CONTINUE_EXECUTION (-1)
 
 
-EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
-	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
+EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD*               pExceptionRecord,
+                                                   EXCEPTION_REGISTRATION_SEH*     pRegistrationFrame,
+                                                   CONTEXT*                        pContextRecord,
+                                                   EXCEPTION_REGISTRATION_RECORD** pDispatcherContext)
 {
 	if (!(pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND))) {
 		return ExceptionContinueSearch;
@@ -24,25 +26,25 @@ EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionR
 	return ExceptionCollidedUnwind;
 }
 
-static inline void FASTCALL call_ebp_func(void *func, void *_ebp)
+static inline void FASTCALL call_ebp_func(void* func, void* _ebp)
 {
 	__asm {
-		push ebp
-		mov ebp, edx
-		call ecx
-		pop ebp
+		push ebp;
+		mov ebp, edx;
+		call ecx;
+		pop ebp;
 	}
 }
 
-void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
+void _local_unwind2(EXCEPTION_REGISTRATION_SEH* pRegistrationFrame, int stop)
 {
 	// Manually install exception handler frame
 	EXCEPTION_REGISTRATION_RECORD nestedUnwindFrame;
 	nestedUnwindFrame.Prev = KeGetPcr()->NtTib.ExceptionList;
-	nestedUnwindFrame.Handler = reinterpret_cast<void *>(_nested_unwind_handler);
+	nestedUnwindFrame.Handler = reinterpret_cast<void*>(_nested_unwind_handler);
 	KeGetPcr()->NtTib.ExceptionList = &nestedUnwindFrame;
 
-	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
+	const ScopeTableEntry* scopeTable = pRegistrationFrame->ScopeTable;
 
 	while (true) {
 		LONG currentTrylevel = pRegistrationFrame->TryLevel;
@@ -69,17 +71,19 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 	KeGetPcr()->NtTib.ExceptionList = KeGetPcr()->NtTib.ExceptionList->Prev;
 }
 
-void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
+void _global_unwind2(EXCEPTION_REGISTRATION_SEH* pRegistrationFrame)
 {
 	// TODO
 }
 
-EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
-	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
+EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD*               pExceptionRecord,
+                                             EXCEPTION_REGISTRATION_SEH*     pRegistrationFrame,
+                                             CONTEXT*                        pContextRecord,
+                                             EXCEPTION_REGISTRATION_RECORD** pDispatcherContext)
 {
 	// Clear the direction flag - the function triggering the exception might
 	// have modified it, but it's expected to not be set
-	__asm cld
+	__asm cld;
 
 	if (pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)) {
 		// We're in an unwinding pass, so unwind all local scopes
@@ -95,25 +99,26 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 	EXCEPTION_POINTERS excptPtrs;
 	excptPtrs.ExceptionRecord = pExceptionRecord;
 	excptPtrs.ContextRecord = pContextRecord;
-	reinterpret_cast<volatile PEXCEPTION_POINTERS *>(pRegistrationFrame)[-1] = &excptPtrs;
+	reinterpret_cast<volatile PEXCEPTION_POINTERS*>(pRegistrationFrame)[-1] = &excptPtrs;
 
-	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
-	LONG currentTrylevel = pRegistrationFrame->TryLevel;
+	const ScopeTableEntry* scopeTable = pRegistrationFrame->ScopeTable;
+	LONG                   currentTrylevel = pRegistrationFrame->TryLevel;
 
 	// Search all scopes from the inside out trying to find a filter that accepts the exception
 	while (currentTrylevel != TRYLEVEL_NONE) {
-		const void *filterFunclet = scopeTable[currentTrylevel].FilterFunction;
+		const void* filterFunclet = scopeTable[currentTrylevel].FilterFunction;
 		if (filterFunclet) {
 			const DWORD _ebp = (DWORD)&pRegistrationFrame->_ebp;
-			LONG filterResult;
+			LONG        filterResult;
 
 			__asm {
-				push ebp
-				mov ebp, _ebp
-				call filterFunclet
-				pop ebp
-				mov filterResult, eax
+				push ebp;
+				mov ebp, _ebp;
+				call filterFunclet;
+				pop ebp;
+				mov filterResult, eax;
 			}
+			; // clang-format workaround to prevent open brace below on new line unintentionally
 
 			if (filterResult != EXCEPTION_CONTINUE_SEARCH) {
 				if (filterResult == EXCEPTION_CONTINUE_EXECUTION) {
@@ -132,8 +137,8 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 
 				// XXX: not sure if the following should use a CALL instead of a JMP, it depends on how __except will be implemented
 				__asm {
-					mov ebp, scopeEbp
-					jmp handlerFunclet // won't return
+					mov ebp, scopeEbp;
+					jmp handlerFunclet; // won't return
 				}
 			}
 		}
@@ -150,40 +155,40 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 __declspec(naked) VOID __SEH_prolog()
 {
 	__asm {
-		push offset _except_handler3
-		mov eax, dword ptr fs:[0]
-		push eax
-		mov eax, [esp + 16]
-		mov dword ptr [esp + 16], ebp
-		lea ebp, [esp + 16]
-		sub esp, eax
-		push ebx
-		push esi
-		push edi
-		mov dword ptr [ebp - 24], esp
-		mov eax, dword ptr [ebp - 8]
-		push eax
-		mov eax, [ebp - 4]
-		mov dword ptr [ebp - 8], eax
-		mov dword ptr [ebp - 4], TRYLEVEL_NONE
-		lea eax, dword ptr [ebp - 16]
-		mov dword ptr fs:[0], eax
-		ret
+		push offset _except_handler3;
+		mov eax, dword ptr fs:[0];
+		push eax;
+		mov eax, [esp + 16];
+		mov dword ptr [esp + 16], ebp;
+		lea ebp, [esp + 16];
+		sub esp, eax;
+		push ebx;
+		push esi;
+		push edi;
+		mov dword ptr [ebp - 24], esp;
+		mov eax, dword ptr [ebp - 8];
+		push eax;
+		mov eax, [ebp - 4];
+		mov dword ptr [ebp - 8], eax;
+		mov dword ptr [ebp - 4], TRYLEVEL_NONE;
+		lea eax, dword ptr [ebp - 16];
+		mov dword ptr fs:[0], eax;
+		ret;
 	}
 }
 
 __declspec(naked) VOID __SEH_epilog()
 {
 	__asm {
-		mov ecx, dword ptr [ebp - 16]
-		mov dword ptr fs:[0], ecx
-		pop ecx
-		pop edi
-		pop esi
-		pop ebx
-		mov esp, ebp
-		pop ebp
-		push ecx
-		ret
+		mov ecx, dword ptr [ebp - 16];
+		mov dword ptr fs:[0], ecx;
+		pop ecx;
+		pop edi;
+		pop esi;
+		pop ebx;
+		mov esp, ebp;
+		pop ebp;
+		push ecx;
+		ret;
 	}
 }

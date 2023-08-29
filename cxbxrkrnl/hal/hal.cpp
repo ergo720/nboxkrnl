@@ -10,8 +10,8 @@ VOID HalpShutdownSystem()
 	OutputToHost(0, KE_ABORT);
 	while (true) {
 		__asm {
-			cli
-			hlt
+			cli;
+			hlt;
 		}
 	}
 }

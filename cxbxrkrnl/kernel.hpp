@@ -19,7 +19,7 @@
 #define KE_ABORT 0x202
 
 #define KERNEL_STACK_SIZE 12288
-#define KERNEL_BASE 0x80010000
+#define KERNEL_BASE       0x80010000
 
 enum SystemType {
 	SYSTEM_XBOX,
@@ -28,7 +28,7 @@ enum SystemType {
 };
 
 
-VOID FASTCALL OutputToHost(ULONG Value, USHORT Port);
+VOID FASTCALL  OutputToHost(ULONG Value, USHORT Port);
 ULONG FASTCALL InputFromHost(USHORT Port);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);

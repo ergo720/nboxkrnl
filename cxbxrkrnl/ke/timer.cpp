@@ -7,18 +7,18 @@
 #include "..\kernel.hpp"
 
 
-EXPORTNUM(156) volatile DWORD KeTickCount = 0;
+EXPORTNUM(156)
+volatile DWORD KeTickCount = 0;
 
 VOID XBOXAPI KeInitializeTimer(PKTIMER Timer)
 {
 	KeInitializeTimerEx(Timer, NotificationTimer);
 }
 
-EXPORTNUM(113) VOID XBOXAPI KeInitializeTimerEx
-(
-	PKTIMER Timer,
-	TIMER_TYPE Type
-)
+EXPORTNUM(113)
+VOID XBOXAPI KeInitializeTimerEx(
+	PKTIMER    Timer,
+	TIMER_TYPE Type)
 {
 	Timer->Header.Type = Type + TimerNotificationObject;
 	Timer->Header.Size = sizeof(KTIMER) / sizeof(ULONG);

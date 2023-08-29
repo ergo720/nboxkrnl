@@ -7,12 +7,11 @@
 #include "..\kernel.hpp"
 
 
-EXPORTNUM(112) VOID XBOXAPI KeInitializeSemaphore
-(
+EXPORTNUM(112)
+VOID XBOXAPI KeInitializeSemaphore(
 	PKSEMAPHORE Semaphore,
-	LONG Count,
-	LONG Limit
-)
+	LONG        Count,
+	LONG        Limit)
 {
 	Semaphore->Header.Type = SemaphoreObject;
 	Semaphore->Header.Size = sizeof(KSEMAPHORE) / sizeof(LONG);

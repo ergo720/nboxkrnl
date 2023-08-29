@@ -8,7 +8,7 @@
 VOID MiFlushEntireTlb()
 {
 	__asm {
-		mov eax, cr3
-		mov cr3, eax
+		mov eax, cr3;
+		mov cr3, eax;
 	}
 }

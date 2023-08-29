@@ -33,11 +33,11 @@
 	__asm mov [ebp]KTRAP_FRAME.DbgEbp, ebx
 
 #define CREATE_KTRAP_FRAME_WITH_CODE \
-	__asm mov word ptr [esp + 2], 0 \
+	__asm mov word ptr[esp + 2], 0;  \
 	CREATE_KTRAP_FRAME
 
 #define CREATE_KTRAP_FRAME_NO_CODE \
-	__asm push 0 \
+	__asm push 0;                  \
 	CREATE_KTRAP_FRAME
 
 constexpr auto EXCEPTION_RECORD_SIZE = sizeof(EXCEPTION_RECORD);
@@ -84,8 +84,8 @@ void __declspec(naked) XBOXAPI KiTrap0()
 	CREATE_KTRAP_FRAME_NO_CODE;
 	__asm {
 		sti
-		mov eax, 0xC0000094 // STATUS_INTEGER_DIVIDE_BY_ZERO
-		mov ebx, [ebp]KTRAP_FRAME.Eip
+		mov eax, 0xC0000094; // STATUS_INTEGER_DIVIDE_BY_ZERO
+		mov ebx, [ebp]KTRAP_FRAME.Eip;
 	}
 	CREATE_EXCEPTION_RECORD_ARG0;
 	HANDLE_EXCEPTION;
@@ -204,26 +204,26 @@ void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 static VOID KiFlushNPXState()
 {
 	__asm {
-		pushfd
-		cli
-		mov edx, [KiPcr]KPCR.PrcbData.CurrentThread
-		cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
-		jne not_loaded
-		mov eax, cr0
-		test eax, (CR0_MP | CR0_EM | CR0_TS)
-		jz no_fpu_exp
-		and eax, ~(CR0_MP | CR0_EM | CR0_TS)
-		mov cr0, eax
+		pushfd;
+		cli;
+		mov edx, [KiPcr]KPCR.PrcbData.CurrentThread;
+		cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED;
+		jne not_loaded;
+		mov eax, cr0;
+		test eax, (CR0_MP | CR0_EM | CR0_TS);
+		jz no_fpu_exp;
+		and eax, ~(CR0_MP | CR0_EM | CR0_TS);
+		mov cr0, eax;
 	no_fpu_exp:
-		mov ecx, [KiPcr]KPCR.NtTib.StackBase
-		fxsave [ecx]
-		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
-		mov [KiPcr]KPCR.PrcbData.NpxThread, 0
-		or eax, NPX_STATE_NOT_LOADED
-		or eax, [ecx]
-		mov cr0, eax
+		mov ecx, [KiPcr]KPCR.NtTib.StackBase;
+		fxsave [ecx];
+		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED;
+		mov [KiPcr]KPCR.PrcbData.NpxThread, 0;
+		or eax, NPX_STATE_NOT_LOADED;
+		or eax, [ecx];
+		mov cr0, eax;
 	not_loaded:
-		popfd
+		popfd;
 	}
 }
 
@@ -234,7 +234,7 @@ static VOID KiCopyKframeToContext(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 		ContextRecord->Eip = TrapFrame->Eip;
 		ContextRecord->SegCs = TrapFrame->SegCs & 0xFFFF;
 		ContextRecord->EFlags = TrapFrame->EFlags;
-		ContextRecord->SegSs = 0x10; // same selector set in KernelEntry, never changes after that
+		ContextRecord->SegSs = 0x10;                                            // same selector set in KernelEntry, never changes after that
 		ContextRecord->Esp = reinterpret_cast<ULONG>((&TrapFrame->EFlags) + 1); // cpu is always in ring 0, so a stack switch never occurs
 	}
 
@@ -302,5 +302,5 @@ VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAM
 	}
 
 	KeBugCheckEx(KERNEL_UNHANDLED_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
-		ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
+	             ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
 }

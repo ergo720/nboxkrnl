@@ -36,13 +36,13 @@ VOID MmInitSystem()
 		// Note that even if this is true, only the heap/Nt functions of the title are affected, the Mm functions
 		// will still use only the lower 64 MiB and the same is true for the debugger pages, meaning they will only
 		// use the upper extra 64 MiB regardless of this flag
-		//if (CxbxKrnl_Xbe->m_Header.dwInitFlags.bLimit64MB) { m_bAllowNonDebuggerOnTop64MiB = false; }
+		// if (CxbxKrnl_Xbe->m_Header.dwInitFlags.bLimit64MB) { m_bAllowNonDebuggerOnTop64MiB = false; }
 	}
 
 	// Calculate how large is the kernel image, so that we can keep its allocation and unmap all the other large pages we were booted with
-	PIMAGE_DOS_HEADER dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(KERNEL_BASE);
+	PIMAGE_DOS_HEADER   dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(KERNEL_BASE);
 	PIMAGE_NT_HEADERS32 pNtHeader = reinterpret_cast<PIMAGE_NT_HEADERS32>(KERNEL_BASE + dosHeader->e_lfanew);
-	DWORD KernelSize = ROUND_UP_4K(pNtHeader->OptionalHeader.SizeOfImage);
+	DWORD               KernelSize = ROUND_UP_4K(pNtHeader->OptionalHeader.SizeOfImage);
 
 	// Sanity check: make sure our kernel size is below 4 MiB. A real uncompressed kernel is approximately 1.2 MiB large
 	ULONG PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, KernelSize);
@@ -54,12 +54,12 @@ VOID MmInitSystem()
 	// Map the pt of the kernel image. This is backed by the page immediately following it
 	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
 	memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
-	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
+	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr));       // write pde for the kernel image and also of the pt
 	WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the kernel image
 	NextPageTableAddr += PAGE_SIZE;
 
 	// Map the kernel image
-	MMPTE TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
+	MMPTE  TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
 	PMMPTE pPde_end = GetPteAddress(KERNEL_BASE + KernelSize - 1);
 	for (PMMPTE pPde = GetPteAddress(KERNEL_BASE); pPde <= pPde_end; ++pPde) {
 		WritePte(pPde, TempPte);
@@ -123,10 +123,10 @@ VOID MmInitSystem()
 			pfn_end = CHIHIRO_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
 		}
 
-		ULONG addr = reinterpret_cast<ULONG>ConvertPfnToContiguousPhysical(pfn);
+		ULONG addr = reinterpret_cast<ULONG> ConvertPfnToContiguousPhysical(pfn);
 		memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
 		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the instance memory
-		WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the instance memory
+		WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr));              // write pde for the instance memory
 
 		TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(addr);
 		pPde_end = GetPteAddress(ConvertPfnToContiguousPhysical(pfn_end));
@@ -143,10 +143,10 @@ VOID MmInitSystem()
 
 			pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			pfn_end += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			addr = reinterpret_cast<ULONG>ConvertPfnToContiguousPhysical(pfn);
+			addr = reinterpret_cast<ULONG> ConvertPfnToContiguousPhysical(pfn);
 			memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
 			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the second instance memory
-			WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
+			WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr));              // write pde for the second instance memory
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(addr);
 			pPde_end = GetPteAddress(ConvertPfnToContiguousPhysical(pfn_end));

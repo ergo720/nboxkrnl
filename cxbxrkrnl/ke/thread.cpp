@@ -11,7 +11,9 @@
 #include <string.h>
 
 
-VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2) {}
+VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE* NormalRoutine, PVOID* NormalContext, PVOID* SystemArgument1, PVOID* SystemArgument2)
+{
+}
 
 VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument)
 {
@@ -62,8 +64,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 	Thread->KernelStack = reinterpret_cast<PVOID>(CtxSwitchFrame);
 }
 
-VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSize, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine,
-	PVOID StartContext, PKPROCESS Process)
+VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSize, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine, PVOID StartContext, PKPROCESS Process)
 {
 	Thread->Header.Type = ThreadObject;
 	Thread->Header.Size = sizeof(KTHREAD) / sizeof(LONG);

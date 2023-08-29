@@ -67,7 +67,7 @@ VOID XBOXAPI HalpHwInt13();
 VOID XBOXAPI HalpHwInt14();
 VOID XBOXAPI HalpHwInt15();
 
-inline VOID(XBOXAPI *const SwIntHandlers[])() = {
+inline VOID(XBOXAPI* const SwIntHandlers[])() = {
 	&KiUnexpectedInterrupt,
 	&HalpSwIntApc,
 	&HalpSwIntDpc,

@@ -127,13 +127,13 @@ static_assert((KiIdtLimit + 1) / sizeof(KIDT) == 64);
 
 void InitializeCrt()
 {
-	PIMAGE_DOS_HEADER dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(KERNEL_BASE);
+	PIMAGE_DOS_HEADER   dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(KERNEL_BASE);
 	PIMAGE_NT_HEADERS32 pNtHeader = reinterpret_cast<PIMAGE_NT_HEADERS32>(KERNEL_BASE + dosHeader->e_lfanew);
 
 	PIMAGE_SECTION_HEADER crtSection = nullptr;
 	PIMAGE_SECTION_HEADER section = reinterpret_cast<PIMAGE_SECTION_HEADER>(pNtHeader + 1);
 	for (WORD i = 0; i < pNtHeader->FileHeader.NumberOfSections; i++) {
-		if (strcmp((char *)&section[i].Name, ".CRT") == 0) {
+		if (strcmp((char*)&section[i].Name, ".CRT") == 0) {
 			crtSection = &section[i];
 			break;
 		}
@@ -143,8 +143,8 @@ void InitializeCrt()
 		return;
 	}
 
-	using CrtFunc = void(*)();
-	CrtFunc *initializer = reinterpret_cast<CrtFunc *>(KERNEL_BASE + crtSection->VirtualAddress);
+	using CrtFunc = void (*)();
+	CrtFunc* initializer = reinterpret_cast<CrtFunc*>(KERNEL_BASE + crtSection->VirtualAddress);
 	while (*initializer) {
 		(*initializer)();
 		++initializer;
@@ -171,7 +171,7 @@ void KiInitializeKernel()
 	KiInitializeProcess(&KiUniqueProcess, NORMAL_BASE_PRIORITY, THREAD_QUANTUM);
 
 	KeInitializeThread(&KiIdleThread, KiIdleThreadStack + KERNEL_STACK_SIZE,
-		KERNEL_STACK_SIZE, 0, nullptr, nullptr, nullptr, &KiIdleProcess);
+	                   KERNEL_STACK_SIZE, 0, nullptr, nullptr, nullptr, &KiIdleProcess);
 
 	KiIdleThread.Priority = HIGH_PRIORITY;
 	KiIdleThread.State = Running;

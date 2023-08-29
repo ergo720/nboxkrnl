@@ -7,7 +7,7 @@
 #include "..\kernel.hpp"
 
 
-KPCR KiPcr = { 0 };
+KPCR     KiPcr = { 0 };
 KPROCESS KiUniqueProcess = { 0 };
 KPROCESS KiIdleProcess = { 0 };
 

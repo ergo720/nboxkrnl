@@ -6,12 +6,11 @@
 #include "ke.hpp"
 
 
-EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
-(
-	PKDPC Dpc,
+EXPORTNUM(107)
+VOID XBOXAPI KeInitializeDpc(
+	PKDPC              Dpc,
 	PKDEFERRED_ROUTINE DeferredRoutine,
-	PVOID DeferredContext
-)
+	PVOID              DeferredContext)
 {
 	Dpc->Type = DpcObject;
 	Dpc->Inserted = FALSE;

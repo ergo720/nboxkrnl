@@ -11,18 +11,16 @@
 extern "C" {
 #endif
 
-EXPORTNUM(51) DLLEXPORT LONG FASTCALL InterlockedCompareExchange
-(
+EXPORTNUM(51)
+DLLEXPORT LONG FASTCALL InterlockedCompareExchange(
 	volatile PLONG Destination,
-	LONG  Exchange,
-	LONG  Comparand
-);
+	LONG           Exchange,
+	LONG           Comparand);
 
-EXPORTNUM(54) DLLEXPORT LONG FASTCALL InterlockedExchange
-(
+EXPORTNUM(54)
+DLLEXPORT LONG FASTCALL InterlockedExchange(
 	volatile PLONG Destination,
-	LONG Value
-);
+	LONG           Value);
 
 #ifdef __cplusplus
 }

@@ -6,29 +6,28 @@
 #include "..\ke\ke.hpp"
 
 
-EXPORTNUM(51) LONG FASTCALL InterlockedCompareExchange
-(
+EXPORTNUM(51)
+LONG FASTCALL InterlockedCompareExchange(
 	volatile PLONG Destination,
-	LONG  Exchange,
-	LONG  Comparand
-)
+	LONG           Exchange,
+	LONG           Comparand)
 {
 	__asm {
-		mov eax, Comparand
-		cmpxchg [ecx], edx
+		mov eax, Comparand;
+		cmpxchg [ecx], edx;
 	}
 }
 
-EXPORTNUM(54) LONG FASTCALL InterlockedExchange
-(
+EXPORTNUM(54)
+LONG FASTCALL InterlockedExchange(
 	volatile PLONG Destination,
-	LONG Value
-)
+	LONG           Value)
 {
 	__asm {
-		mov eax, Value
-		xchg [ecx], eax
+		mov eax, Value;
+		xchg [ecx], eax;
 	}
 }
 
-EXPORTNUM(321) XBOX_KEY_DATA XboxEEPROMKey;
+EXPORTNUM(321)
+XBOX_KEY_DATA XboxEEPROMKey;

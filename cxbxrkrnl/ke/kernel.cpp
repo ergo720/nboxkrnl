@@ -11,16 +11,16 @@
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)
 {
 	__asm {
-		mov eax, ecx
-		out dx, eax
+		mov eax, ecx;
+		out dx, eax;
 	}
 }
 
 ULONG FASTCALL InputFromHost(USHORT Port)
 {
 	__asm {
-		mov edx, ecx
-		in eax, dx
+		mov edx, ecx;
+		in eax, dx;
 	}
 }
 
