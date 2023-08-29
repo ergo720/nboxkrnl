@@ -68,11 +68,11 @@ VOID __SEH_epilog();
 // NOTE2: StackUsedByArgs is the size, in bytes, of the stack used by the arguments of the function. This is used for stdcall and fastcall functions, since they must release
 // that number of bytes before returning. On the contrary, cdecl functions don't release them (the caller does), and so StackUsedByArgs must be zero instead
 
-#define SEH_Create(SEHTable) \
-	__asm push __LOCAL_SIZE \
-	__asm push offset SEHTable \
-	__asm call offset __SEH_prolog
+#define SEH_Create(SEHTable)        \
+	__asm push        __LOCAL_SIZE; \
+	__asm push offset SEHTable;     \
+	__asm call offset __SEH_prolog;
 
 #define SEH_Destroy(StackUsedByArgs) \
-	__asm call offset __SEH_epilog \
-	__asm ret StackUsedByArgs
+	__asm call offset __SEH_epilog;  \
+	__asm ret         StackUsedByArgs;
