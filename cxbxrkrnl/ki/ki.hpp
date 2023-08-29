@@ -8,7 +8,7 @@
 #include "..\ke\ke.hpp"
 #include "..\kernel.hpp"
 
-#define EXCEPTION_CHAIN_END reinterpret_cast<struct EXCEPTION_REGISTRATION_RECORD *>(0xFFFFFFFF)
+#define EXCEPTION_CHAIN_END reinterpret_cast<EXCEPTION_REGISTRATION_RECORD *>(0xFFFFFFFF)
 
 // cr0 flags
 #define CR0_TS (1 << 3) // task switched

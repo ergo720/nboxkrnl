@@ -5,7 +5,7 @@
 #include "ki.hpp"
 #include "hw_exp.hpp"
 #include "..\hal\halp.hpp"
-#include "..\rtl\rtl.hpp"
+#include "..\rtl\exp_sup.hpp"
 #include <string.h>
 
 
@@ -200,6 +200,7 @@ void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 	HalpShutdownSystem();
 }
 
+// XXX This should probably be moved in a file specific for float support
 static VOID KiFlushNPXState()
 {
     __asm {

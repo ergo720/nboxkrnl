@@ -6,33 +6,22 @@
 
 #include "seh.hpp"
 
-#define DISPOSITION_DISMISS           0
-#define DISPOSITION_CONTINUE_SEARCH   1
-#define DISPOSITION_NESTED_EXCEPTION  2
-#define DISPOSITION_COLLIDED_UNWIND   3
 #define TRYLEVEL_NONE                -1
 
 #define EXCEPTION_EXECUTE_HANDLER     1
 #define EXCEPTION_CONTINUE_SEARCH     0
 #define EXCEPTION_CONTINUE_EXECUTION  (-1)
 
-enum EXCEPTION_DISPOSITION {
-    ExceptionContinueExecution = 0,
-    ExceptionContinueSearch = 1,
-    ExceptionNestedException = 2,
-    ExceptionCollidedUnwind = 3,
-};
 
-
-extern "C" int _nested_unwind_handler(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
+EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
 	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
 {
 	if (!(pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND))) {
-		return DISPOSITION_CONTINUE_SEARCH;
+		return ExceptionContinueSearch;
 	}
 
 	*pDispatcherContext = pRegistrationFrame;
-	return DISPOSITION_COLLIDED_UNWIND;
+	return ExceptionCollidedUnwind;
 }
 
 static inline void FASTCALL call_ebp_func(void *func, void *_ebp)
@@ -45,18 +34,13 @@ static inline void FASTCALL call_ebp_func(void *func, void *_ebp)
 	}
 }
 
-extern "C" void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
+void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 {
 	// Manually install exception handler frame
 	EXCEPTION_REGISTRATION_RECORD nestedUnwindFrame;
+	nestedUnwindFrame.Prev = KeGetPcr()->NtTib.ExceptionList;
 	nestedUnwindFrame.Handler = reinterpret_cast<void *>(_nested_unwind_handler);
-
-	__asm {
-		mov eax, dword ptr fs:[0]
-		mov dword ptr [nestedUnwindFrame].Prev, eax
-		lea eax, nestedUnwindFrame
-		mov dword ptr fs:[0], eax
-	}
+	KeGetPcr()->NtTib.ExceptionList = &nestedUnwindFrame;
 
 	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
 
@@ -82,18 +66,15 @@ extern "C" void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, i
 	}
 
 	// Manually remove exception handler frame
-	__asm {
-		mov eax, dword ptr [nestedUnwindFrame].Prev
-		mov dword ptr fs:[0], eax
-	}
+	KeGetPcr()->NtTib.ExceptionList = KeGetPcr()->NtTib.ExceptionList->Prev;
 }
 
-extern "C" void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
+void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 {
 	// TODO
 }
 
-extern "C" int _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
+EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
 	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
 {
 	// Clear the direction flag - the function triggering the exception might
@@ -103,7 +84,7 @@ extern "C" int _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_RE
 	if (pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)) {
 		// We're in an unwinding pass, so unwind all local scopes
 		_local_unwind2(pRegistrationFrame, TRYLEVEL_NONE);
-		return DISPOSITION_CONTINUE_SEARCH;
+		return ExceptionContinueSearch;
 	}
 
 	// A pointer to a EXCEPTION_POINTERS structure needs to be put below
@@ -161,7 +142,7 @@ extern "C" int _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_RE
 	}
 
 	// No filter in this frame accepted the exception, continue searching
-	return DISPOSITION_CONTINUE_SEARCH;
+	return ExceptionContinueSearch;
 }
 
 // Check https://reactos-blog.blogspot.com/2009/08/inside-mind-of-reactos-developer.html for information about __SEH_prolog / __SEH_epilog

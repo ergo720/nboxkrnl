@@ -20,6 +20,7 @@
 #define IDT_INT_VECTOR_BASE 0x30
 
 #define KeGetPcr() (&KiPcr)
+#define KeGetPrcb() (&KiPcr.PrcbData)
 
 
 using KIRQL = UCHAR;
@@ -276,6 +277,8 @@ extern "C" {
     ULONG_PTR BugCheckParameter3,
     ULONG_PTR BugCheckParameter4
 );
+
+EXPORTNUM(103) DLLEXPORT KIRQL XBOXAPI KeGetCurrentIrql();
 
 EXPORTNUM(105) DLLEXPORT VOID XBOXAPI KeInitializeApc
 (

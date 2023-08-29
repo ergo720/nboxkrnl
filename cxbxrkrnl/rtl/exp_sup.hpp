@@ -5,7 +5,8 @@
 #pragma once
 
 #include "..\types.hpp"
+#include "..\ki\ki.hpp"
 #include "..\ki\seh.hpp"
 
 
-EXPORTNUM(302) DLLEXPORT VOID XBOXAPI RtlRaiseException(PEXCEPTION_RECORD ExceptionRecord);
+BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord);

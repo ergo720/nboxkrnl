@@ -17,6 +17,13 @@
 #define EXCEPTION_UNWIND (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND | EXCEPTION_TARGET_UNWIND | EXCEPTION_COLLIDED_UNWIND)
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
 
+enum EXCEPTION_DISPOSITION {
+    ExceptionContinueExecution = 0,
+    ExceptionContinueSearch = 1,
+    ExceptionNestedException = 2,
+    ExceptionCollidedUnwind = 3,
+};
+
 struct EXCEPTION_REGISTRATION_RECORD {
     struct EXCEPTION_REGISTRATION_RECORD *Prev;
     PVOID Handler;
@@ -51,11 +58,14 @@ struct EXCEPTION_POINTERS {
 };
 using PEXCEPTION_POINTERS = EXCEPTION_POINTERS *;
 
+using PEXCEPTION_ROUTINE = EXCEPTION_DISPOSITION(CDECL *)(EXCEPTION_RECORD *, EXCEPTION_REGISTRATION_RECORD *,
+    CONTEXT *, EXCEPTION_REGISTRATION_RECORD **);
+
 VOID __SEH_prolog();
 VOID __SEH_epilog();
 
 // NOTE1: every function invoking SEH_Create must use __declspec(naked), or else the prologue emitted by the compiler will break the call to __SEH_prolog. Also, every
-// call to SEH_Create must have a corresponding call to SEH_Destroy used as the epilog of the function
+// call to SEH_Create must have a corresponding call to SEH_Destroy used as the epilogue of the function
 // NOTE2: StackUsedByArgs is the size, in bytes, of the stack used by the arguments of the function. This is used for stdcall and fastcall functions, since they must release
 // that number of bytes before returning. On the contrary, cdecl functions don't release them (the caller does), and so StackUsedByArgs must be zero instead
 

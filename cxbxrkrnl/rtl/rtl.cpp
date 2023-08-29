@@ -4,9 +4,4 @@
 
 #include "rtl.hpp"
 
-BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
-{
-	// TODO
-
-	return FALSE;
-}
+// Temporarily empty

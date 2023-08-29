@@ -77,6 +77,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/apc.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/irql.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/kernel.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/semaphore.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/thread.cpp"
