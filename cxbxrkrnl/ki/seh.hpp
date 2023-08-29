@@ -18,48 +18,48 @@
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
 
 enum EXCEPTION_DISPOSITION {
-    ExceptionContinueExecution = 0,
-    ExceptionContinueSearch = 1,
-    ExceptionNestedException = 2,
-    ExceptionCollidedUnwind = 3,
+	ExceptionContinueExecution = 0,
+	ExceptionContinueSearch = 1,
+	ExceptionNestedException = 2,
+	ExceptionCollidedUnwind = 3,
 };
 
 struct EXCEPTION_REGISTRATION_RECORD {
-    struct EXCEPTION_REGISTRATION_RECORD *Prev;
-    PVOID Handler;
+	struct EXCEPTION_REGISTRATION_RECORD *Prev;
+	PVOID Handler;
 };
 using PEXCEPTION_REGISTRATION_RECORD = EXCEPTION_REGISTRATION_RECORD *;
 
 struct EXCEPTION_RECORD {
-    NTSTATUS ExceptionCode;
-    ULONG ExceptionFlags;
-    struct EXCEPTION_RECORD *ExceptionRecord;
-    PVOID ExceptionAddress;
-    ULONG NumberParameters;
-    ULONG_PTR ExceptionInformation[EXCEPTION_MAXIMUM_PARAMETERS];
+	NTSTATUS ExceptionCode;
+	ULONG ExceptionFlags;
+	struct EXCEPTION_RECORD *ExceptionRecord;
+	PVOID ExceptionAddress;
+	ULONG NumberParameters;
+	ULONG_PTR ExceptionInformation[EXCEPTION_MAXIMUM_PARAMETERS];
 };
 using PEXCEPTION_RECORD = EXCEPTION_RECORD *;
 
 struct ScopeTableEntry {
-    DWORD EnclosingLevel;
-    VOID *FilterFunction;
-    VOID *HandlerFunction;
+	DWORD EnclosingLevel;
+	VOID *FilterFunction;
+	VOID *HandlerFunction;
 };
 
 struct EXCEPTION_REGISTRATION_SEH : EXCEPTION_REGISTRATION_RECORD {
-    ScopeTableEntry *ScopeTable;
-    DWORD TryLevel;
-    DWORD _ebp;
+	ScopeTableEntry *ScopeTable;
+	DWORD TryLevel;
+	DWORD _ebp;
 };
 
 struct EXCEPTION_POINTERS {
-    PEXCEPTION_RECORD ExceptionRecord;
-    PCONTEXT ContextRecord;
+	PEXCEPTION_RECORD ExceptionRecord;
+	PCONTEXT ContextRecord;
 };
 using PEXCEPTION_POINTERS = EXCEPTION_POINTERS *;
 
 using PEXCEPTION_ROUTINE = EXCEPTION_DISPOSITION(CDECL *)(EXCEPTION_RECORD *, EXCEPTION_REGISTRATION_RECORD *,
-    CONTEXT *, EXCEPTION_REGISTRATION_RECORD **);
+	CONTEXT *, EXCEPTION_REGISTRATION_RECORD **);
 
 VOID __SEH_prolog();
 VOID __SEH_epilog();
@@ -70,10 +70,10 @@ VOID __SEH_epilog();
 // that number of bytes before returning. On the contrary, cdecl functions don't release them (the caller does), and so StackUsedByArgs must be zero instead
 
 #define SEH_Create(SEHTable) \
-    __asm push __LOCAL_SIZE \
-    __asm push offset SEHTable \
-    __asm call offset __SEH_prolog
+	__asm push __LOCAL_SIZE \
+	__asm push offset SEHTable \
+	__asm call offset __SEH_prolog
 
 #define SEH_Destroy(StackUsedByArgs) \
-    __asm call offset __SEH_epilog \
-    __asm ret StackUsedByArgs
+	__asm call offset __SEH_epilog \
+	__asm ret StackUsedByArgs

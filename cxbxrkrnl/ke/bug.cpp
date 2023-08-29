@@ -9,7 +9,7 @@
 
 EXPORTNUM(95) VOID XBOXAPI KeBugCheck
 (
-    ULONG BugCheckCode
+	ULONG BugCheckCode
 )
 {
 	KeBugCheckEx(BugCheckCode, 0, 0, 0, 0);

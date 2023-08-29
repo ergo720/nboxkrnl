@@ -12,24 +12,24 @@
 
 #pragma pack(1)
 struct KTRAP_FRAME {
-    ULONG DbgEbp;
-    ULONG DbgEip;
-    ULONG DbgArgMark;
-    ULONG DbgArgPointer;
-    ULONG TempSegCs;
-    ULONG TempEsp;
-    ULONG Edx;
-    ULONG Ecx;
-    ULONG Eax;
-    PEXCEPTION_REGISTRATION_RECORD ExceptionList;
-    ULONG Edi;
-    ULONG Esi;
-    ULONG Ebx;
-    ULONG Ebp;
-    ULONG ErrCode;
-    ULONG Eip;
-    ULONG SegCs;
-    ULONG EFlags;
+	ULONG DbgEbp;
+	ULONG DbgEip;
+	ULONG DbgArgMark;
+	ULONG DbgArgPointer;
+	ULONG TempSegCs;
+	ULONG TempEsp;
+	ULONG Edx;
+	ULONG Ecx;
+	ULONG Eax;
+	PEXCEPTION_REGISTRATION_RECORD ExceptionList;
+	ULONG Edi;
+	ULONG Esi;
+	ULONG Ebx;
+	ULONG Ebp;
+	ULONG ErrCode;
+	ULONG Eip;
+	ULONG SegCs;
+	ULONG EFlags;
 };
 #pragma pack()
 using PKTRAP_FRAME = KTRAP_FRAME *;

@@ -27,26 +27,26 @@ using KTSS = uint32_t[26];
 
 #pragma pack(1)
 struct FLOATING_SAVE_AREA {
-    USHORT  ControlWord;
-    USHORT  StatusWord;
-    USHORT  TagWord;
-    USHORT  ErrorOpcode;
-    ULONG   ErrorOffset;
-    ULONG   ErrorSelector;
-    ULONG   DataOffset;
-    ULONG   DataSelector;
-    ULONG   MXCsr;
-    ULONG   Reserved1;
-    UCHAR   RegisterArea[SIZE_OF_FPU_REGISTERS];
-    UCHAR   XmmRegisterArea[SIZE_OF_FPU_REGISTERS];
-    UCHAR   Reserved2[224];
-    ULONG   Cr0NpxState;
+	USHORT  ControlWord;
+	USHORT  StatusWord;
+	USHORT  TagWord;
+	USHORT  ErrorOpcode;
+	ULONG   ErrorOffset;
+	ULONG   ErrorSelector;
+	ULONG   DataOffset;
+	ULONG   DataSelector;
+	ULONG   MXCsr;
+	ULONG   Reserved1;
+	UCHAR   RegisterArea[SIZE_OF_FPU_REGISTERS];
+	UCHAR   XmmRegisterArea[SIZE_OF_FPU_REGISTERS];
+	UCHAR   Reserved2[224];
+	ULONG   Cr0NpxState;
 };
 #pragma pack()
 
 struct alignas(16) FX_SAVE_AREA {
-    FLOATING_SAVE_AREA FloatSave;
-    ULONG Align16Byte[3];
+	FLOATING_SAVE_AREA FloatSave;
+	ULONG Align16Byte[3];
 };
 using PFX_SAVE_AREA = FX_SAVE_AREA *;
 
@@ -61,70 +61,70 @@ static_assert(alignof(FX_SAVE_AREA) == 16);
 #define CONTEXT_EXTENDED_REGISTERS  (CONTEXT_i386 | 0x00000020L)
 
 struct CONTEXT {
-    DWORD ContextFlags;
-    FLOATING_SAVE_AREA FloatSave;
-    DWORD Edi;
-    DWORD Esi;
-    DWORD Ebx;
-    DWORD Edx;
-    DWORD Ecx;
-    DWORD Eax;
-    DWORD Ebp;
-    DWORD Eip;
-    DWORD SegCs;
-    DWORD EFlags;
-    DWORD Esp;
-    DWORD SegSs;
+	DWORD ContextFlags;
+	FLOATING_SAVE_AREA FloatSave;
+	DWORD Edi;
+	DWORD Esi;
+	DWORD Ebx;
+	DWORD Edx;
+	DWORD Ecx;
+	DWORD Eax;
+	DWORD Ebp;
+	DWORD Eip;
+	DWORD SegCs;
+	DWORD EFlags;
+	DWORD Esp;
+	DWORD SegSs;
 };
 using PCONTEXT = CONTEXT *;
 
 struct KPRCB {
-    struct KTHREAD *CurrentThread;
-    struct KTHREAD *NextThread;
-    struct KTHREAD *IdleThread;
-    struct KTHREAD *NpxThread;
-    ULONG InterruptCount;
-    ULONG DpcTime;
-    ULONG InterruptTime;
-    ULONG DebugDpcTime;
-    ULONG KeContextSwitches;
-    ULONG DpcInterruptRequested;
-    LIST_ENTRY DpcListHead;
-    ULONG DpcRoutineActive;
-    PVOID DpcStack;
-    ULONG QuantumEnd;
-    FX_SAVE_AREA NpxSaveArea;
-    VOID *DmEnetFunc;
-    VOID *DebugMonitorData;
+	struct KTHREAD *CurrentThread;
+	struct KTHREAD *NextThread;
+	struct KTHREAD *IdleThread;
+	struct KTHREAD *NpxThread;
+	ULONG InterruptCount;
+	ULONG DpcTime;
+	ULONG InterruptTime;
+	ULONG DebugDpcTime;
+	ULONG KeContextSwitches;
+	ULONG DpcInterruptRequested;
+	LIST_ENTRY DpcListHead;
+	ULONG DpcRoutineActive;
+	PVOID DpcStack;
+	ULONG QuantumEnd;
+	FX_SAVE_AREA NpxSaveArea;
+	VOID *DmEnetFunc;
+	VOID *DebugMonitorData;
 };
 using PKPRCB = KPRCB *;
 
 struct NT_TIB {
-    struct EXCEPTION_REGISTRATION_RECORD *ExceptionList;
-    PVOID StackBase;
-    PVOID StackLimit;
-    PVOID SubSystemTib;
-    union {
-        PVOID FiberData;
-        DWORD Version;
-    };
-    PVOID ArbitraryUserPointer;
-    NT_TIB *Self;
+	struct EXCEPTION_REGISTRATION_RECORD *ExceptionList;
+	PVOID StackBase;
+	PVOID StackLimit;
+	PVOID SubSystemTib;
+	union {
+		PVOID FiberData;
+		DWORD Version;
+	};
+	PVOID ArbitraryUserPointer;
+	NT_TIB *Self;
 };
 using PNT_TIB = NT_TIB *;
 
 struct KPCR {
-    NT_TIB NtTib;
-    KPCR *SelfPcr;
-    KPRCB *Prcb;
-    KIRQL Irql;
-    KPRCB PrcbData;
+	NT_TIB NtTib;
+	KPCR *SelfPcr;
+	KPRCB *Prcb;
+	KIRQL Irql;
+	KPRCB PrcbData;
 };
 using PKPCR = KPCR *;
 
 struct KTIMER_TABLE_ENTRY {
-    LIST_ENTRY Entry;
-    ULARGE_INTEGER Time;
+	LIST_ENTRY Entry;
+	ULARGE_INTEGER Time;
 };
 using PKTIMER_TABLE_ENTRY = KTIMER_TABLE_ENTRY *;
 
