@@ -192,7 +192,10 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 		if (RegistrationPointer == static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame)) {
-			ZwContinue(&ContextRecord, FALSE); // this will return to the caller of RtlUnwind
+
+			// On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Thus, instead of restoring this
+			// thread state to its caller with ZwContinue, we can simply return with a regular return statement
+			return;
 		}
 		else if (TargetFrame && (static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame) < RegistrationPointer)) {
 
@@ -245,7 +248,9 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 	if (TargetFrame == EXCEPTION_CHAIN_END) {
 
 		// This means that the caller wanted to unwind the entire chain, which we just did if we reach here. So we can continue normally
-		ZwContinue(&ContextRecord, FALSE);
+		// On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Thus, instead of restoring this
+		// thread state to its caller with ZwContinue, we can simply return with a regular return statement
+		return;
 	}
 	else {
 		// This means that we couldn't find the specified TargetFrame in the chain for this thread, so the TargetFrame is probably for another thread

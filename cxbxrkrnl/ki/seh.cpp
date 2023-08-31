@@ -72,25 +72,10 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 
 void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 {
-	// NOTE: according to nxdk sources, RtlUnwind will trash all the non-volatile registers despite being stdcall. I'm not sure if this is also true
-	// for our implementation here, but we save them anyway to avoid surprises
+	// NOTE: according to nxdk sources, RtlUnwind will trash all the non-volatile registers despite being stdcall. That doesn't happen in our implementation here,
+	// because we return from it with a regular return statement instead of ZwContinue, so we can just call it normally
 
-	__asm {
-		push ebx
-		push ebp
-		push esi
-		push edi
-		push 0
-		push 0
-		push ret_eip
-		push pRegistrationFrame
-		call offset RtlUnwind
-	ret_eip:
-		pop edi
-		pop esi
-		pop ebp
-		pop ebx
-	}
+	RtlUnwind(pRegistrationFrame, nullptr, nullptr, nullptr);
 }
 
 EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
