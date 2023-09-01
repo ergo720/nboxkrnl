@@ -16,6 +16,7 @@
 #define EXCEPTION_COLLIDED_UNWIND 0x40
 #define EXCEPTION_UNWIND (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND | EXCEPTION_TARGET_UNWIND | EXCEPTION_COLLIDED_UNWIND)
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
+#define TRYLEVEL_NONE -1
 
 enum EXCEPTION_DISPOSITION {
 	ExceptionContinueExecution = 0,
@@ -70,10 +71,64 @@ VOID __SEH_epilog();
 // that number of bytes before returning. On the contrary, cdecl functions don't release them (the caller does), and so StackUsedByArgs must be zero instead
 
 #define SEH_Create(SEHTable) \
-	__asm push __LOCAL_SIZE \
-	__asm push offset SEHTable \
-	__asm call offset __SEH_prolog
+	__asm { \
+		__asm push __LOCAL_SIZE + 8 \
+		__asm push offset SEHTable \
+		__asm call offset __SEH_prolog \
+	}
 
 #define SEH_Destroy(StackUsedByArgs) \
-	__asm call offset __SEH_epilog \
-	__asm ret StackUsedByArgs
+	__asm { \
+		__asm call offset __SEH_epilog \
+		__asm ret StackUsedByArgs \
+	}
+
+// These macros mimic the __try, __except and __finally keywords used by MSVC for SEH exception handling, and should be used in the same manner.
+// For every _START macro used, there must be a corresponding _END macro too. Using both EXCEPT and FINALLY macros at the same TryLevel will result in erroneous behaviour.
+// Every new TryLevel used in SEH_TRY_START must be different, and they should index the ScopeTableEntry that should handle this TryLevel when an exception is triggered
+
+#define SEH_TRY_START(lv) \
+	__asm { mov dword ptr [ebp - 4], lv } // set TryLevel member of EXCEPTION_REGISTRATION_SEH
+
+#define SEH_TRY_END_WITH_EXCEPT(dst) \
+	__asm { \
+		__asm mov dword ptr [ebp - 4], TRYLEVEL_NONE \
+		__asm jmp dst \
+	}
+
+#define SEH_TRY_END_WITH_FINALLY(dst) \
+	__asm { \
+		__asm mov dword ptr [ebp - 4], TRYLEVEL_NONE \
+		__asm call offset dst \
+	}
+
+#define SEH_EXCEPT_START() \
+	__asm { mov esp, dword ptr [ebp - 24] } // restore esp of this SEH guarded function from saved esp pushed by __SEH_prolog
+
+#define SEH_EXCEPT_END(dst) \
+	__asm { \
+		__asm mov dword ptr [ebp - 4], TRYLEVEL_NONE \
+		__asm dst: \
+	}
+
+#define SEH_FINALLY_START(dst) \
+	__asm { dst: }
+
+#define SEH_FINALLY_END() \
+	__asm { ret }
+
+// retrieve excptPtrs written by _except_handler3 right below EXCEPTION_REGISTRATION_SEH
+#define GetExceptionInformation(var) \
+	__asm { \
+		__asm mov eax, dowrd ptr [ebp - 20] \
+		__asm mov var, eax \
+	}
+
+// retrieve the ExceptionCode member of EXCEPTION_RECORD pointed by ExceptionRecord of excptPtrs
+#define GetExceptionCode(var) \
+	__asm { \
+		__asm mov eax, dowrd ptr [ebp - 20] \
+		__asm mov eax, [eax] \
+		__asm mov eax, [eax] \
+		__asm mov var, eax \
+	}

@@ -7,7 +7,6 @@
 #include "seh.hpp"
 #include "..\rtl\rtl.hpp"
 
-#define TRYLEVEL_NONE                -1
 
 #define EXCEPTION_EXECUTE_HANDLER     1
 #define EXCEPTION_CONTINUE_SEARCH     0
