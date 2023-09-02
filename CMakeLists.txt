@@ -115,7 +115,6 @@ set_target_properties(cxbxrkrnl PROPERTIES
  /INCREMENTAL:NO \
  /OPT:REF \
  /OPT:ICF \
- /LTCG \
  /SUBSYSTEM:NATIVE \
  /ENTRY:KernelEntry \
  /IGNORE:4210 \
@@ -130,7 +129,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
  /O2 \
- /GL \
  /MT \
  "
 )

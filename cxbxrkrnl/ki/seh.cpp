@@ -8,11 +8,6 @@
 #include "..\rtl\rtl.hpp"
 
 
-#define EXCEPTION_EXECUTE_HANDLER     1
-#define EXCEPTION_CONTINUE_SEARCH     0
-#define EXCEPTION_CONTINUE_EXECUTION  (-1)
-
-
 EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
 	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
 {
@@ -27,9 +22,10 @@ EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionR
 static inline void CDECL call_ebp_func(void *func, void *_ebp)
 {
 	__asm {
+		mov eax, func
 		push ebp
 		mov ebp, _ebp
-		call func
+		call eax
 		pop ebp
 	}
 }
@@ -77,7 +73,9 @@ void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 	RtlUnwind(pRegistrationFrame, nullptr, nullptr, nullptr);
 }
 
-EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,
+// This function must use extern "C" so that MSVC can link against our implementation of _except_handler3 when we use __try / __except in the kernel. It's also necessary
+// that this project does not use whole program optimization or else MSVC will attempt to link against _except_handler4 instead, causing a linking error
+extern "C"  EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD* pExceptionRecord, EXCEPTION_REGISTRATION_SEH* pRegistrationFrame,
 	CONTEXT *pContextRecord, EXCEPTION_REGISTRATION_RECORD **pDispatcherContext)
 {
 	// Clear the direction flag - the function triggering the exception might
@@ -111,9 +109,10 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 			LONG filterResult;
 
 			__asm {
+				mov eax, filterFunclet
 				push ebp
 				mov ebp, _ebp
-				call filterFunclet
+				call eax
 				pop ebp
 				mov filterResult, eax
 			}
@@ -133,10 +132,10 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 				_local_unwind2(pRegistrationFrame, currentTrylevel);
 				pRegistrationFrame->TryLevel = newTrylevel;
 
-				// XXX: not sure if the following should use a CALL instead of a JMP, it depends on how __except will be implemented
 				__asm {
+					mov eax, handlerFunclet
 					mov ebp, scopeEbp
-					jmp handlerFunclet // won't return
+					jmp eax // won't return
 				}
 			}
 		}
@@ -146,47 +145,4 @@ EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD *pExceptionRecord,
 
 	// No filter in this frame accepted the exception, continue searching
 	return ExceptionContinueSearch;
-}
-
-// Check https://reactos-blog.blogspot.com/2009/08/inside-mind-of-reactos-developer.html for information about __SEH_prolog / __SEH_epilog
-
-__declspec(naked) VOID __SEH_prolog()
-{
-	__asm {
-		push offset _except_handler3
-		mov eax, dword ptr fs:[0]
-		push eax
-		mov eax, [esp + 16]
-		mov dword ptr [esp + 16], ebp
-		lea ebp, [esp + 16]
-		sub esp, eax
-		push ebx
-		push esi
-		push edi
-		mov dword ptr [ebp - 24], esp
-		mov eax, dword ptr [ebp - 8]
-		push eax
-		mov eax, [ebp - 4]
-		mov dword ptr [ebp - 8], eax
-		mov dword ptr [ebp - 4], TRYLEVEL_NONE
-		lea eax, dword ptr [ebp - 16]
-		mov dword ptr fs:[0], eax
-		ret
-	}
-}
-
-__declspec(naked) VOID __SEH_epilog()
-{
-	__asm {
-		mov ecx, dword ptr [ebp - 16]
-		mov dword ptr fs:[0], ecx
-		pop ecx
-		pop edi
-		pop esi
-		pop ebx
-		mov esp, ebp
-		pop ebp
-		push ecx
-		ret
-	}
 }
