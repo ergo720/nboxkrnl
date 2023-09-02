@@ -13,64 +13,76 @@
 // the handler. ErrCode is only pushed by the cpu for exceptions that use it, for the others an additional push must be done separately
 
 #define CREATE_KTRAP_FRAME \
-	__asm push ebp \
-	__asm push ebx \
-	__asm push esi \
-	__asm push edi \
-	__asm mov ebx, dword ptr fs:[0] \
-	__asm push ebx \
-	__asm push eax \
-	__asm push ecx \
-	__asm push edx \
-	__asm sub esp, 24 \
-	__asm mov ebp, esp \
-	__asm cld \
-	__asm mov ebx, [ebp]KTRAP_FRAME.Ebp \
-	__asm mov edi, [ebp]KTRAP_FRAME.Eip \
-	__asm mov [ebp]KTRAP_FRAME.DbgArgPointer, 0 \
-	__asm mov [ebp]KTRAP_FRAME.DbgArgMark, 0xDEADBEEF \
-	__asm mov [ebp]KTRAP_FRAME.DbgEip, edi \
-	__asm mov [ebp]KTRAP_FRAME.DbgEbp, ebx
+	__asm { \
+		__asm push ebp \
+		__asm push ebx \
+		__asm push esi \
+		__asm push edi \
+		__asm mov ebx, dword ptr fs:[0] \
+		__asm push ebx \
+		__asm push eax \
+		__asm push ecx \
+		__asm push edx \
+		__asm sub esp, 24 \
+		__asm mov ebp, esp \
+		__asm cld \
+		__asm mov ebx, [ebp]KTRAP_FRAME.Ebp \
+		__asm mov edi, [ebp]KTRAP_FRAME.Eip \
+		__asm mov [ebp]KTRAP_FRAME.DbgArgPointer, 0 \
+		__asm mov [ebp]KTRAP_FRAME.DbgArgMark, 0xDEADBEEF \
+		__asm mov [ebp]KTRAP_FRAME.DbgEip, edi \
+		__asm mov [ebp]KTRAP_FRAME.DbgEbp, ebx \
+	}
 
 #define CREATE_KTRAP_FRAME_WITH_CODE \
-	__asm mov word ptr [esp + 2], 0 \
-	CREATE_KTRAP_FRAME
+	__asm { \
+		__asm mov word ptr [esp + 2], 0 \
+		CREATE_KTRAP_FRAME \
+	}
 
 #define CREATE_KTRAP_FRAME_NO_CODE \
-	__asm push 0 \
-	CREATE_KTRAP_FRAME
+	__asm { \
+		__asm push 0 \
+		CREATE_KTRAP_FRAME \
+	}
 
 constexpr auto EXCEPTION_RECORD_SIZE = sizeof(EXCEPTION_RECORD);
 #define CREATE_EXCEPTION_RECORD_ARG0 \
-	__asm sub esp, EXCEPTION_RECORD_SIZE \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionCode, eax \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionFlags, 0 \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionRecord, 0 \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionAddress, ebx \
-	__asm mov [esp]EXCEPTION_RECORD.NumberParameters, 0 \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionInformation[0], 0 \
-	__asm mov [esp]EXCEPTION_RECORD.ExceptionInformation[1], 0
+	__asm { \
+		__asm sub esp, EXCEPTION_RECORD_SIZE \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionCode, eax \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionFlags, 0 \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionRecord, 0 \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionAddress, ebx \
+		__asm mov [esp]EXCEPTION_RECORD.NumberParameters, 0 \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionInformation[0], 0 \
+		__asm mov [esp]EXCEPTION_RECORD.ExceptionInformation[1], 0 \
+	}
 
 #define HANDLE_EXCEPTION \
-	__asm mov ecx, esp \
-	__asm mov edx, ebp \
-	__asm push TRUE \
-	__asm call offset KiDispatchException
+	__asm { \
+		__asm mov ecx, esp \
+		__asm mov edx, ebp \
+		__asm push TRUE \
+		__asm call offset KiDispatchException \
+	}
 
 #define EXIT_EXCEPTION \
-	__asm mov esp, ebp \
-	__asm mov edx, [ebp]KTRAP_FRAME.ExceptionList \
-	__asm mov dword ptr fs:[0], edx \
-	__asm mov eax, [ebp]KTRAP_FRAME.Eax \
-	__asm mov edx, [ebp]KTRAP_FRAME.Edx \
-	__asm mov ecx, [ebp]KTRAP_FRAME.Ecx \
-	__asm lea esp, [ebp]KTRAP_FRAME.Edi \
-	__asm pop edi \
-	__asm pop esi \
-	__asm pop ebx \
-	__asm pop ebp \
-	__asm add esp, 4 \
-	__asm iretd
+	__asm { \
+		__asm mov esp, ebp \
+		__asm mov edx, [ebp]KTRAP_FRAME.ExceptionList \
+		__asm mov dword ptr fs:[0], edx \
+		__asm mov eax, [ebp]KTRAP_FRAME.Eax \
+		__asm mov edx, [ebp]KTRAP_FRAME.Edx \
+		__asm mov ecx, [ebp]KTRAP_FRAME.Ecx \
+		__asm lea esp, [ebp]KTRAP_FRAME.Edi \
+		__asm pop edi \
+		__asm pop esi \
+		__asm pop ebx \
+		__asm pop ebp \
+		__asm add esp, 4 \
+		__asm iretd \
+	}
 
 
 // These handlers will first attempt to fix the problem in the kernel, and if that fails, they will deliver the exception to the xbe since it might
@@ -81,15 +93,15 @@ void __declspec(naked) XBOXAPI KiTrap0()
 {
 	// NOTE: the cpu raises this exception also for division overflows, but we don't check for it and always report a divide by zero code
 
-	CREATE_KTRAP_FRAME_NO_CODE;
 	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE;
 		sti
 		mov eax, 0xC0000094 // STATUS_INTEGER_DIVIDE_BY_ZERO
 		mov ebx, [ebp]KTRAP_FRAME.Eip
+		CREATE_EXCEPTION_RECORD_ARG0;
+		HANDLE_EXCEPTION;
+		EXIT_EXCEPTION;
 	}
-	CREATE_EXCEPTION_RECORD_ARG0;
-	HANDLE_EXCEPTION;
-	EXIT_EXCEPTION;
 }
 
 // Debug breakpoint

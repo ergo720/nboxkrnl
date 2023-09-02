@@ -24,12 +24,12 @@ EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionR
 	return ExceptionCollidedUnwind;
 }
 
-static inline void FASTCALL call_ebp_func(void *func, void *_ebp)
+static inline void CDECL call_ebp_func(void *func, void *_ebp)
 {
 	__asm {
 		push ebp
-		mov ebp, edx
-		call ecx
+		mov ebp, _ebp
+		call func
 		pop ebp
 	}
 }

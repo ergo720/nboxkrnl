@@ -193,8 +193,9 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 		if (RegistrationPointer == static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame)) {
 
-			// On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Thus, instead of restoring this
-			// thread state to its caller with ZwContinue, we can simply return with a regular return statement
+			// XXX On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
+			// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel
+			// export. For now, the only caller of RtlUnwind is _global_unwind2 which doesn't care about the return value, so this isn't an issue right now yet
 			return;
 		}
 		else if (TargetFrame && (static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame) < RegistrationPointer)) {
@@ -247,9 +248,9 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 
 	if (TargetFrame == EXCEPTION_CHAIN_END) {
 
-		// This means that the caller wanted to unwind the entire chain, which we just did if we reach here. So we can continue normally
-		// On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Thus, instead of restoring this
-		// thread state to its caller with ZwContinue, we can simply return with a regular return statement
+		// XXX On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
+		// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel
+		// export. For now, the only caller of RtlUnwind is _global_unwind2 which doesn't care about the return value, so this isn't an issue right now yet
 		return;
 	}
 	else {
