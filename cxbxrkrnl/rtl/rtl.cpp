@@ -10,7 +10,8 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 	PCONTEXT ContextRecord
 )
 {
-	// NOTE: this function expects the caller to be __cdecl, or else it fails
+	// NOTE: this function sets esp and ebp to the values they had in the caller's caller. For example, when called from RtlUnwind, it will set them to
+	// the values used in _global_unwind2. To achieve this effect, the caller must use __declspec(noinline) and #pragma optimize("y", off)
 	__asm {
 		push ebx
 		mov ebx, [esp + 8]        // ebx = ContextRecord;
@@ -28,7 +29,8 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 		pushfd
 		pop [ebx]CONTEXT.EFlags   // ContextRecord->EFlags = flags;
 
-		mov [ebx]CONTEXT.Ebp, ebp // ContextRecord->Ebp = ebp;
+		mov eax, [ebp]            // eax = old ebp;
+		mov [ebx]CONTEXT.Ebp, eax // ContextRecord->Ebp = ebp;
 		mov eax, [ebp + 4]        // eax = return address;
 		mov [ebx]CONTEXT.Eip, eax // ContextRecord->Eip = return address;
 		lea eax, [ebp + 8]
