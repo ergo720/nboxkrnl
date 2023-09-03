@@ -19,8 +19,49 @@
 
 #define IDT_INT_VECTOR_BASE 0x30
 
-#define KeGetPcr() (&KiPcr)
-#define KeGetPrcb() (&KiPcr.PrcbData)
+// These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
+// the accesses are atomic and thus thread-safe
+#define KeGetStackBase(var) \
+	__asm { \
+		__asm mov eax, [KiPcr].NtTib.StackBase \
+		__asm mov var, eax \
+	}
+
+#define KeGetStackLimit(var) \
+	__asm { \
+		__asm mov eax, [KiPcr].NtTib.StackLimit \
+		__asm mov var, eax \
+	}
+
+#define KeGetExceptionHead(var) \
+	__asm { \
+		__asm mov eax, [KiPcr].NtTib.ExceptionList \
+		__asm mov dword ptr var, eax \
+	}
+
+#define KeSetExceptionHead(var) \
+	__asm { \
+		__asm mov eax, dword ptr var \
+		__asm mov [KiPcr].NtTib.ExceptionList, eax \
+	}
+
+#define KeResetExceptionHead(var) \
+	__asm { \
+		__asm mov eax, dword ptr var \
+		__asm mov [KiPcr].NtTib.ExceptionList, eax \
+	}
+
+#define KeGetDpcStack(var) \
+	__asm { \
+		__asm mov eax, [KiPcr].PrcbData.DpcStack \
+		__asm mov var, eax \
+	}
+
+#define KeGetDpcActive(var) \
+	__asm { \
+		__asm mov eax, [KiPcr].PrcbData.DpcRoutineActive \
+		__asm mov var, eax \
+	}
 
 
 using KIRQL = UCHAR;

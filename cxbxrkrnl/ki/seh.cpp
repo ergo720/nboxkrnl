@@ -34,9 +34,9 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 {
 	// Manually install exception handler frame
 	EXCEPTION_REGISTRATION_RECORD nestedUnwindFrame;
-	nestedUnwindFrame.Prev = KeGetPcr()->NtTib.ExceptionList;
+	KeGetExceptionHead([nestedUnwindFrame].Prev);
 	nestedUnwindFrame.Handler = reinterpret_cast<void *>(_nested_unwind_handler);
-	KeGetPcr()->NtTib.ExceptionList = &nestedUnwindFrame;
+	KeSetExceptionHead(nestedUnwindFrame);
 
 	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
 
@@ -62,7 +62,7 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 	}
 
 	// Manually remove exception handler frame
-	KeGetPcr()->NtTib.ExceptionList = KeGetPcr()->NtTib.ExceptionList->Prev;
+	KeResetExceptionHead([nestedUnwindFrame].Prev);
 }
 
 void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)

@@ -36,16 +36,16 @@ static EXCEPTION_DISPOSITION RtlpExecuteHandler(PEXCEPTION_RECORD ExceptionRecor
 	// ExceptionRoutine is either _except_handler3, _nested_unwind_handler, RtlpNestedExceptionHandler or RtlpNestedUnwindHandler
 
 	EXCEPTION_REGISTRATION_RECORD NestedUnwindFrame;
-	NestedUnwindFrame.Prev = KeGetPcr()->NtTib.ExceptionList;
+	KeGetExceptionHead([NestedUnwindFrame].Prev);
 	if constexpr (IsUnwind) {
 		NestedUnwindFrame.Handler = static_cast<PVOID>(RtlpNestedUnwindHandler);
 	}
 	else {
 		NestedUnwindFrame.Handler = static_cast<PVOID>(RtlpNestedExceptionHandler);
 	}
-	KeGetPcr()->NtTib.ExceptionList = &NestedUnwindFrame;
+	KeSetExceptionHead(NestedUnwindFrame);
 	EXCEPTION_DISPOSITION Result = ExceptionRoutine(ExceptionRecord, RegistrationFrame, ContextRecord, pDispatcherContext);
-	KeGetPcr()->NtTib.ExceptionList = KeGetPcr()->NtTib.ExceptionList->Prev;
+	KeResetExceptionHead([NestedUnwindFrame].Prev);
 	return Result;
 }
 
@@ -63,9 +63,11 @@ static BOOLEAN VerifyStackLimitsForExceptionFrame(PEXCEPTION_REGISTRATION_RECORD
 		if (((RegistrationLowAddress & 3) == 0) && // must be 4 byte aligned
 			(KeGetCurrentIrql() >= DISPATCH_LEVEL)) {  // DPCs must execute at or above DISPATCH_LEVEL
 
-			ULONG DpcStackBase = reinterpret_cast<ULONG>(KeGetPrcb()->DpcStack);
+			ULONG DpcStackBase, DpcRoutineActive;
+			KeGetDpcStack(DpcStackBase);
+			KeGetDpcActive(DpcRoutineActive);
 
-			if ((KeGetPrcb()->DpcRoutineActive) && // we must be running a DPC
+			if (DpcRoutineActive && // we must be running a DPC
 				(RegistrationHighAddress <= DpcStackBase) && // inside of DPC stack top
 				(RegistrationLowAddress >= (DpcStackBase - KERNEL_STACK_SIZE))) { // inside of DPC stack bottom
 
@@ -91,11 +93,13 @@ EXPORTNUM(302) VOID XBOXAPI RtlRaiseException
 
 BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
 {
-	ULONG StackBase = reinterpret_cast<ULONG>(KeGetPcr()->NtTib.StackBase);
-	ULONG StackLimit = reinterpret_cast<ULONG>(KeGetPcr()->NtTib.StackLimit);
-	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer = KeGetPcr()->NtTib.ExceptionList;
+	ULONG StackBase, StackLimit;
+	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
 	PEXCEPTION_REGISTRATION_RECORD NestedRegistration = nullptr;
-	EXCEPTION_REGISTRATION_RECORD **ppRegistrationFrame = nullptr;
+	EXCEPTION_REGISTRATION_RECORD** ppRegistrationFrame = nullptr;
+	KeGetStackBase(StackBase);
+	KeGetStackLimit(StackLimit);
+	KeGetExceptionHead(RegistrationPointer);
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 
@@ -185,10 +189,12 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 	ContextRecord.Esp += 16;
 	ContextRecord.Eax = reinterpret_cast<ULONG>(ReturnValue);
 
-	ULONG StackBase = reinterpret_cast<ULONG>(KeGetPcr()->NtTib.StackBase);
-	ULONG StackLimit = reinterpret_cast<ULONG>(KeGetPcr()->NtTib.StackLimit);
-	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer = KeGetPcr()->NtTib.ExceptionList;
-	EXCEPTION_REGISTRATION_RECORD **ppRegistrationFrame = nullptr;
+	ULONG StackBase, StackLimit;
+	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
+	EXCEPTION_REGISTRATION_RECORD** ppRegistrationFrame = nullptr;
+	KeGetStackBase(StackBase);
+	KeGetStackLimit(StackLimit);
+	KeGetExceptionHead(RegistrationPointer);
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 		if (RegistrationPointer == static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame)) {
@@ -242,7 +248,12 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		}
 		}
 
-		KeGetPcr()->NtTib.ExceptionList = RegistrationPointer->Prev;
+		__asm {
+			mov eax, [RegistrationPointer]
+			mov eax, [eax]
+			mov [KiPcr].NtTib.ExceptionList, eax
+		}
+
 		RegistrationPointer = RegistrationPointer->Prev;
 	}
 

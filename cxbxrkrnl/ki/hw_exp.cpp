@@ -261,7 +261,8 @@ static VOID KiCopyKframeToContext(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 
 	if ((ContextRecord->ContextFlags & CONTEXT_FLOATING_POINT) || (ContextRecord->ContextFlags & CONTEXT_EXTENDED_REGISTERS)) {
 		KiFlushNPXState();
-		PFX_SAVE_AREA NpxFrame = reinterpret_cast<PFX_SAVE_AREA>(KeGetPcr()->NtTib.StackBase);
+		PFX_SAVE_AREA NpxFrame;
+		KeGetStackBase(NpxFrame);
 		memcpy(&ContextRecord->FloatSave, &NpxFrame->FloatSave, sizeof(FLOATING_SAVE_AREA));
 	}
 }
@@ -289,7 +290,8 @@ static VOID KiCopyContextToKframe(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 
 	if ((ContextRecord->ContextFlags & CONTEXT_FLOATING_POINT) || (ContextRecord->ContextFlags & CONTEXT_EXTENDED_REGISTERS)) {
 		KiFlushNPXState();
-		PFX_SAVE_AREA NpxFrame = reinterpret_cast<PFX_SAVE_AREA>(KeGetPcr()->NtTib.StackBase);
+		PFX_SAVE_AREA NpxFrame;
+		KeGetStackBase(NpxFrame);
 		memcpy(&NpxFrame->FloatSave, &ContextRecord->FloatSave, sizeof(FLOATING_SAVE_AREA));
 		NpxFrame->FloatSave.Cr0NpxState &= ~(CR0_EM | CR0_MP | CR0_TS);
 		NpxFrame->FloatSave.MXCsr = NpxFrame->FloatSave.MXCsr & 0xFFBF;

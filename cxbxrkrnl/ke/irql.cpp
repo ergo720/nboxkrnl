@@ -10,7 +10,7 @@
 
 EXPORTNUM(103) KIRQL XBOXAPI KeGetCurrentIrql()
 {
-	return KeGetPcr()->Irql;
+	__asm movzx eax, byte ptr [KiPcr].Irql
 }
 
 EXPORTNUM(129) KIRQL XBOXAPI KeRaiseIrqlToDpcLevel()
