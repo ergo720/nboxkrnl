@@ -83,12 +83,35 @@ static BOOLEAN VerifyStackLimitsForExceptionFrame(PEXCEPTION_REGISTRATION_RECORD
 	return TRUE;
 }
 
-EXPORTNUM(302) VOID XBOXAPI RtlRaiseException
+EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 (
 	PEXCEPTION_RECORD ExceptionRecord
 )
 {
-	// TODO
+	__asm {
+		push ebp
+		mov ebp, esp
+		sub esp, SIZE CONTEXT
+		push esp
+		call RtlCaptureContext
+		add [esp]CONTEXT.Esp, 4 // pop ExceptionRecord argument
+		mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS // set ContextFlags member of CONTEXT
+		mov eax, [ebp + 8]
+		mov ecx, [ebp + 4]
+		mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		push TRUE
+		push esp
+		push [ebp + 8]
+		call ZwRaiseException
+		sub esp, SIZE EXCEPTION_RECORD
+		mov [esp]EXCEPTION_RECORD.ExceptionCode, eax
+		mov [esp]EXCEPTION_RECORD.ExceptionFlags, EXCEPTION_NONCONTINUABLE
+		mov eax, [ebp + 8]
+		mov [esp]EXCEPTION_RECORD.ExceptionRecord, eax
+		mov [esp]EXCEPTION_RECORD.NumberParameters, 0
+		push esp
+		call RtlRaiseException // won't return
+	}
 }
 
 BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)

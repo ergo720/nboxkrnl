@@ -46,10 +46,9 @@
 		CREATE_KTRAP_FRAME \
 	}
 
-constexpr auto EXCEPTION_RECORD_SIZE = sizeof(EXCEPTION_RECORD);
 #define CREATE_EXCEPTION_RECORD_ARG0 \
 	__asm { \
-		__asm sub esp, EXCEPTION_RECORD_SIZE \
+		__asm sub esp, SIZE EXCEPTION_RECORD \
 		__asm mov [esp]EXCEPTION_RECORD.ExceptionCode, eax \
 		__asm mov [esp]EXCEPTION_RECORD.ExceptionFlags, 0 \
 		__asm mov [esp]EXCEPTION_RECORD.ExceptionRecord, 0 \
