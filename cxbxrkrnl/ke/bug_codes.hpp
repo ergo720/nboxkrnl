@@ -11,3 +11,5 @@
 #define IRQL_NOT_LESS_OR_EQUAL            3
 #define KERNEL_UNHANDLED_EXCEPTION        4
 #define INVALID_CONTEXT                   5
+#define UNHANDLED_NESTED_EXCEPTION        6
+#define UNHANDLED_UNWIND_EXCEPTION        7

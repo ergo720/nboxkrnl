@@ -114,7 +114,8 @@ BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Context
 		switch (Result)
 		{
 		case ExceptionNestedException:
-			// TODO
+			KeBugCheckEx(UNHANDLED_NESTED_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
+				ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
 			break;
 
 		case ExceptionContinueExecution:
@@ -233,7 +234,8 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 			break;
 
 		case ExceptionCollidedUnwind:
-			// TODO
+			KeBugCheckEx(UNHANDLED_UNWIND_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
+				ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
 			break;
 
 		case ExceptionNestedException:
