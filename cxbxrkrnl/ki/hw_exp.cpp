@@ -68,6 +68,7 @@
 
 #define EXIT_EXCEPTION \
 	__asm { \
+		__asm cli \
 		__asm mov esp, ebp \
 		__asm mov edx, [ebp]KTRAP_FRAME.ExceptionList \
 		__asm mov dword ptr fs:[0], edx \
@@ -211,7 +212,25 @@ void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 	HalpShutdownSystem();
 }
 
-// XXX This should probably be moved in a file specific for float support
+VOID FASTCALL KiRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance, PKTRAP_FRAME TrapFrame);
+
+VOID __declspec(naked) KiRaiseExceptionService(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
+{
+	// ecx -> ExceptionRecord
+	// edx -> ContextRecord
+	// eax -> FirstChance
+
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE;
+		sti
+		push ebp
+		push eax
+		call KiRaiseException
+		EXIT_EXCEPTION;
+	}
+}
+
+ // XXX This should probably be moved in a file specific for float support
 static VOID KiFlushNPXState()
 {
 	__asm {
@@ -295,6 +314,12 @@ static VOID KiCopyContextToKframe(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 		NpxFrame->FloatSave.Cr0NpxState &= ~(CR0_EM | CR0_MP | CR0_TS);
 		NpxFrame->FloatSave.MXCsr = NpxFrame->FloatSave.MXCsr & 0xFFBF;
 	}
+}
+
+static VOID FASTCALL KiRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance, PKTRAP_FRAME TrapFrame)
+{
+	KiCopyContextToKframe(TrapFrame, ContextRecord);
+	KiDispatchException(ExceptionRecord, TrapFrame, FirstChance);
 }
 
 VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAME TrapFrame, BOOLEAN FirstChance)

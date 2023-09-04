@@ -12,7 +12,13 @@ NTSTATUS XBOXAPI ZwContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert)
 	return STATUS_SUCCESS;
 }
 
-VOID XBOXAPI ZwRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
+__declspec(naked) VOID XBOXAPI ZwRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
 {
-	// TODO
+	__asm {
+		mov ecx, ExceptionRecord
+		mov edx, ContextRecord
+		movzx eax, FirstChance
+		int IDT_SERVICE_VECTOR_BASE + 9 // calls KiRaiseExceptionService
+		ret 12
+	}
 }

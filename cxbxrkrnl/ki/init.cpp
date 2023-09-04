@@ -86,7 +86,7 @@ KIDT KiIdt[] = {
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 	((uint64_t)0x8 << 16) | ((uint64_t)&KiUnexpectedInterrupt & 0x0000FFFF) | (((uint64_t)&KiUnexpectedInterrupt & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32),
 
-	// The following 16 vectors can be used internally by the kernel (if the need arises)
+	// The following 16 vectors can be used internally by the kernel
 	0,
 	0,
 	0,
@@ -96,7 +96,7 @@ KIDT KiIdt[] = {
 	0,
 	0,
 	0,
-	0,
+	((uint64_t)0x8 << 16) | ((uint64_t)&KiRaiseExceptionService & 0x0000FFFF) | (((uint64_t)&KiRaiseExceptionService & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32), // used by ZwRaiseException
 	0,
 	0,
 	0,

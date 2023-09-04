@@ -56,3 +56,4 @@ VOID XBOXAPI KiTrap19();
 VOID XBOXAPI KiUnexpectedInterrupt();
 
 VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAME TrapFrame, BOOLEAN FirstChance);
+VOID KiRaiseExceptionService(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance);

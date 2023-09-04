@@ -17,6 +17,7 @@
 #define APC_LEVEL 1
 #define PASSIVE_LEVEL 0
 
+#define IDT_SERVICE_VECTOR_BASE 0x20
 #define IDT_INT_VECTOR_BASE 0x30
 
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that

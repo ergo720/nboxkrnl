@@ -103,14 +103,15 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 		push esp
 		push [ebp + 8]
 		call ZwRaiseException
-		sub esp, SIZE EXCEPTION_RECORD
-		mov [esp]EXCEPTION_RECORD.ExceptionCode, eax
-		mov [esp]EXCEPTION_RECORD.ExceptionFlags, EXCEPTION_NONCONTINUABLE
-		mov eax, [ebp + 8]
-		mov [esp]EXCEPTION_RECORD.ExceptionRecord, eax
-		mov [esp]EXCEPTION_RECORD.NumberParameters, 0
-		push esp
-		call RtlRaiseException // won't return
+		// ZwRaiseException should never return. It would only be possible if KiRaiseException fails before copying the CONTEXT to the KTRAP_FRAME, but the
+		// function right now always succeeds
+	noreturn_eip:
+		push 0
+		push 0
+		push 0
+		push noreturn_eip
+		push NORETURN_FUNCTION_RETURNED
+		call KeBugCheckEx // won't return
 	}
 }
 
@@ -118,7 +119,6 @@ BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Context
 {
 	ULONG StackBase, StackLimit;
 	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
-	PEXCEPTION_REGISTRATION_RECORD NestedRegistration = nullptr;
 	EXCEPTION_REGISTRATION_RECORD** ppRegistrationFrame = nullptr;
 	KeGetStackBase(StackBase);
 	KeGetStackLimit(StackLimit);
