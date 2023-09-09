@@ -9,7 +9,10 @@
 #include <string.h>
 
 
-// This macro creates a KTRAP_FRAME on the stack of an exception handler. Note that the members Eip, SegCs and EFlags are already pushed by the cpu when it invokes
+// Masks out the RPL and GDT / LDT flag of a selector
+#define SELECTOR_MASK 0xFFF8
+
+ // This macro creates a KTRAP_FRAME on the stack of an exception handler. Note that the members Eip, SegCs and EFlags are already pushed by the cpu when it invokes
 // the handler. ErrCode is only pushed by the cpu for exceptions that use it, for the others an additional push must be done separately
 
 #define CREATE_KTRAP_FRAME \
@@ -69,9 +72,10 @@
 #define EXIT_EXCEPTION \
 	__asm { \
 		__asm cli \
-		__asm mov esp, ebp \
 		__asm mov edx, [ebp]KTRAP_FRAME.ExceptionList \
 		__asm mov dword ptr fs:[0], edx \
+		__asm test [ebp]KTRAP_FRAME.SegCs, SELECTOR_MASK \
+		__asm jz esp_changed \
 		__asm mov eax, [ebp]KTRAP_FRAME.Eax \
 		__asm mov edx, [ebp]KTRAP_FRAME.Edx \
 		__asm mov ecx, [ebp]KTRAP_FRAME.Ecx \
@@ -81,6 +85,28 @@
 		__asm pop ebx \
 		__asm pop ebp \
 		__asm add esp, 4 \
+		__asm iretd \
+		__asm esp_changed: \
+		__asm mov ebx, [ebp]KTRAP_FRAME.TempSegCs \
+		__asm mov [ebp]KTRAP_FRAME.SegCs, ebx \
+		__asm mov ebx, [ebp]KTRAP_FRAME.TempEsp \
+		__asm sub ebx, 12 \
+		__asm mov [ebp]KTRAP_FRAME.ErrCode, ebx \
+		__asm mov esi, [ebp]KTRAP_FRAME.EFlags \
+		__asm mov [ebx], esi \
+		__asm mov esi, [ebp]KTRAP_FRAME.SegCs \
+		__asm mov [ebx + 4], esi \
+		__asm mov esi, [ebp]KTRAP_FRAME.Eip \
+		__asm mov [ebx + 8], esi \
+		__asm mov eax, [ebp]KTRAP_FRAME.Eax \
+		__asm mov edx, [ebp]KTRAP_FRAME.Edx \
+		__asm mov ecx, [ebp]KTRAP_FRAME.Ecx \
+		__asm lea esp, [ebp]KTRAP_FRAME.Edi \
+		__asm pop edi \
+		__asm pop esi \
+		__asm pop ebx \
+		__asm pop ebp \
+		__asm mov esp, [esp] \
 		__asm iretd \
 	}
 
@@ -291,9 +317,17 @@ static VOID KiCopyContextToKframe(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 		TrapFrame->Ebp = ContextRecord->Ebp;
 		TrapFrame->Eip = ContextRecord->Eip;
 		TrapFrame->EFlags = ContextRecord->EFlags & 0x003E0FD7; // blocks modifying iopl, nt, rf and reserved bits
-		if (reinterpret_cast<ULONG>((&TrapFrame->EFlags) + 1) != ContextRecord->Esp) {
-			// The macro EXIT_EXCEPTION currently assumes that esp was not touched in the TRAP_FRAME, so bug check for now if the handler modified it
-			KeBugCheck(INVALID_CONTEXT);
+
+		ULONG OldEsp = reinterpret_cast<ULONG>((&TrapFrame->EFlags) + 1);
+		if (OldEsp != ContextRecord->Esp) {
+			if (ContextRecord->Esp < OldEsp) {
+				// The new esp must be higher in the stack than the one that was saved in the trap frame
+				KeBugCheck(INVALID_CONTEXT);
+			}
+
+			TrapFrame->TempSegCs = TrapFrame->SegCs;
+			TrapFrame->SegCs = TrapFrame->SegCs & ~SELECTOR_MASK;
+			TrapFrame->TempEsp = ContextRecord->Esp;
 		}
 	}
 
