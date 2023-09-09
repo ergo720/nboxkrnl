@@ -67,11 +67,10 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 
 void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 {
-	// NOTE: RtlUnwind will trash all the non-volatile registers despite being stdcall. This happens because the register context is captured with RtlCaptureContext only
-	// after some of the function has already executed, and at that point the non-volatile registers are likely already trashed
+	// NOTE: RtlUnwind will trash all the non-volatile registers (save for ebp) despite being stdcall. This happens because the register context is captured with RtlCaptureContext
+	// only after some of the function has already executed, and at that point the non-volatile registers are likely already trashed
 
 	__asm {
-		push ebp
 		push ebx
 		push esi
 		push edi
@@ -83,7 +82,6 @@ void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 		pop edi
 		pop esi
 		pop ebx
-		pop ebp
 	}
 }
 
