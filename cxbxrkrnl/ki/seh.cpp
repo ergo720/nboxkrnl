@@ -67,10 +67,24 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 
 void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 {
-	// NOTE: according to nxdk sources, RtlUnwind will trash all the non-volatile registers despite being stdcall. That doesn't happen in our implementation here,
-	// because we return from it with a regular return statement instead of ZwContinue, so we can just call it normally
+	// NOTE: RtlUnwind will trash all the non-volatile registers despite being stdcall. This happens because the register context is captured with RtlCaptureContext only
+	// after some of the function has already executed, and at that point the non-volatile registers are likely already trashed
 
-	RtlUnwind(pRegistrationFrame, nullptr, nullptr, nullptr);
+	__asm {
+		push ebp
+		push ebx
+		push esi
+		push edi
+		push 0
+		push 0
+		push 0
+		push pRegistrationFrame
+		call RtlUnwind
+		pop edi
+		pop esi
+		pop ebx
+		pop ebp
+	}
 }
 
 // This function must use extern "C" so that MSVC can link against our implementation of _except_handler3 when we use __try / __except in the kernel. It's also necessary

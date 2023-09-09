@@ -117,3 +117,13 @@ VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSiz
 
 	KfLowerIrql(OldIrql);
 }
+
+EXPORTNUM(155) BOOLEAN XBOXAPI KeTestAlertThread
+(
+	KPROCESSOR_MODE AlertMode
+)
+{
+	// TODO
+
+	return FALSE;
+}

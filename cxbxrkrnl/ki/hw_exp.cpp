@@ -238,6 +238,22 @@ void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 	HalpShutdownSystem();
 }
 
+VOID FASTCALL KiContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert, PKTRAP_FRAME TrapFrame);
+
+VOID __declspec(naked) KiContinueService(PCONTEXT ContextRecord, BOOLEAN TestAlert)
+{
+  // ecx -> ContextRecord
+  // edx -> TestAlert
+
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE;
+		sti
+		push ebp
+		call KiContinue
+		EXIT_EXCEPTION;
+	}
+}
+
 VOID FASTCALL KiRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance, PKTRAP_FRAME TrapFrame);
 
 VOID __declspec(naked) KiRaiseExceptionService(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
@@ -347,6 +363,14 @@ static VOID KiCopyContextToKframe(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 		memcpy(&NpxFrame->FloatSave, &ContextRecord->FloatSave, sizeof(FLOATING_SAVE_AREA));
 		NpxFrame->FloatSave.Cr0NpxState &= ~(CR0_EM | CR0_MP | CR0_TS);
 		NpxFrame->FloatSave.MXCsr = NpxFrame->FloatSave.MXCsr & 0xFFBF;
+	}
+}
+
+static VOID FASTCALL KiContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert, PKTRAP_FRAME TrapFrame)
+{
+	KiCopyContextToKframe(TrapFrame, ContextRecord);
+	if (TestAlert) {
+		KeTestAlertThread(KernelMode);
 	}
 }
 

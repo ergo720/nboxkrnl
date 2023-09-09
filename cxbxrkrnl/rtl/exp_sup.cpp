@@ -223,10 +223,9 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 		if (RegistrationPointer == static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame)) {
 
-			// XXX On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
-			// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel
-			// export. For now, the only caller of RtlUnwind is _global_unwind2 which doesn't care about the return value, so this isn't an issue right now yet
-			return;
+			// NOTE: On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
+			// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel export
+			ZwContinue(&ContextRecord, FALSE);
 		}
 		else if (TargetFrame && (static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame) < RegistrationPointer)) {
 
@@ -284,10 +283,9 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 
 	if (TargetFrame == EXCEPTION_CHAIN_END) {
 
-		// XXX On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
-		// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel
-		// export. For now, the only caller of RtlUnwind is _global_unwind2 which doesn't care about the return value, so this isn't an issue right now yet
-		return;
+		// NOTE: On the xbox, the TargetIp argument is ignored, and RtlUnwind always returns to its caller when it's done its job. Unfortunately, we must still use ZwContinue to
+		// return to the caller because we need to set the return value. We cannot just change the return type from VOID to something else because this is a kernel export
+		ZwContinue(&ContextRecord, FALSE);
 	}
 	else {
 		// This means that we couldn't find the specified TargetFrame in the chain for this thread, so the TargetFrame is probably for another thread

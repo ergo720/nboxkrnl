@@ -5,11 +5,14 @@
 #include "zw.hpp"
 
 
-NTSTATUS XBOXAPI ZwContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert)
+__declspec(naked) VOID XBOXAPI ZwContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert)
 {
-	// TODO
-
-	return STATUS_SUCCESS;
+	__asm {
+		mov ecx, ContextRecord
+		movzx edx, TestAlert
+		int IDT_SERVICE_VECTOR_BASE + 8 // calls KiContinueService
+		ret 8
+	}
 }
 
 __declspec(naked) VOID XBOXAPI ZwRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
