@@ -49,7 +49,7 @@ static EXCEPTION_DISPOSITION RtlpExecuteHandler(PEXCEPTION_RECORD ExceptionRecor
 	return Result;
 }
 
-static BOOLEAN VerifyStackLimitsForExceptionFrame(PEXCEPTION_REGISTRATION_RECORD RegistrationFrame, PULONG StackBase, PULONG StackLimit)
+static BOOLEAN RtlpVerifyStackLimitsForExceptionFrame(PEXCEPTION_REGISTRATION_RECORD RegistrationFrame, PULONG StackBase, PULONG StackLimit)
 {
 	ULONG RegistrationLowAddress = reinterpret_cast<ULONG>(RegistrationFrame);
 	ULONG RegistrationHighAddress = RegistrationLowAddress + sizeof(EXCEPTION_REGISTRATION_RECORD);
@@ -126,7 +126,7 @@ BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 
-		if (VerifyStackLimitsForExceptionFrame(RegistrationPointer, &StackBase, &StackLimit) == FALSE) {
+		if (RtlpVerifyStackLimitsForExceptionFrame(RegistrationPointer, &StackBase, &StackLimit) == FALSE) {
 			ExceptionRecord->ExceptionFlags |= EXCEPTION_STACK_INVALID;
 			return FALSE;
 		}
@@ -252,7 +252,7 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 			RtlRaiseException(&ExceptionRecord1); // won't return
 		}
 
-		if (VerifyStackLimitsForExceptionFrame(RegistrationPointer, &StackBase, &StackLimit) == FALSE) {
+		if (RtlpVerifyStackLimitsForExceptionFrame(RegistrationPointer, &StackBase, &StackLimit) == FALSE) {
 			EXCEPTION_RECORD ExceptionRecord1;
 			ExceptionRecord1.ExceptionCode = STATUS_BAD_STACK;
 			ExceptionRecord1.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
