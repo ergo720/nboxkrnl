@@ -115,7 +115,7 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 	}
 }
 
-BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
+BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
 {
 	ULONG StackBase, StackLimit;
 	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
@@ -173,6 +173,20 @@ BOOLEAN RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Context
 	}
 
 	return FALSE;
+}
+
+EXPORTNUM(303) VOID XBOXAPI RtlRaiseStatus
+(
+	NTSTATUS Status
+)
+{
+	EXCEPTION_RECORD ExceptionRecord;
+	ExceptionRecord.ExceptionCode = Status;
+	ExceptionRecord.ExceptionFlags = EXCEPTION_NONCONTINUABLE;
+	ExceptionRecord.ExceptionRecord = nullptr;
+	ExceptionRecord.NumberParameters = 0;
+
+	RtlRaiseException(&ExceptionRecord);
 }
 
 #pragma optimize("y", off)

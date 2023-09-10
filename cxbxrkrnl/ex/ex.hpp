@@ -4,12 +4,22 @@
 
 #pragma once
 
-#include "..\types.hpp"
+#include "..\nt\zw.hpp"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+EXPORTNUM(26) DLLEXPORT VOID XBOXAPI ExRaiseException
+(
+	PEXCEPTION_RECORD ExceptionRecord
+);
+
+EXPORTNUM(27) DLLEXPORT VOID XBOXAPI ExRaiseStatus
+(
+	NTSTATUS Status
+);
 
 EXPORTNUM(51) DLLEXPORT LONG FASTCALL InterlockedCompareExchange
 (
