@@ -2,19 +2,19 @@
  * ergo720                Copyright (c) 2022
  */
 
-#include "halp.hpp"
+#include "..\rtl\rtl.hpp"
 
 
 VOID XBOXAPI HalpSwIntApc()
 {
 	// Apc interrupt not implemented yet
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 VOID XBOXAPI HalpSwIntDpc()
 {
 	// Dpc interrupt not implemented yet
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 VOID XBOXAPI HalpHwInt0()

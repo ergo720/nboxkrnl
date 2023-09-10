@@ -4,7 +4,7 @@
 
 #include "ki.hpp"
 #include "hw_exp.hpp"
-#include "..\hal\halp.hpp"
+#include "..\rtl\rtl.hpp"
 #include "..\rtl\exp_sup.hpp"
 #include <string.h>
 
@@ -133,109 +133,109 @@ void __declspec(naked) XBOXAPI KiTrap0()
 // Debug breakpoint
 void __declspec(naked) XBOXAPI KiTrap1()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // NMI interrupt
 void __declspec(naked) XBOXAPI KiTrap2()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Breakpoint (int 3)
 void __declspec(naked) XBOXAPI KiTrap3()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Overflow (int O)
 void __declspec(naked) XBOXAPI KiTrap4()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Bound range exceeded
 void __declspec(naked) XBOXAPI KiTrap5()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Invalid opcode
 void __declspec(naked) XBOXAPI KiTrap6()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // No math coprocessor
 void __declspec(naked) XBOXAPI KiTrap7()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Double fault
 void __declspec(naked) XBOXAPI KiTrap8()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Invalid tss
 void __declspec(naked) XBOXAPI KiTrap10()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Segment not present
 void __declspec(naked) XBOXAPI KiTrap11()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Stack-segment fault
 void __declspec(naked) XBOXAPI KiTrap12()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // General protection
 void __declspec(naked) XBOXAPI KiTrap13()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Page fault
 void __declspec(naked) XBOXAPI KiTrap14()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Math fault
 void __declspec(naked) XBOXAPI KiTrap16()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Alignment check
 void __declspec(naked) XBOXAPI KiTrap17()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Machine check
 void __declspec(naked) XBOXAPI KiTrap18()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // SIMD floating-point exception
 void __declspec(naked) XBOXAPI KiTrap19()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 // Used to catch any intel-reserved exception
 void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 {
-	HalpShutdownSystem();
+	RIP_UNIMPLEMENTED();
 }
 
 VOID FASTCALL KiContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert, PKTRAP_FRAME TrapFrame);
