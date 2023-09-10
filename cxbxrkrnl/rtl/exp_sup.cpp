@@ -137,8 +137,7 @@ BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT
 		switch (Result)
 		{
 		case ExceptionNestedException:
-			KeBugCheckEx(UNHANDLED_NESTED_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
-				ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
+			RIP_API_MSG("unhandled nested exception");
 			break;
 
 		case ExceptionContinueExecution:
@@ -270,8 +269,7 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 			break;
 
 		case ExceptionCollidedUnwind:
-			KeBugCheckEx(UNHANDLED_UNWIND_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
-				ExceptionRecord->ExceptionInformation[0], ExceptionRecord->ExceptionInformation[1]);
+			RIP_API_MSG("unhandled nested exception");
 			break;
 
 		case ExceptionNestedException:

@@ -4,6 +4,7 @@
  */
 
 #include "..\ki\ki.hpp"
+#include "..\rtl\rtl.hpp"
 #include "..\kernel.hpp"
 
 
@@ -34,4 +35,5 @@ EXPORTNUM(113) VOID XBOXAPI KeInitializeTimerEx
 VOID XBOXAPI KiTimerExpiration(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2)
 {
 	// TODO
+	RIP_UNIMPLEMENTED();
 }

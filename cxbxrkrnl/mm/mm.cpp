@@ -5,6 +5,7 @@
 
 #include "..\kernel.hpp"
 #include "..\ke\ke.hpp"
+#include "..\rtl\rtl.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
 #include <string.h>
@@ -164,4 +165,5 @@ VOID MmInitSystem()
 	MiFlushEntireTlb();
 
 	// TODO: initialize the pool manager and the VAD tree, keep track of page type usage
+	RIP_API_MSG("incomplete initialization!");
 }

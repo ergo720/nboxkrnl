@@ -8,6 +8,7 @@
 #include "..\kernel.hpp"
 #include "..\mm\mm.hpp"
 #include "..\hal\halp.hpp"
+#include "..\rtl\rtl.hpp"
 #include <string.h>
 
 
@@ -16,11 +17,13 @@ VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *Nor
 VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument)
 {
 	// TODO
+	RIP_UNIMPLEMENTED();
 }
 
 VOID XBOXAPI KiThreadStartup()
 {
 	// TODO
+	RIP_UNIMPLEMENTED();
 }
 
 VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine, PVOID StartContext)
@@ -124,6 +127,7 @@ EXPORTNUM(155) BOOLEAN XBOXAPI KeTestAlertThread
 )
 {
 	// TODO
+	RIP_UNIMPLEMENTED();
 
 	return FALSE;
 }

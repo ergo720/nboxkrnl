@@ -35,6 +35,16 @@ EXPORTNUM(312) DLLEXPORT VOID XBOXAPI RtlUnwind
 	PVOID ReturnValue
 );
 
+[[noreturn]] EXPORTNUM(352) DLLEXPORT VOID XBOXAPI RtlRip
+(
+	PVOID ApiName,
+	PVOID Expression,
+	PVOID Message
+);
+
 #ifdef __cplusplus
 }
 #endif
+
+#define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
+#define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))

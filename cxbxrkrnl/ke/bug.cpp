@@ -24,6 +24,8 @@ EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
 	ULONG_PTR BugCheckParameter4
 )
 {
+  // This routine terminates the system. It should be used when a failure is not expected, for example those caused by bugs
+
 	DbgPrint("Fatal error of the kernel with code: 0x%08lx\n(0x%p, 0x%p, 0x%p, 0x%p)\n\n",
 		BugCheckCode,
 		BugCheckParameter1,

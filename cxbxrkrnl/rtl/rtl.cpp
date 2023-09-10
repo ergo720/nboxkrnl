@@ -3,6 +3,8 @@
  */
 
 #include "rtl.hpp"
+#include "..\hal\halp.hpp"
+#include "..\dbg\dbg.hpp"
 
 
 EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
@@ -39,4 +41,39 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 		pop ebx
 		ret 4
 	}
+}
+
+EXPORTNUM(352) VOID XBOXAPI RtlRip
+(
+	PVOID ApiName,
+	PVOID Expression,
+	PVOID Message
+)
+{
+	// This routine terminates the system. It should be used when a failure is expected, for example when executing unimplemented stuff
+
+	const char *OpenBracket = " (";
+	const char *CloseBracket = ") ";
+
+	if (!Message) {
+		if (Expression) {
+			Message = const_cast<PCHAR>("failed");
+		}
+		else {
+			Message = const_cast<PCHAR>("execution failure");
+		}
+	}
+
+	if (!Expression) {
+		Expression = const_cast<PCHAR>("");
+		OpenBracket = "";
+		CloseBracket = " ";
+	}
+
+	if (!ApiName) {
+		ApiName = const_cast<PCHAR>("RIP");
+	}
+
+	DbgPrint("%s:%s%s%s%s\n\n", ApiName, OpenBracket, Expression, CloseBracket, Message);
+	HalpShutdownSystem();
 }
