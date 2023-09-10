@@ -12,6 +12,14 @@
 extern "C" {
 #endif
 
+EXPORTNUM(264) DLLEXPORT VOID XBOXAPI RtlAssert
+(
+	PVOID FailedAssertion,
+	PVOID FileName,
+	ULONG LineNumber,
+	PCHAR Message
+);
+
 EXPORTNUM(265) DLLEXPORT VOID XBOXAPI RtlCaptureContext
 (
 	PCONTEXT ContextRecord

@@ -7,6 +7,24 @@
 #include "..\dbg\dbg.hpp"
 
 
+EXPORTNUM(264) VOID XBOXAPI RtlAssert
+(
+	PVOID FailedAssertion,
+	PVOID FileName,
+	ULONG LineNumber,
+	PCHAR Message
+)
+{
+	// This routine is called from pdclib when an assertion fails in debug builds only
+
+	DbgPrint("\n\n!!! Assertion failed: %s%s !!!\nSource File: %s, line %ld\n\n", Message ? Message : "", FailedAssertion, FileName, LineNumber);
+
+	// NOTE: this should check for the presence of a guest debugger on the host side (such as lib86dbg) and, if present, communicate that it should hook
+	// the breakpoint exception handler that int3 generates, so that it can take over us and start a debugging session
+
+	__asm int 3
+}
+
 EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 (
 	PCONTEXT ContextRecord
