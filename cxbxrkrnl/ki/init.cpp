@@ -156,9 +156,11 @@ void KiInitializeKernel()
 	KiPcr.SelfPcr = &KiPcr;
 	KiPcr.Prcb = &KiPcr.PrcbData;
 
+	// NOTE: unlike the StackBase member of KTHREAD, the StackBase in NtTib is corrected by subtracting sizeof(FX_SAVE_AREA). This is necessary because otherwise
+	// KiCopyKframeToContext / KiCopyContextToKframe will flush the fpu state in the wrong spot
 	KiPcr.NtTib.ExceptionList = EXCEPTION_CHAIN_END;
 	KiPcr.NtTib.StackLimit = KiIdleThreadStack;
-	KiPcr.NtTib.StackBase = KiIdleThreadStack + KERNEL_STACK_SIZE;
+	KiPcr.NtTib.StackBase = KiIdleThreadStack + KERNEL_STACK_SIZE - sizeof(FX_SAVE_AREA);
 	KiPcr.NtTib.Self = &KiPcr.NtTib;
 	KiPcr.PrcbData.CurrentThread = &KiIdleThread;
 

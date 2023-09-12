@@ -99,8 +99,9 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 		mov eax, [ebp + 8]
 		mov ecx, [ebp + 4]
 		mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		mov ecx, esp
 		push TRUE
-		push esp
+		push ecx
 		push [ebp + 8]
 		call ZwRaiseException
 		// ZwRaiseException should never return. It would only be possible if KiRaiseException fails before copying the CONTEXT to the KTRAP_FRAME, but the

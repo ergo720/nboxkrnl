@@ -93,11 +93,11 @@
 		__asm sub ebx, 12 \
 		__asm mov [ebp]KTRAP_FRAME.ErrCode, ebx \
 		__asm mov esi, [ebp]KTRAP_FRAME.EFlags \
-		__asm mov [ebx], esi \
+		__asm mov [ebx + 8], esi \
 		__asm mov esi, [ebp]KTRAP_FRAME.SegCs \
 		__asm mov [ebx + 4], esi \
 		__asm mov esi, [ebp]KTRAP_FRAME.Eip \
-		__asm mov [ebx + 8], esi \
+		__asm mov [ebx], esi \
 		__asm mov eax, [ebp]KTRAP_FRAME.Eax \
 		__asm mov edx, [ebp]KTRAP_FRAME.Edx \
 		__asm mov ecx, [ebp]KTRAP_FRAME.Ecx \

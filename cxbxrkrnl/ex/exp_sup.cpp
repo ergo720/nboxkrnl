@@ -19,6 +19,7 @@ EXPORTNUM(26) __declspec(naked) VOID XBOXAPI ExRaiseException
 		push esp
 		call RtlCaptureContext
 		add [esp]CONTEXT.Esp, 4 // pop ExceptionRecord argument
+		mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS // set ContextFlags member of CONTEXT
 		mov eax, [ebp + 8]
 		mov ecx, [ebp + 4]
 		mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx // set ExceptionAddress member of ExceptionRecord argument to caller's eip
@@ -26,9 +27,10 @@ EXPORTNUM(26) __declspec(naked) VOID XBOXAPI ExRaiseException
 		push eax
 		call RtlDispatchException
 		// If the exception is continuable, then RtlDispatchException will return
+		mov ecx, esp
 		push FALSE
-		push esp
-		test eax, eax
+		push ecx
+		test al, al
 		jz exp_unhandled
 		call ZwContinue // won't return
 		exp_unhandled:
