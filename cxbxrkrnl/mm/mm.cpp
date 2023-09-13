@@ -32,7 +32,7 @@ VOID MmInitSystem()
 		MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
 		MiDebuggerPagesAvailable = X64M_PHYSICAL_PAGE;
 		MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
-		++RequiredPt;
+		RequiredPt += 2;
 
 		// Note that even if this is true, only the heap/Nt functions of the title are affected, the Mm functions
 		// will still use only the lower 64 MiB and the same is true for the debugger pages, meaning they will only
@@ -47,14 +47,14 @@ VOID MmInitSystem()
 
 	// Sanity check: make sure our kernel size is below 4 MiB. A real uncompressed kernel is approximately 1.2 MiB large
 	ULONG PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, KernelSize);
-	PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, (PdeNumber + RequiredPt) * PAGE_SIZE + KernelSize); // also count the space needed for the pt's
+	PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, (PdeNumber + RequiredPt) * PAGE_SIZE + KernelSize); // also count the space needed for the pts
 	if ((KERNEL_BASE + KernelSize + PdeNumber * PAGE_SIZE) >= 0x80400000) {
 		KeBugCheck(INIT_FAILURE);
 	}
 
 	// Map the pt of the kernel image. This is backed by the page immediately following it
 	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
-	memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
+	memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE); // this relies on the fact that the host has identity mapped the ram window starting at address zero
 	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
 	WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the kernel image
 	NextPageTableAddr += PAGE_SIZE;
@@ -85,31 +85,71 @@ VOID MmInitSystem()
 		WritePte(pPde, TempPte);
 	}
 
-	// Unmap all the remaining contiguous memory using 4 MiB pages (assumes that only xbox contiguous size was mapped)
-	pPde_end = GetPdeAddress(CONTIGUOUS_MEMORY_BASE + XBOX_CONTIGUOUS_MEMORY_SIZE - 1);
+	// Unmap all the remaining contiguous memory using 4 MiB pages
+	pPde_end = GetPdeAddress(CONTIGUOUS_MEMORY_BASE + MmSystemMaxMemory - 1);
 	for (PMMPTE pPde = GetPdeAddress(ROUND_UP(NextPageTableAddr, PAGE_LARGE_SIZE)); pPde <= pPde_end; ++pPde) {
 		WriteZeroPte(pPde);
 	}
 
-	// Write the pde's of the WC (tiled) memory - no page tables
-	TempPte = ValidKernelPteBits | PTE_PAGE_LARGE_MASK | SetPfn(WRITE_COMBINED_BASE);
-	TempPte |= SetWriteCombine(TempPte);
-	PdeNumber = PAGES_SPANNED_LARGE(WRITE_COMBINED_BASE, WRITE_COMBINED_SIZE);
-	ULONG i = 0;
-	for (PMMPTE pPde = GetPdeAddress(WRITE_COMBINED_BASE); i < PdeNumber; ++i) {
-		WritePte(pPde, TempPte);
-		TempPte += PAGE_LARGE_SIZE;
-		++pPde;
+	{
+		// Map the pfn database
+		PFN pfn, pfn_end;
+		if (MiLayoutRetail) {
+			pfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
+			pfn_end = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 16 - 1;
+		}
+		else if (MiLayoutDevkit) {
+			pfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
+			pfn_end = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
+		}
+		else {
+			pfn = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE;
+			pfn_end = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
+		}
+
+		memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE); // this relies on the fact that the host has identity mapped the ram window starting at address zero
+		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the pfn database
+		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(pfn);
+		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
+		NextPageTableAddr += PAGE_SIZE;
+		if (MiLayoutDevkit) {
+			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
+			memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE); // this relies on the fact that the host has identity mapped the ram window starting at address zero
+			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the pfn database
+			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
+			NextPageTableAddr += PAGE_SIZE;
+		}
+		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
+		pPde_end = GetPteAddress(ConvertPfnToContiguous(pfn_end));
+		for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the pfn database
+			WritePte(pPde, TempPte);
+			TempPte += PAGE_SIZE;
+		}
+		--pPde_end;
+		(*pPde_end) |= PTE_GUARD_END_MASK;
 	}
 
-	// Write the pde's of the UC memory region - no page tables
-	TempPte = ValidKernelPteBits | PTE_PAGE_LARGE_MASK | DisableCachingBits | SetPfn(UNCACHED_BASE);
-	PdeNumber = PAGES_SPANNED_LARGE(UNCACHED_BASE, UNCACHED_SIZE);
-	i = 0;
-	for (PMMPTE pPde = GetPdeAddress(UNCACHED_BASE); i < PdeNumber; ++i) {
-		WritePte(pPde, TempPte);
-		TempPte += PAGE_LARGE_SIZE;
-		++pPde;
+	{
+		// Write the pdes of the WC (tiled) memory - no page tables
+		TempPte = ValidKernelPteBits | PTE_PAGE_LARGE_MASK | SetPfn(WRITE_COMBINED_BASE);
+		TempPte |= SetWriteCombine(TempPte);
+		PdeNumber = PAGES_SPANNED_LARGE(WRITE_COMBINED_BASE, WRITE_COMBINED_SIZE);
+		ULONG i = 0;
+		for (PMMPTE pPde = GetPdeAddress(WRITE_COMBINED_BASE); i < PdeNumber; ++i) {
+			WritePte(pPde, TempPte);
+			TempPte += PAGE_LARGE_SIZE;
+			++pPde;
+		}
+
+		// Write the pdes of the UC memory region - no page tables
+		TempPte = ValidKernelPteBits | PTE_PAGE_LARGE_MASK | DisableCachingBits | SetPfn(UNCACHED_BASE);
+		PdeNumber = PAGES_SPANNED_LARGE(UNCACHED_BASE, UNCACHED_SIZE);
+		i = 0;
+		for (PMMPTE pPde = GetPdeAddress(UNCACHED_BASE); i < PdeNumber; ++i) {
+			WritePte(pPde, TempPte);
+			TempPte += PAGE_LARGE_SIZE;
+			++pPde;
+		}
 	}
 
 	{
@@ -124,41 +164,41 @@ VOID MmInitSystem()
 			pfn_end = CHIHIRO_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
 		}
 
-		ULONG addr = reinterpret_cast<ULONG>ConvertPfnToContiguousPhysical(pfn);
-		memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
-		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the instance memory
-		WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the instance memory
-
-		TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(addr);
-		pPde_end = GetPteAddress(ConvertPfnToContiguousPhysical(pfn_end));
-		for (PMMPTE pPde = GetPteAddress(addr); pPde <= pPde_end; ++pPde) { // write ptes for the instance memory
+		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(pfn);
+		TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
+		pPde_end = GetPteAddress(ConvertPfnToContiguous(pfn_end));
+		for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the instance memory
 			WritePte(pPde, TempPte);
 			TempPte += PAGE_SIZE;
 		}
 		--pPde_end;
 		(*pPde_end) |= PTE_GUARD_END_MASK;
-		NextPageTableAddr += PAGE_SIZE;
 
 		if (MiLayoutDevkit) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
 
 			pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			pfn_end += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			addr = reinterpret_cast<ULONG>ConvertPfnToContiguousPhysical(pfn);
-			memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE);
+			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(pfn);
+			memset(ConvertContiguousToPhysical(NextPageTableAddr), 0, PAGE_SIZE); // this relies on the fact that the host has identity mapped the ram window starting at address zero
 			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the second instance memory
-			WritePte(GetPdeAddress(addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
+			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
 
-			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(addr);
-			pPde_end = GetPteAddress(ConvertPfnToContiguousPhysical(pfn_end));
-			for (PMMPTE pPde = GetPteAddress(addr); pPde <= pPde_end; ++pPde) { // write ptes for the second instance memory
+			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
+			pPde_end = GetPteAddress(ConvertPfnToContiguous(pfn_end));
+			for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the second instance memory
 				WritePte(pPde, TempPte);
 				TempPte += PAGE_SIZE;
 			}
 			--pPde_end;
 			(*pPde_end) |= PTE_GUARD_END_MASK;
-			NextPageTableAddr += PAGE_SIZE;
 		}
+	}
+
+	// Unmap the ram window starting at address zero
+	pPde_end = GetPdeAddress(MmSystemMaxMemory - 1);
+	for (PMMPTE pPde = GetPdeAddress(0); pPde <= pPde_end; ++pPde) {
+		WriteZeroPte(pPde);
 	}
 
 	// We have changed the memory mappings so flush the tlb now

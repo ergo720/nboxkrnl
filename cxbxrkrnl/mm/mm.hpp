@@ -71,8 +71,8 @@
 #define PHYSICAL_MAP_END                    (PHYSICAL_MAP_BASE + PHYSICAL_MAP_SIZE - 1) // 0x8FFFFFFF
 
 #define CONTIGUOUS_MEMORY_BASE              PHYSICAL_MAP_BASE
-#define XBOX_CONTIGUOUS_MEMORY_SIZE         (MiB(64))
-#define CHIHIRO_CONTIGUOUS_MEMORY_SIZE      (MiB(128))
+#define XBOX_CONTIGUOUS_MEMORY_SIZE         XBOX_MEMORY_SIZE
+#define CHIHIRO_CONTIGUOUS_MEMORY_SIZE      CHIHIRO_MEMORY_SIZE
 
 #define PAGE_TABLES_BASE                    0xC0000000
 #define PAGE_TABLES_SIZE                    (MiB(4)) // = 0x00400000
@@ -101,7 +101,7 @@
 #define DisableCachingBits (PTE_WRITE_THROUGH_MASK | PTE_CACHE_DISABLE_MASK)
 #define SetWriteCombine(Pte) (((Pte) & ~PTE_CACHE_DISABLE_MASK) | PTE_WRITE_THROUGH_MASK)
 #define SetPfn(Addr) (ROUND_DOWN_4K((ULONG)(Addr)))
-#define ConvertPfnToContiguousPhysical(Pfn) ((PCHAR)PHYSICAL_MAP_BASE + ((Pfn) << PAGE_SHIFT))
+#define ConvertPfnToContiguous(Pfn) ((PCHAR)PHYSICAL_MAP_BASE + ((Pfn) << PAGE_SHIFT))
 #define ConvertContiguousToPhysical(Va) ((PCHAR)((ULONG)(Va) & (PHYSICAL_MAP_SIZE - 1)))
 
 
