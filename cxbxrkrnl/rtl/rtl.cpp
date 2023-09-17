@@ -5,6 +5,7 @@
 #include "rtl.hpp"
 #include "..\hal\halp.hpp"
 #include "..\dbg\dbg.hpp"
+#include <assert.h>
 
 
 EXPORTNUM(264) VOID XBOXAPI RtlAssert
@@ -58,6 +59,25 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 
 		pop ebx
 		ret 4
+	}
+}
+
+EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
+(
+	PVOID Destination,
+	SIZE_T Length,
+	ULONG Pattern
+)
+{
+	assert(Length);
+	assert((Length % sizeof(ULONG)) == 0); // Length must be a multiple of ULONG
+	assert(((ULONG_PTR)Destination % sizeof(ULONG)) == 0); // Destination must be 4-byte aligned
+
+	unsigned NumOfRepeats = Length / sizeof(ULONG);
+	PULONG d = (PULONG)Destination;
+
+	for (unsigned i = 0; i < NumOfRepeats; ++i) {
+		d[i] = Pattern; // copy an ULONG at a time
 	}
 }
 

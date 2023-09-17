@@ -25,6 +25,13 @@ EXPORTNUM(265) DLLEXPORT VOID XBOXAPI RtlCaptureContext
 	PCONTEXT ContextRecord
 );
 
+EXPORTNUM(285) DLLEXPORT VOID XBOXAPI RtlFillMemoryUlong
+(
+	PVOID Destination,
+	SIZE_T Length,
+	ULONG Pattern
+);
+
 EXPORTNUM(302) DLLEXPORT VOID XBOXAPI RtlRaiseException
 (
 	PEXCEPTION_RECORD ExceptionRecord
