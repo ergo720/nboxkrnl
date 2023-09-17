@@ -51,19 +51,19 @@ VOID MmInitSystem()
 	}
 
 	// Mark all the entries in the pfn database as free
-	PFN Database_pfn, Database_pfn_end;
+	PFN DatabasePfn, DatabasePfnEnd;
 	{
 		if (MiLayoutRetail) {
-			Database_pfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
-			Database_pfn_end = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 16 - 1;
+			DatabasePfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
+			DatabasePfnEnd = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 16 - 1;
 		}
 		else if (MiLayoutDevkit) {
-			Database_pfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
-			Database_pfn_end = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
+			DatabasePfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
+			DatabasePfnEnd = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
 		}
 		else {
-			Database_pfn = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE;
-			Database_pfn_end = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
+			DatabasePfn = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE;
+			DatabasePfnEnd = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
 		}
 
 		MiInsertPageRangeInFreeList(0, MiHighestPage);
@@ -79,41 +79,41 @@ VOID MmInitSystem()
 
 	// Map the kernel image
 	MMPTE TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
-	PMMPTE pPde_end = GetPteAddress(KERNEL_BASE + KernelSize - 1);
+	PMMPTE PteEnd = GetPteAddress(KERNEL_BASE + KernelSize - 1);
 	{
 		ULONG Addr = KERNEL_BASE;
-		for (PMMPTE pPde = GetPteAddress(KERNEL_BASE); pPde <= pPde_end; ++pPde) {
-			WritePte(pPde, TempPte);
-			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, pPde);
+		for (PMMPTE Pte = GetPteAddress(KERNEL_BASE); Pte <= PteEnd; ++Pte) {
+			WritePte(Pte, TempPte);
+			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, Pte);
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
-		--pPde_end;
-		(*pPde_end) |= PTE_GUARD_END_MASK;
+		--PteEnd;
+		(*PteEnd) |= PTE_GUARD_END_MASK;
 	}
 
 	{
 		// Map the first contiguous page for d3d
 		// Skip the pde since that's already been written by the kernel image allocation of above
-		PMMPTE pPde = GetPteAddress(CONTIGUOUS_MEMORY_BASE);
+		PMMPTE Pte = GetPteAddress(CONTIGUOUS_MEMORY_BASE);
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | PTE_GUARD_END_MASK | SetPfn(CONTIGUOUS_MEMORY_BASE);
-		WritePte(pPde, TempPte);
-		MiRemovePageFromFreeList(GetPfnFromContiguous(CONTIGUOUS_MEMORY_BASE), Contiguous, pPde);
+		WritePte(Pte, TempPte);
+		MiRemovePageFromFreeList(GetPfnFromContiguous(CONTIGUOUS_MEMORY_BASE), Contiguous, Pte);
 	}
 
 	{
 		// Map the page directory
 		// Skip the pde since that's already been written by the kernel image allocation of above
-		PMMPTE pPde = GetPteAddress(CONTIGUOUS_MEMORY_BASE + PAGE_DIRECTORY_PHYSICAL_ADDRESS);
+		PMMPTE Pte = GetPteAddress(CONTIGUOUS_MEMORY_BASE + PAGE_DIRECTORY_PHYSICAL_ADDRESS);
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | PTE_GUARD_END_MASK | SetPfn(CONTIGUOUS_MEMORY_BASE + PAGE_DIRECTORY_PHYSICAL_ADDRESS);
-		WritePte(pPde, TempPte);
-		MiRemovePageFromFreeList(GetPfnFromContiguous(CONTIGUOUS_MEMORY_BASE + PAGE_DIRECTORY_PHYSICAL_ADDRESS), Contiguous, pPde);
+		WritePte(Pte, TempPte);
+		MiRemovePageFromFreeList(GetPfnFromContiguous(CONTIGUOUS_MEMORY_BASE + PAGE_DIRECTORY_PHYSICAL_ADDRESS), Contiguous, Pte);
 	}
 
 	// Unmap all the remaining contiguous memory using 4 MiB pages
-	pPde_end = GetPdeAddress(CONTIGUOUS_MEMORY_BASE + MmSystemMaxMemory - 1);
-	for (PMMPTE pPde = GetPdeAddress(ROUND_UP(NextPageTableAddr, PAGE_LARGE_SIZE)); pPde <= pPde_end; ++pPde) {
-		WriteZeroPte(pPde);
+	PteEnd = GetPdeAddress(CONTIGUOUS_MEMORY_BASE + MmSystemMaxMemory - 1);
+	for (PMMPTE Pte = GetPdeAddress(ROUND_UP(NextPageTableAddr, PAGE_LARGE_SIZE)); Pte <= PteEnd; ++Pte) {
+		WriteZeroPte(Pte);
 	}
 
 	{
@@ -121,7 +121,7 @@ VOID MmInitSystem()
 		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the pfn database
 		MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
 		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
-		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Database_pfn);
+		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(DatabasePfn);
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit) {
@@ -133,20 +133,20 @@ VOID MmInitSystem()
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
-		pPde_end = GetPteAddress(ConvertPfnToContiguous(Database_pfn_end));
-		for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the pfn database
-			WritePte(pPde, TempPte);
+		PteEnd = GetPteAddress(ConvertPfnToContiguous(DatabasePfnEnd));
+		for (PMMPTE Pte = GetPteAddress(Addr); Pte <= PteEnd; ++Pte) { // write ptes for the pfn database
+			WritePte(Pte, TempPte);
 			TempPte += PAGE_SIZE;
 		}
 
 		// Only write the pfns after the database has all its ptes written, to avoid triggering page faults
-		for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) {
-			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Unknown, pPde);
+		for (PMMPTE Pte = GetPteAddress(Addr); Pte <= PteEnd; ++Pte) {
+			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Unknown, Pte);
 			Addr += PAGE_SIZE;
 		}
 
-		--pPde_end;
-		(*pPde_end) |= PTE_GUARD_END_MASK;
+		--PteEnd;
+		(*PteEnd) |= PTE_GUARD_END_MASK;
 	}
 
 	{
@@ -155,75 +155,75 @@ VOID MmInitSystem()
 		TempPte |= SetWriteCombine(TempPte);
 		PdeNumber = PAGES_SPANNED_LARGE(WRITE_COMBINED_BASE, WRITE_COMBINED_SIZE);
 		ULONG i = 0;
-		for (PMMPTE pPde = GetPdeAddress(WRITE_COMBINED_BASE); i < PdeNumber; ++i) {
-			WritePte(pPde, TempPte);
+		for (PMMPTE Pte = GetPdeAddress(WRITE_COMBINED_BASE); i < PdeNumber; ++i) {
+			WritePte(Pte, TempPte);
 			TempPte += PAGE_LARGE_SIZE;
-			++pPde;
+			++Pte;
 		}
 
 		// Write the pdes of the UC memory region - no page tables
 		TempPte = ValidKernelPteBits | PTE_PAGE_LARGE_MASK | DisableCachingBits | SetPfn(UNCACHED_BASE);
 		PdeNumber = PAGES_SPANNED_LARGE(UNCACHED_BASE, UNCACHED_SIZE);
 		i = 0;
-		for (PMMPTE pPde = GetPdeAddress(UNCACHED_BASE); i < PdeNumber; ++i) {
-			WritePte(pPde, TempPte);
+		for (PMMPTE Pte = GetPdeAddress(UNCACHED_BASE); i < PdeNumber; ++i) {
+			WritePte(Pte, TempPte);
 			TempPte += PAGE_LARGE_SIZE;
-			++pPde;
+			++Pte;
 		}
 	}
 
 	{
 		// Map the nv2a instance memory
-		PFN pfn, pfn_end;
+		PFN Pfn, PfnEnd;
 		if (MiLayoutRetail || MiLayoutDevkit) {
-			pfn = XBOX_INSTANCE_PHYSICAL_PAGE;
-			pfn_end = XBOX_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
+			Pfn = XBOX_INSTANCE_PHYSICAL_PAGE;
+			PfnEnd = XBOX_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
 		}
 		else {
-			pfn = CHIHIRO_INSTANCE_PHYSICAL_PAGE;
-			pfn_end = CHIHIRO_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
+			Pfn = CHIHIRO_INSTANCE_PHYSICAL_PAGE;
+			PfnEnd = CHIHIRO_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
 		}
 
-		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(pfn);
+		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 		TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
-		pPde_end = GetPteAddress(ConvertPfnToContiguous(pfn_end));
-		for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the instance memory
-			WritePte(pPde, TempPte);
-			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, pPde);
+		PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
+		for (PMMPTE Pte = GetPteAddress(Addr); Pte <= PteEnd; ++Pte) { // write ptes for the instance memory
+			WritePte(Pte, TempPte);
+			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, Pte);
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
-		--pPde_end;
-		(*pPde_end) |= PTE_GUARD_END_MASK;
+		--PteEnd;
+		(*PteEnd) |= PTE_GUARD_END_MASK;
 
 		if (MiLayoutDevkit) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
 
-			pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			pfn_end += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(pfn);
+			Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the second instance memory
 			MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
 			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
-			pPde_end = GetPteAddress(ConvertPfnToContiguous(pfn_end));
-			for (PMMPTE pPde = GetPteAddress(Addr); pPde <= pPde_end; ++pPde) { // write ptes for the second instance memory
-				WritePte(pPde, TempPte);
-				MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, pPde);
+			PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
+			for (PMMPTE Pte = GetPteAddress(Addr); Pte <= PteEnd; ++Pte) { // write ptes for the second instance memory
+				WritePte(Pte, TempPte);
+				MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, Pte);
 				TempPte += PAGE_SIZE;
 				Addr += PAGE_SIZE;
 			}
-			--pPde_end;
-			(*pPde_end) |= PTE_GUARD_END_MASK;
+			--PteEnd;
+			(*PteEnd) |= PTE_GUARD_END_MASK;
 		}
 	}
 
 	// Unmap the ram window starting at address zero
-	pPde_end = GetPdeAddress(MmSystemMaxMemory - 1);
-	for (PMMPTE pPde = GetPdeAddress(0); pPde <= pPde_end; ++pPde) {
-		WriteZeroPte(pPde);
+	PteEnd = GetPdeAddress(MmSystemMaxMemory - 1);
+	for (PMMPTE Pte = GetPdeAddress(0); Pte <= PteEnd; ++Pte) {
+		WriteZeroPte(Pte);
 	}
 
 	// We have changed the memory mappings so flush the tlb now
