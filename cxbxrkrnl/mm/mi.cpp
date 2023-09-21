@@ -15,6 +15,11 @@ VOID MiFlushEntireTlb()
 	}
 }
 
+VOID MiFlushTlbForPage(PVOID Addr)
+{
+	__asm invlpg Addr
+}
+
 VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
 {
 	assert(Pfn <= MiHighestPage);
@@ -150,25 +155,69 @@ VOID MiRemovePageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte)
 
 VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte)
 {
+	assert((BusyType != SystemPageTable) && (BusyType != VirtualPageTable));
+
 	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
 	Pf->Busy.Busy = 1;
 	Pf->Busy.BusyType = BusyType;
 	Pf->Busy.LockCount = 0;
+	Pf->Busy.PteIndex = GetPteOffset(GetVAddrMappedByPte(Pte));
 
-	if ((BusyType != SystemPageTable) && (BusyType != VirtualPageTable)) {
-		Pf->Busy.PteIndex = GetPteOffset(GetVAddrMappedByPte(Pte));
-		// Also update PtesUsed of the pfn that maps the pt that holds the pte
-		Pf = GetPfnOfPt(Pte);
-		if (*Pte == 0) {
-			// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
-			++Pf->PtPageFrame.PtesUsed;
-		}
-	}
-	else {
-		Pf->PtPageFrame.PtesUsed = 0;
+	// Also update PtesUsed of the pfn that maps the pt that holds the pte
+	Pf = GetPfnOfPt(Pte);
+	if (*Pte == 0) {
+		// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
+		++Pf->PtPageFrame.PtesUsed;
 	}
 
-	memset((PCHAR)GetVAddrMappedByPte(Pte), 0, PAGE_SIZE);
+	// Temporarily identity map the page we are going to zero
+	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
+	assert(*GetPdeAddress(PageAddr) & PTE_VALID_MASK);
+
+	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
+	memset(PageAddr, 0, PAGE_SIZE);
+	WriteZeroPte(GetPteAddress(PageAddr));
+	MiFlushTlbForPage(PageAddr);
+
+	++MiPagesByUsage[BusyType];
+}
+
+VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, BOOLEAN Unused)
+{
+	// NOTE: this overload doesn't flush the identity mapping done below from the tlb, and should only be used by MmInitSystem
+	assert((BusyType == SystemPageTable) || (BusyType == VirtualPageTable));
+
+	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
+	Pf->PtPageFrame.Busy = 1;
+	Pf->PtPageFrame.BusyType = BusyType;
+	Pf->PtPageFrame.LockCount = 0;
+	Pf->PtPageFrame.PtesUsed = 0;
+
+	// Temporarily identity map the page we are going to zero
+	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
+	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
+	memset(PageAddr, 0, PAGE_SIZE);
+
+	++MiPagesByUsage[BusyType];
+}
+
+VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType)
+{
+	assert((BusyType == SystemPageTable) || (BusyType == VirtualPageTable));
+
+	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
+	Pf->PtPageFrame.Busy = 1;
+	Pf->PtPageFrame.BusyType = BusyType;
+	Pf->PtPageFrame.LockCount = 0;
+	Pf->PtPageFrame.PtesUsed = 0;
+
+	// Temporarily identity map the page we are going to zero
+	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
+	assert(*GetPdeAddress(PageAddr) & PTE_VALID_MASK);
+
+	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
+	memset(PageAddr, 0, PAGE_SIZE);
+	MiFlushTlbForPage(PageAddr);
 
 	++MiPagesByUsage[BusyType];
 }

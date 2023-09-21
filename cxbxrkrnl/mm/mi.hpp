@@ -137,8 +137,11 @@ inline PFNREGION MiDevkitRegion = { {{ PFN_LIST_END, PFN_LIST_END }, { PFN_LIST_
 inline PCHAR MiPfnAddress = XBOX_PFN_ADDRESS;
 
 VOID MiFlushEntireTlb();
+VOID MiFlushTlbForPage(PVOID Addr);
 VOID MiInsertPageInFreeList(PFN_NUMBER Pfn);
 VOID MiInsertPageRangeInFreeList(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd);
 PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn);
 VOID MiRemovePageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte);
+VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, BOOLEAN Unused);
+VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType);
 VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte);

@@ -72,9 +72,7 @@ VOID MmInitSystem()
 	// Map the pt of the kernel image. This is backed by the page immediately following it
 	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
 	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
-	WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the kernel image
-	MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
-	WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
+	MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
 	NextPageTableAddr += PAGE_SIZE;
 
 	// Map the kernel image
@@ -118,18 +116,14 @@ VOID MmInitSystem()
 
 	{
 		// Map the pfn database
-		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the pfn database
-		MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
-		WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
 		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(DatabasePfn);
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
+		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
-			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the pfn database
-			MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
-			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
@@ -202,10 +196,8 @@ VOID MmInitSystem()
 			Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
-			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write pte of new pt for the second instance memory
-			MiRemoveAndZeroPageFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, GetPteAddress(NextPageTableAddr));
-			WritePte(GetPteAddress(NextPageTableAddr), ValidKernelPteBits | SetPfn(NextPageTableAddr)); // write the pte again because it was zeroed above
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
 			PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
