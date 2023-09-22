@@ -16,6 +16,18 @@
 #define PAGE_LARGE_SHIFT                    22 // 2^22 = 4 MiB
 #define PAGE_LARGE_SIZE                     (1 << PAGE_LARGE_SHIFT) // = 0x00400000 = 4 MiB
 #define PAGE_LARGE_MASK                     (PAGE_LARGE_SIZE - 1)
+#define PTE_PER_PAGE                        1024
+
+// Page masks
+#define PAGE_NOACCESS          0x01
+#define PAGE_READONLY          0x02
+#define PAGE_READWRITE         0x04
+#define PAGE_EXECUTE           0x10
+#define PAGE_EXECUTE_READ      0x20
+#define PAGE_EXECUTE_READWRITE 0x40
+#define PAGE_GUARD             0x100
+#define PAGE_NOCACHE           0x200
+#define PAGE_WRITECOMBINE      0x400
 
 #define NV2A_INSTANCE_PAGE_COUNT            16
 #define PAGE_DIRECTORY_PHYSICAL_ADDRESS     0x0F000
@@ -54,11 +66,19 @@
 #define XBOX_CONTIGUOUS_MEMORY_SIZE         XBOX_MEMORY_SIZE
 #define CHIHIRO_CONTIGUOUS_MEMORY_SIZE      CHIHIRO_MEMORY_SIZE
 
+#define DEVKIT_MEMORY_BASE                  0xB0000000
+#define DEVKIT_MEMORY_SIZE                  (MiB(256)) // = 0x10000000
+#define DEVKIT_MEMORY_END                   (DEVKIT_MEMORY_BASE + DEVKIT_MEMORY_SIZE - 1) // 0xBFFFFFFF
+
 #define PAGE_TABLES_BASE                    0xC0000000
 #define PAGE_TABLES_SIZE                    (MiB(4)) // = 0x00400000
 #define PAGE_TABLES_END                     (PAGE_TABLES_BASE + PAGE_TABLES_SIZE - 1) // 0xC03FFFFF
 
 #define PAGE_DIRECTORY_BASE                 0xC0300000
+
+#define SYSTEM_MEMORY_BASE                  0xD0000000
+#define SYSTEM_MEMORY_SIZE                  (MiB(512)) // = 0x20000000
+#define SYSTEM_MEMORY_END                   (SYSTEM_MEMORY_BASE + SYSTEM_MEMORY_SIZE - 1) // 0xEFFFFFFF
 
 #define WRITE_COMBINED_BASE                 0xF0000000 // WC (The WC memory is another name of the tiled memory)
 #define WRITE_COMBINED_SIZE                 (MiB(128)) // = 0x08000000
@@ -71,6 +91,20 @@
 #define XBOX_PFN_ADDRESS                    ((XBOX_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
 #define CHIHIRO_PFN_ADDRESS                 ((CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
+(
+	ULONG NumberOfBytes,
+	ULONG Protect
+);
+
+#ifdef __cplusplus
+}
+#endif
 
 inline ULONG MmSystemMaxMemory = XBOX_MEMORY_SIZE;
 

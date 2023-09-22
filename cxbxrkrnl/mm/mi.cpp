@@ -3,7 +3,7 @@
  */
 
 #include "mi.hpp"
-#include <string.h>
+#include "..\rtl\rtl.hpp"
 #include <assert.h>
 
 
@@ -27,6 +27,7 @@ VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
 	PFN_COUNT ListIdx = GetPfnListIdx(Pfn);
 	USHORT EncodedPfn = EncodeFreePfn(Pfn);
 	PXBOX_PFN Pf = GetPfnElement(Pfn);
+	PageType BusyType = (PageType)Pf->Busy.BusyType;
 	PPFNREGION Region;
 	if (MiLayoutDevkit && (Pfn >= DEBUGKIT_FIRST_UPPER_HALF_PAGE)) {
 		Region = &MiDevkitRegion;
@@ -65,6 +66,8 @@ VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
 	}
 
 	++Region->PagesAvailable;
+	++MiTotalPagesAvailable;
+	--MiPagesByUsage[BusyType];
 }
 
 VOID MiInsertPageRangeInFreeList(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd)
@@ -130,6 +133,9 @@ PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn)
 		assert(GetPfnListIdx(NextPfnIdx) == ListIdx);
 	}
 
+	--Region->PagesAvailable;
+	--MiTotalPagesAvailable;
+
 	return Pf;
 }
 
@@ -145,7 +151,7 @@ VOID MiRemovePageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte)
 
 	// Also update PtesUsed of the pfn that maps the pt that holds the pte
 	Pf = GetPfnOfPt(Pte);
-	if (*Pte == 0) {
+	if (Pte->Hw == 0) {
 		// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
 		++Pf->PtPageFrame.PtesUsed;
 	}
@@ -165,17 +171,17 @@ VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE P
 
 	// Also update PtesUsed of the pfn that maps the pt that holds the pte
 	Pf = GetPfnOfPt(Pte);
-	if (*Pte == 0) {
+	if (Pte->Hw == 0) {
 		// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
 		++Pf->PtPageFrame.PtesUsed;
 	}
 
 	// Temporarily identity map the page we are going to zero
 	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
-	assert(*GetPdeAddress(PageAddr) & PTE_VALID_MASK);
+	assert(GetPdeAddress(PageAddr)->Hw & PTE_VALID_MASK);
 
 	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	memset(PageAddr, 0, PAGE_SIZE);
+	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
 	WriteZeroPte(GetPteAddress(PageAddr));
 	MiFlushTlbForPage(PageAddr);
 
@@ -196,7 +202,7 @@ VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, BOO
 	// Temporarily identity map the page we are going to zero
 	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
 	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	memset(PageAddr, 0, PAGE_SIZE);
+	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
 
 	++MiPagesByUsage[BusyType];
 }
@@ -213,11 +219,235 @@ VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType)
 
 	// Temporarily identity map the page we are going to zero
 	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
-	assert(*GetPdeAddress(PageAddr) & PTE_VALID_MASK);
+	assert(GetPdeAddress(PageAddr)->Hw & PTE_VALID_MASK);
 
 	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	memset(PageAddr, 0, PAGE_SIZE);
+	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
 	MiFlushTlbForPage(PageAddr);
 
 	++MiPagesByUsage[BusyType];
+}
+
+PFN_NUMBER MiRemoveAnyPageFromFreeList(PageType BusyType, PMMPTE Pte)
+{
+	PFN_NUMBER Pfn = MiRemoveAnyPageFromFreeList();
+	MiRemovePageFromFreeList(Pfn, BusyType, Pte);
+	return Pfn;
+}
+
+PFN_NUMBER MiRemoveAnyPageFromFreeList()
+{
+	// The caller should have already checked that we have enough free pages available
+	assert(MiTotalPagesAvailable);
+
+	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
+		if (MiRetailRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
+			return DecodeFreePfn(MiRetailRegion.FreeListHead[ListIdx].Blink, ListIdx);
+		}
+	}
+
+	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
+		if (MiDevkitRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
+			return DecodeFreePfn(MiDevkitRegion.FreeListHead[ListIdx].Blink, ListIdx);
+		}
+	}
+
+	RIP_API_MSG("should always find a free page.");
+}
+
+static BOOLEAN ConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
+{
+	ULONG Mask = 0;
+
+	if (Protect & ~(PAGE_NOCACHE | PAGE_WRITECOMBINE | PAGE_READWRITE | PAGE_READONLY)) {
+		return FALSE; // unknown or not allowed flag specified
+	}
+
+	switch (Protect & (PAGE_READONLY | PAGE_READWRITE))
+	{
+	case PAGE_READONLY:
+		Mask = (PTE_VALID_MASK | PTE_DIRTY_MASK | PTE_ACCESS_MASK);
+		break;
+
+	case PAGE_READWRITE:
+		Mask = ValidKernelPteBits;
+		break;
+
+	default:
+		return FALSE; // both are specified, wrong
+	}
+
+	switch (Protect & (PAGE_NOCACHE | PAGE_WRITECOMBINE))
+	{
+	case 0:
+		break; // none is specified, ok
+
+	case PAGE_NOCACHE:
+		Mask |= PTE_CACHE_DISABLE_MASK;
+		break;
+
+	case PAGE_WRITECOMBINE:
+		Mask |= PTE_WRITE_THROUGH_MASK;
+		break;
+
+	default:
+		return FALSE; // both are specified, wrong
+	}
+
+	Pte->Hw = Mask;
+
+	return TRUE;
+}
+
+static VOID MiReleasePtes(PPTEREGION PteRegion, PMMPTE StartPte, ULONG NumberOfPtes)
+{
+	RtlFillMemoryUlong(StartPte, NumberOfPtes * sizeof(MMPTE), 0); // caller should flush the TLB if necessary
+
+	PMMPTE Pte = nullptr, LastPte = &PteRegion->Head;
+	while (LastPte->Free.Flink != PTE_LIST_END) {
+		Pte = PMMPTE(LastPte->Free.Flink << 2);
+		if (Pte > StartPte) {
+			break;
+		}
+
+		LastPte = Pte;
+	}
+
+	// Update Flink and size of StartPte assuming no merging with adjacent blocks
+	if (NumberOfPtes == 1) {
+		StartPte->Free.OnePte = 1;
+	}
+	else {
+		StartPte->Free.OnePte = 0;
+		StartPte[1].Free.Flink = NumberOfPtes;
+	}
+
+	StartPte->Free.Flink = LastPte->Free.Flink;
+	LastPte->Free.Flink = (ULONG)StartPte >> 2;
+
+	if ((StartPte + NumberOfPtes) == Pte) {
+		// Following block is contiguous with the one we are freeing, merge the two
+		StartPte->Free.OnePte = 0;
+		StartPte[1].Free.Flink = (Pte->Free.OnePte ? 1 : Pte[1].Free.Flink) + NumberOfPtes;
+		StartPte->Free.Flink = Pte->Free.Flink;
+		NumberOfPtes = StartPte[1].Free.Flink;
+	}
+
+	if (LastPte != &PteRegion->Head) {
+		ULONG NumberOfPtesInBlock = LastPte->Free.OnePte ? 1 : LastPte[1].Free.Flink;
+
+		if (LastPte + NumberOfPtesInBlock == StartPte) {
+			// Previous block is contiguous with the one we are freeing, merge the two
+			LastPte->Free.OnePte = 0;
+			LastPte->Free.Flink = StartPte->Free.Flink;
+			LastPte[1].Free.Flink = NumberOfPtes + NumberOfPtesInBlock;
+		}
+	}
+}
+
+static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
+{
+	PMMPTE Pte = nullptr, LastPte = &PteRegion->Head;
+	while (LastPte->Free.Flink != PTE_LIST_END) {
+		Pte = PMMPTE(LastPte->Free.Flink << 2);
+		ULONG NumberOfPtesInBlock = Pte->Free.OnePte ? 1 : Pte[1].Free.Flink;
+		if (NumberOfPtesInBlock >= NumberOfPtes) {
+			// This block has enough ptes to satisfy the request
+			NumberOfPtesInBlock -= NumberOfPtes;
+			if (NumberOfPtesInBlock == 0) {
+				LastPte->Free.Flink = Pte->Free.Flink;
+			}
+			else if (NumberOfPtesInBlock == 1) {
+				Pte[NumberOfPtes].Free.OnePte = 1;
+				LastPte->Free.Flink = ULONG(Pte + NumberOfPtes) >> 2;
+			}
+			else {
+				Pte[NumberOfPtes].Free.OnePte = 0;
+				Pte[NumberOfPtes + 1].Free.Flink = NumberOfPtesInBlock;
+				LastPte->Free.Flink = ULONG(Pte + NumberOfPtes) >> 2;
+			}
+
+			return Pte;
+		}
+
+		LastPte = Pte;
+	}
+
+	// If we reach here, it means that no pte block is large enough to satisfy the request, so we need to allocate new pts
+	ULONG NumberOfPts = (ROUND_UP(NumberOfPtes, PTE_PER_PAGE)) / PTE_PER_PAGE;
+	if (NumberOfPts > MiTotalPagesAvailable) {
+		return nullptr;
+	}
+
+	// If we don't have enough virtual memory, then fail the request
+	if ((PteRegion->Next4MiBlock + MiB(4) * NumberOfPts - 1) > PteRegion->EndAddr) {
+		return nullptr;
+	}
+
+	for (ULONG PtsCommitted = 0; PtsCommitted < NumberOfPts; ++PtsCommitted) {
+		PFN_NUMBER PtPfn = MiRemoveAnyPageFromFreeList();
+		ULONG PtAddr = PtPfn << PAGE_SHIFT;
+		PMMPTE PtPde = GetPdeAddress(PteRegion->Next4MiBlock);
+
+		assert(PtPde->Hw == 0);
+
+		WritePte(PtPde, ValidKernelPdeBits | PtAddr); // write pde for the new pt
+		MiRemoveAndZeroPageTableFromFreeList(PtPfn, SystemPageTable);
+		PteRegion->Next4MiBlock += MiB(4);
+	}
+
+	// Update the pte list to include the new free blocks created above
+	MiReleasePtes(PteRegion, GetPteAddress(PteRegion->Next4MiBlock), ROUND_UP(NumberOfPtes, PTE_PER_PAGE));
+	// It can't fail now
+	return MiReservePtes(PteRegion, NumberOfPtes);
+}
+
+PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyType, BOOLEAN AddGuardPage)
+{
+	assert(AddGuardPage == FALSE); // TODO
+
+	MMPTE TempPte;
+	if (ConvertPageToSystemPtePermissions(Protect, &TempPte) == FALSE) {
+		return nullptr;
+	}
+
+	KIRQL OldIrql = MiLock();
+
+	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
+	if (NumberOfPages > MiTotalPagesAvailable) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	PPTEREGION PteRegion;
+	if (BusyType != Debugger) {
+		PteRegion = &MiSystemPteRegion;
+	}
+	else {
+		PteRegion = &MiDevkitPteRegion;
+	}
+
+	PMMPTE Pte = MiReservePtes(PteRegion, NumberOfPages);
+	if (Pte == nullptr) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	// We have to check again because MiReservePtes might have consumed some pages to commit the pts
+	if (NumberOfPages > MiTotalPagesAvailable) {
+		MiReleasePtes(PteRegion, Pte, NumberOfPages);
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	PMMPTE StartPte = Pte, PteEnd = Pte + NumberOfPages - 1;
+	while (Pte <= PteEnd) {
+		WritePte(Pte, TempPte.Hw | (MiRemoveAnyPageFromFreeList(BusyType, Pte) << PAGE_SHIFT));
+		++Pte;
+	}
+	PteEnd->Hw |= PTE_GUARD_END_MASK;
+
+	MiUnlock(OldIrql);
+
+	return (PVOID)GetVAddrMappedByPte(StartPte);
 }

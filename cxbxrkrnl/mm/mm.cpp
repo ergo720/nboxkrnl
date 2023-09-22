@@ -72,11 +72,11 @@ VOID MmInitSystem()
 	// Map the pt of the kernel image. This is backed by the page immediately following it
 	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
 	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
-	MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
+	MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
 	NextPageTableAddr += PAGE_SIZE;
 
 	// Map the kernel image
-	MMPTE TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
+	ULONG TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
 	PMMPTE PteEnd = GetPteAddress(KERNEL_BASE + KernelSize - 1);
 	{
 		ULONG Addr = KERNEL_BASE;
@@ -87,7 +87,7 @@ VOID MmInitSystem()
 			Addr += PAGE_SIZE;
 		}
 		--PteEnd;
-		(*PteEnd) |= PTE_GUARD_END_MASK;
+		PteEnd->Hw |= PTE_GUARD_END_MASK;
 	}
 
 	{
@@ -118,12 +118,12 @@ VOID MmInitSystem()
 		// Map the pfn database
 		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(DatabasePfn);
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
-		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
+		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
-			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
@@ -140,7 +140,7 @@ VOID MmInitSystem()
 		}
 
 		--PteEnd;
-		(*PteEnd) |= PTE_GUARD_END_MASK;
+		PteEnd->Hw |= PTE_GUARD_END_MASK;
 	}
 
 	{
@@ -188,7 +188,7 @@ VOID MmInitSystem()
 			Addr += PAGE_SIZE;
 		}
 		--PteEnd;
-		(*PteEnd) |= PTE_GUARD_END_MASK;
+		PteEnd->Hw |= PTE_GUARD_END_MASK;
 
 		if (MiLayoutDevkit) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
@@ -197,7 +197,7 @@ VOID MmInitSystem()
 			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
-			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), SystemPageTable, 0);
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
 			PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
@@ -208,7 +208,7 @@ VOID MmInitSystem()
 				Addr += PAGE_SIZE;
 			}
 			--PteEnd;
-			(*PteEnd) |= PTE_GUARD_END_MASK;
+			PteEnd->Hw |= PTE_GUARD_END_MASK;
 		}
 	}
 
@@ -223,4 +223,13 @@ VOID MmInitSystem()
 
 	// TODO: initialize the pool manager and the VAD tree
 	RIP_API_MSG("incomplete initialization!");
+}
+
+EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
+(
+	ULONG NumberOfBytes,
+	ULONG Protect
+)
+{
+	return MiAllocateSystemMemory(NumberOfBytes, Protect, SystemMemory, FALSE);
 }
