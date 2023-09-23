@@ -359,10 +359,12 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 			}
 			else if (NumberOfPtesInBlock == 1) {
 				Pte[NumberOfPtes].Free.OnePte = 1;
+				Pte[NumberOfPtes].Free.Flink = Pte->Free.Flink;
 				LastPte->Free.Flink = ULONG(Pte + NumberOfPtes) >> 2;
 			}
 			else {
 				Pte[NumberOfPtes].Free.OnePte = 0;
+				Pte[NumberOfPtes].Free.Flink = Pte->Free.Flink;
 				Pte[NumberOfPtes + 1].Free.Flink = NumberOfPtesInBlock;
 				LastPte->Free.Flink = ULONG(Pte + NumberOfPtes) >> 2;
 			}
@@ -384,6 +386,7 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 		return nullptr;
 	}
 
+	ULONG Start4MiBlock = PteRegion->Next4MiBlock;
 	for (ULONG PtsCommitted = 0; PtsCommitted < NumberOfPts; ++PtsCommitted) {
 		PFN_NUMBER PtPfn = MiRemoveAnyPageFromFreeList();
 		ULONG PtAddr = PtPfn << PAGE_SHIFT;
@@ -397,7 +400,7 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 	}
 
 	// Update the pte list to include the new free blocks created above
-	MiReleasePtes(PteRegion, GetPteAddress(PteRegion->Next4MiBlock), ROUND_UP(NumberOfPtes, PTE_PER_PAGE));
+	MiReleasePtes(PteRegion, GetPteAddress(Start4MiBlock), ROUND_UP(NumberOfPtes, PTE_PER_PAGE));
 	// It can't fail now
 	return MiReservePtes(PteRegion, NumberOfPtes);
 }
@@ -482,7 +485,7 @@ ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
 		}
 	}
 	else {
-		BOOLEAN Stop = FALSE;
+		ULONG Stop = FALSE;
 		NumberOfPages = 0;
 
 		while (!Stop) {
