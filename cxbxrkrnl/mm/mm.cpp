@@ -233,3 +233,12 @@ EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
 {
 	return MiAllocateSystemMemory(NumberOfBytes, Protect, SystemMemory, FALSE);
 }
+
+EXPORTNUM(172) ULONG XBOXAPI MmFreeSystemMemory
+(
+	PVOID BaseAddress,
+	ULONG NumberOfBytes
+)
+{
+	return MiFreeSystemMemory(BaseAddress, NumberOfBytes);
+}

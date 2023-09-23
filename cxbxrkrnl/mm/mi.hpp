@@ -177,3 +177,4 @@ VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE P
 PFN_NUMBER MiRemoveAnyPageFromFreeList(PageType BusyType, PMMPTE Pte);
 PFN_NUMBER MiRemoveAnyPageFromFreeList();
 PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyType, BOOLEAN AddGuardPage);
+ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes);

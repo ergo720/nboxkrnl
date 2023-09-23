@@ -39,6 +39,7 @@
 #define ROUND_DOWN(size, alignment)         ((size) & (~(alignment - 1)))
 #define PAGES_SPANNED(Va, Size)             ((ULONG)((((ULONG_PTR)(Va) & (PAGE_SIZE - 1)) + (Size) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
 #define PAGES_SPANNED_LARGE(Va, Size)       ((ULONG)((((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)) + (Size) + (PAGE_LARGE_SIZE - 1)) >> PAGE_LARGE_SHIFT))
+#define CHECK_ALIGNMENT(size, alignment)    (((size) % (alignment)) == 0)
 
 // Memory size per system
 #define XBOX_MEMORY_SIZE                    (MiB(64))
@@ -58,6 +59,11 @@
 #define CHIHIRO_HIGHEST_PHYSICAL_PAGE       0x07FFF
 
 // Memory ranges
+#define LOWEST_USER_ADDRESS                 0x00010000
+#define HIGHEST_USER_ADDRESS                0x7FFEFFFF
+#define HIGHEST_VAD_ADDRESS                 (HIGHEST_USER_ADDRESS - KiB(64)) // for NtAllocateVirtualMemory
+#define USER_MEMORY_SIZE                    (HIGHEST_USER_ADDRESS - LOWEST_USER_ADDRESS + 1) // 0x7FFE0000 = 2 GiB - 128 KiB
+
 #define PHYSICAL_MAP_BASE                   0x80000000
 #define PHYSICAL_MAP_SIZE                   (MiB(256)) // = 0x10000000
 #define PHYSICAL_MAP_END                    (PHYSICAL_MAP_BASE + PHYSICAL_MAP_SIZE - 1) // 0x8FFFFFFF
@@ -91,6 +97,12 @@
 #define XBOX_PFN_ADDRESS                    ((XBOX_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
 #define CHIHIRO_PFN_ADDRESS                 ((CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
 
+// These macros check if the supplied address is inside a known range
+#define IS_PHYSICAL_ADDRESS(Va) (((ULONG)(Va) - PHYSICAL_MAP_BASE) <= (PHYSICAL_MAP_END - PHYSICAL_MAP_BASE))
+#define IS_SYSTEM_ADDRESS(Va) (((ULONG)(Va) - SYSTEM_MEMORY_BASE) <= (SYSTEM_MEMORY_END - SYSTEM_MEMORY_BASE))
+#define IS_DEVKIT_ADDRESS(Va) (((ULONG)(Va) - DEVKIT_MEMORY_BASE) <= (DEVKIT_MEMORY_END - DEVKIT_MEMORY_BASE))
+#define IS_USER_ADDRESS(Va) (((ULONG)(Va) - LOWEST_USER_ADDRESS) <= (HIGHEST_USER_ADDRESS - LOWEST_USER_ADDRESS))
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +112,12 @@ EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
 (
 	ULONG NumberOfBytes,
 	ULONG Protect
+);
+
+EXPORTNUM(172) DLLEXPORT ULONG XBOXAPI MmFreeSystemMemory
+(
+	PVOID BaseAddress,
+	ULONG NumberOfBytes
 );
 
 #ifdef __cplusplus

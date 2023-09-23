@@ -406,6 +406,10 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 {
 	assert(AddGuardPage == FALSE); // TODO
 
+	if (NumberOfBytes == 0) {
+		return nullptr;
+	}
+
 	MMPTE TempPte;
 	if (ConvertPageToSystemPtePermissions(Protect, &TempPte) == FALSE) {
 		return nullptr;
@@ -450,4 +454,55 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 	MiUnlock(OldIrql);
 
 	return (PVOID)GetVAddrMappedByPte(StartPte);
+}
+
+ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
+{
+	assert(CHECK_ALIGNMENT((ULONG)BaseAddress, PAGE_SIZE)); // all starting addresses in the system region are page aligned
+	assert(IS_SYSTEM_ADDRESS(BaseAddress) || IS_DEVKIT_ADDRESS(BaseAddress));
+
+	KIRQL OldIrql = MiLock();
+
+	ULONG NumberOfPages;
+	PMMPTE Pte = GetPteAddress(BaseAddress), StartPte = Pte;
+	if (NumberOfBytes) {
+		PMMPTE PteEnd = GetPteAddress((ULONG)BaseAddress + NumberOfBytes - 1);
+		NumberOfPages = PteEnd - Pte + 1;
+
+		while (Pte <= PteEnd) {
+			if (Pte->Hw & PTE_VALID_MASK) {
+				PFN_NUMBER Pfn = Pte->Hw >> PAGE_SHIFT;
+				WriteZeroPte(Pte);
+				MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
+				MiInsertPageInFreeList(Pfn);
+				PXBOX_PFN Pf = GetPfnOfPt(Pte);
+				--Pf->PtPageFrame.PtesUsed;
+			}
+			++Pte;
+		}
+	}
+	else {
+		BOOLEAN Stop = FALSE;
+		NumberOfPages = 0;
+
+		while (!Stop) {
+			Stop = Pte->Hw & PTE_GUARD_END_MASK;
+			if (Pte->Hw & PTE_VALID_MASK) {
+				PFN_NUMBER Pfn = Pte->Hw >> PAGE_SHIFT;
+				WriteZeroPte(Pte);
+				MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
+				MiInsertPageInFreeList(Pfn);
+				PXBOX_PFN Pf = GetPfnOfPt(Pte);
+				--Pf->PtPageFrame.PtesUsed;
+			}
+			++Pte;
+			++NumberOfPages;
+		}
+	}
+
+	MiReleasePtes(IS_SYSTEM_ADDRESS(BaseAddress) ? &MiSystemPteRegion : &MiDevkitPteRegion, StartPte, NumberOfPages);
+
+	MiUnlock(OldIrql);
+
+	return NumberOfPages;
 }
