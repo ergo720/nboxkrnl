@@ -86,7 +86,6 @@ VOID MmInitSystem()
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
-		--PteEnd;
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
 	}
 
@@ -138,8 +137,6 @@ VOID MmInitSystem()
 			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Unknown, Pte);
 			Addr += PAGE_SIZE;
 		}
-
-		--PteEnd;
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
 	}
 
@@ -187,7 +184,6 @@ VOID MmInitSystem()
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
-		--PteEnd;
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
 
 		if (MiLayoutDevkit) {
@@ -207,7 +203,6 @@ VOID MmInitSystem()
 				TempPte += PAGE_SIZE;
 				Addr += PAGE_SIZE;
 			}
-			--PteEnd;
 			PteEnd->Hw |= PTE_GUARD_END_MASK;
 		}
 	}
