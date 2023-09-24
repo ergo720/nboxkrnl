@@ -104,9 +104,22 @@
 #define IS_USER_ADDRESS(Va) (((ULONG)(Va) - LOWEST_USER_ADDRESS) <= (HIGHEST_USER_ADDRESS - LOWEST_USER_ADDRESS))
 
 
+struct MMGLOBALDATA {
+	PVOID RetailPfnRegion;
+	PVOID SystemPteRange;
+	PVOID AvailablePages;
+	PVOID AllocatedPagesByUsage;
+	PVOID AddressSpaceLock;
+	PVOID *VadRoot;
+	PVOID *VadHint;
+	PVOID *VadFreeHint;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+EXPORTNUM(102) DLLEXPORT extern MMGLOBALDATA MmGlobalData;
 
 EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
 (

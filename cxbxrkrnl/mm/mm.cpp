@@ -10,6 +10,17 @@
 #include "mi.hpp"
 
 
+EXPORTNUM(102) MMGLOBALDATA MmGlobalData = {
+	&MiRetailRegion,
+	&MiSystemPteRegion,
+	&MiTotalPagesAvailable,
+	MiPagesByUsage,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr
+};
+
 VOID MmInitSystem()
 {
 	ULONG RequiredPt = 2;
