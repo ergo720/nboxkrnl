@@ -11,6 +11,27 @@
 extern "C" {
 #endif
 
+EXPORTNUM(14) DLLEXPORT PVOID XBOXAPI ExAllocatePool
+(
+	SIZE_T NumberOfBytes
+);
+
+EXPORTNUM(15) DLLEXPORT PVOID XBOXAPI ExAllocatePoolWithTag
+(
+	SIZE_T NumberOfBytes,
+	ULONG Tag
+);
+
+EXPORTNUM(17) DLLEXPORT VOID XBOXAPI ExFreePool
+(
+	PVOID P
+);
+
+EXPORTNUM(23) DLLEXPORT ULONG XBOXAPI ExQueryPoolBlockSize
+(
+	PVOID PoolBlock
+);
+
 EXPORTNUM(26) DLLEXPORT VOID XBOXAPI ExRaiseException
 (
 	PEXCEPTION_RECORD ExceptionRecord

@@ -39,7 +39,7 @@
 #define ROUND_DOWN(size, alignment)         ((size) & (~(alignment - 1)))
 #define PAGES_SPANNED(Va, Size)             ((ULONG)((((ULONG_PTR)(Va) & (PAGE_SIZE - 1)) + (Size) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
 #define PAGES_SPANNED_LARGE(Va, Size)       ((ULONG)((((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)) + (Size) + (PAGE_LARGE_SIZE - 1)) >> PAGE_LARGE_SHIFT))
-#define CHECK_ALIGNMENT(size, alignment)    (((size) % (alignment)) == 0)
+#define CHECK_ALIGNMENT(size, alignment)    (((ULONG_PTR)(size) % (alignment)) == 0)
 
 // Memory size per system
 #define XBOX_MEMORY_SIZE                    (MiB(64))

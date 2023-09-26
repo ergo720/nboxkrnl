@@ -71,6 +71,7 @@ file (GLOB SOURCES
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/debug.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/exp_sup.cpp"
+ "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/pool.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/interrupt.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/hal.cpp"
  "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.cpp"

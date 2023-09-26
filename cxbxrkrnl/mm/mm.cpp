@@ -227,8 +227,7 @@ VOID MmInitSystem()
 	// We have changed the memory mappings so flush the tlb now
 	MiFlushEntireTlb();
 
-	// TODO: initialize the pool manager and the VAD tree
-	RIP_API_MSG("incomplete initialization!");
+	// TODO: initialize the VAD tree
 }
 
 EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
