@@ -133,6 +133,11 @@ EXPORTNUM(172) DLLEXPORT ULONG XBOXAPI MmFreeSystemMemory
 	ULONG NumberOfBytes
 );
 
+EXPORTNUM(180) DLLEXPORT SIZE_T XBOXAPI MmQueryAllocationSize
+(
+	PVOID BaseAddress
+);
+
 #ifdef __cplusplus
 }
 #endif

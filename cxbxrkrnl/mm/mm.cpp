@@ -8,6 +8,7 @@
 #include "..\rtl\rtl.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
+#include <assert.h>
 
 
 EXPORTNUM(102) MMGLOBALDATA MmGlobalData = {
@@ -246,4 +247,27 @@ EXPORTNUM(172) ULONG XBOXAPI MmFreeSystemMemory
 )
 {
 	return MiFreeSystemMemory(BaseAddress, NumberOfBytes);
+}
+
+EXPORTNUM(180) SIZE_T XBOXAPI MmQueryAllocationSize
+(
+	PVOID BaseAddress
+)
+{
+	assert(IS_PHYSICAL_ADDRESS(BaseAddress) || IS_SYSTEM_ADDRESS(BaseAddress) || IS_DEVKIT_ADDRESS(BaseAddress));
+
+	KIRQL OldIrql = MiLock();
+
+	ULONG Stop = FALSE, NumberOfPages = 0;
+	PMMPTE Pte = GetPteAddress(BaseAddress);
+
+	while (!Stop) {
+		Stop = Pte->Hw & PTE_GUARD_END_MASK;
+		++Pte;
+		++NumberOfPages;
+	}
+
+	MiUnlock(OldIrql);
+
+	return NumberOfPages << PAGE_SHIFT;
 }

@@ -5,7 +5,6 @@
 #include "..\mm\mm.hpp"
 #include "..\mm\mi.hpp"
 #include "..\ex\ex.hpp"
-#include "..\rtl\rtl.hpp"
 #include <assert.h>
 
 
@@ -127,7 +126,7 @@ EXPORTNUM(23) ULONG XBOXAPI ExQueryPoolBlockSize
 )
 {
 	if (CHECK_ALIGNMENT(PoolBlock, POOL_SIZE)) {
-		RIP_API_MSG("query aligned pool size not supported yet");
+		return MmQueryAllocationSize(PoolBlock);
 	}
 
 	CHUNK_HEADER *Header = (CHUNK_HEADER *)((uint8_t *)PoolBlock - CHUNK_OVERHEAD);
