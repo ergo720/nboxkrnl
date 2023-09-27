@@ -1,6 +1,5 @@
 /*
  * ergo720                Copyright (c) 2023
- * cxbxr devs
  */
 
 #include "ke.hpp"

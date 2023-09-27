@@ -1,6 +1,6 @@
 /*
  * ergo720                Copyright (c) 2022
- * cxbxr devs
+ * PatrickvL              Copyright (c) 2017
  */
 
 #include "ke.hpp"
