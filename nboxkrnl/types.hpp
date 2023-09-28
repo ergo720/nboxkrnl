@@ -49,6 +49,9 @@ using KPRIORITY = LONG;
 using HANDLE = PVOID;
 
 #include "ntstatus.hpp"
+#include <stddef.h>
+
+#define CONTAINING_RECORD(address, type, field) ((type *)((PCHAR)(address) - (ULONG_PTR)offsetof(type, field)))
 
 struct LIST_ENTRY {
 	LIST_ENTRY *Flink;

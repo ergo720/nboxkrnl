@@ -11,6 +11,7 @@
 #define UlongToHandle(Ulong)               ((HANDLE)(ULONG_PTR)(Ulong))
 #define EncodeFreeHandle(Handle)           (HandleToUlong(Handle) | 1)
 #define DecodeFreeHandle(Handle)           (HandleToUlong(Handle) & ~1)
+#define GetObjHeader(Obj)                  (CONTAINING_RECORD(Obj, OBJECT_HEADER, Body))
 
 
 BOOLEAN ObpAllocateNewHandleTable();

@@ -49,6 +49,11 @@ EXPORTNUM(51) DLLEXPORT LONG FASTCALL InterlockedCompareExchange
 	LONG  Comparand
 );
 
+EXPORTNUM(53) DLLEXPORT LONG FASTCALL InterlockedIncrement
+(
+	volatile PLONG Addend
+);
+
 EXPORTNUM(54) DLLEXPORT LONG FASTCALL InterlockedExchange
 (
 	volatile PLONG Destination,

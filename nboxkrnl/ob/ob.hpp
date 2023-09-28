@@ -112,6 +112,11 @@ EXPORTNUM(239) DLLEXPORT NTSTATUS XBOXAPI ObCreateObject
 
 EXPORTNUM(245) DLLEXPORT extern OBJECT_HANDLE_TABLE ObpObjectHandleTable;
 
+EXPORTNUM(251) DLLEXPORT VOID FASTCALL ObfReferenceObject
+(
+	PVOID Object
+);
+
 #ifdef __cplusplus
 }
 #endif

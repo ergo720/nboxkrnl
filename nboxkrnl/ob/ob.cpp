@@ -5,6 +5,7 @@
 #include "ob.hpp"
 #include "obp.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\ex\ex.hpp"
 
 
 BOOLEAN ObInitSystem()
@@ -56,4 +57,12 @@ EXPORTNUM(239) NTSTATUS XBOXAPI ObCreateObject
 	}
 
 	RIP_API_MSG("creating named objects is not supported yet");
+}
+
+EXPORTNUM(251) VOID FASTCALL ObfReferenceObject
+(
+	PVOID Object
+)
+{
+	InterlockedIncrement(&GetObjHeader(Object)->PointerCount);
 }
