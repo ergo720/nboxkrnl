@@ -5,6 +5,7 @@
 #include "ki.hpp"
 #include "hw_exp.hpp"
 #include "..\mm\mm.hpp"
+#include "..\ob\ob.hpp"
 #include "..\kernel.hpp"
 #include <string.h>
 
@@ -183,4 +184,8 @@ void KiInitializeKernel()
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
 
 	MmInitSystem();
+
+	if (ObInitSystem() == FALSE) {
+		KeBugCheck(INIT_FAILURE);
+	}
 }

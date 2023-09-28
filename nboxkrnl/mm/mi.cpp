@@ -461,6 +461,11 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 
 ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
 {
+	if (BaseAddress == nullptr) {
+		// This happens in ObInitSystem because RootTable is initially set to nullptr
+		return 0;
+	}
+
 	assert(CHECK_ALIGNMENT((ULONG)BaseAddress, PAGE_SIZE)); // all starting addresses in the system region are page aligned
 	assert(IS_SYSTEM_ADDRESS(BaseAddress) || IS_DEVKIT_ADDRESS(BaseAddress));
 
