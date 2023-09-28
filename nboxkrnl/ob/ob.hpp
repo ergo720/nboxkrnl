@@ -40,9 +40,75 @@ struct OBJECT_HANDLE_TABLE {
 };
 using POBJECT_HANDLE_TABLE = OBJECT_HANDLE_TABLE *;
 
+using OBJECT_STRING = STRING;
+using POBJECT_STRING = OBJECT_STRING *;
+
+using OB_ALLOCATE_METHOD = PVOID(XBOXAPI *)(
+	SIZE_T NumberOfBytes,
+	ULONG Tag
+	);
+
+using OB_FREE_METHOD = VOID(XBOXAPI *)(
+	PVOID Pointer
+	);
+
+using OB_CLOSE_METHOD = VOID(XBOXAPI *)(
+	PVOID Object,
+	ULONG SystemHandleCount
+	);
+
+using OB_DELETE_METHOD = VOID(XBOXAPI *)(
+	PVOID Object
+	);
+
+using OB_PARSE_METHOD = NTSTATUS(XBOXAPI *)(
+	PVOID ParseObject,
+	struct _OBJECT_TYPE *ObjectType,
+	ULONG Attributes,
+	POBJECT_STRING CompleteName,
+	POBJECT_STRING RemainingName,
+	PVOID Context,
+	PVOID *Object
+	);
+
+struct OBJECT_TYPE {
+	OB_ALLOCATE_METHOD AllocateProcedure;
+	OB_FREE_METHOD FreeProcedure;
+	OB_CLOSE_METHOD CloseProcedure;
+	OB_DELETE_METHOD DeleteProcedure;
+	OB_PARSE_METHOD ParseProcedure;
+	PVOID DefaultObject;
+	ULONG PoolTag;
+};
+using POBJECT_TYPE = OBJECT_TYPE *;
+
+struct OBJECT_ATTRIBUTES {
+	HANDLE RootDirectory;
+	PSTRING ObjectName;
+	ULONG Attributes;
+};
+using POBJECT_ATTRIBUTES = OBJECT_ATTRIBUTES *;
+
+struct OBJECT_HEADER {
+	LONG PointerCount;
+	LONG HandleCount;
+	POBJECT_TYPE Type;
+	ULONG Flags;
+	QUAD Body;
+};
+using POBJECT_HEADER = OBJECT_HEADER *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+EXPORTNUM(239) DLLEXPORT NTSTATUS XBOXAPI ObCreateObject
+(
+	POBJECT_TYPE ObjectType,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	ULONG ObjectBodySize,
+	PVOID *Object
+);
 
 EXPORTNUM(245) DLLEXPORT extern OBJECT_HANDLE_TABLE ObpObjectHandleTable;
 

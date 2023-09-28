@@ -4,6 +4,7 @@
 
 #include "ob.hpp"
 #include "obp.hpp"
+#include "..\rtl\rtl.hpp"
 
 
 BOOLEAN ObInitSystem()
@@ -27,4 +28,32 @@ BOOLEAN ObInitSystem()
 	ObpObjectHandleTable.FirstFreeTableEntry = 4;
 
 	return TRUE;
+}
+
+EXPORTNUM(239) NTSTATUS XBOXAPI ObCreateObject
+(
+	POBJECT_TYPE ObjectType,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	ULONG ObjectBodySize,
+	PVOID *Object
+)
+{
+	if ((ObjectAttributes == nullptr) || (ObjectAttributes->ObjectName == nullptr)) {
+		POBJECT_HEADER Obj = (POBJECT_HEADER)ObjectType->AllocateProcedure(ObjectBodySize + sizeof(OBJECT_HEADER) - sizeof(OBJECT_HEADER::Body), ObjectType->PoolTag);
+
+		if (Obj == nullptr) {
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		Obj->HandleCount = 0;
+		Obj->PointerCount = 1;
+		Obj->Type = ObjectType;
+		Obj->Flags = 0;
+
+		*Object = &Obj->Body;
+
+		return STATUS_SUCCESS;
+	}
+
+	RIP_API_MSG("creating named objects is not supported yet");
 }

@@ -34,6 +34,7 @@ using DWORD = uint32_t;
 using ULONG = uint32_t;
 using LONG = int32_t;
 using ULONGLONG = uint64_t;
+using QUAD = ULONGLONG;
 using PCHAR = CHAR *;
 using PULONG = ULONG *;
 using PUCHAR = UCHAR *;
@@ -71,6 +72,15 @@ union SLIST_HEADER {
 	};
 };
 using PSLIST_HEADER = SLIST_HEADER *;
+
+struct STRING {
+	USHORT Length;
+	USHORT MaximumLength;
+	PCHAR Buffer;
+};
+using ANSI_STRING = STRING;
+using PSTRING = STRING *;
+using PANSI_STRING = PSTRING;
 
 struct DISPATCHER_HEADER {
 	UCHAR Type;
