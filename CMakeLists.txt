@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.4.3)
-project(cxbxrkrnl)
+project(nboxkrnl)
 
 if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
- set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${cxbxrkrnl_BINARY_DIR}/bin")
+ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${nboxkrnl_BINARY_DIR}/bin")
  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 endif()
 
@@ -13,12 +13,12 @@ foreach(flag_var
   string(REGEX REPLACE "/RTC(su|[1su])" "" ${flag_var} "${${flag_var}}")
 endforeach(flag_var)
 
-set(CXBXRKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
+set(NBOXKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory("${CXBXRKRNL_ROOT_DIR}/import/pdclib")
+add_subdirectory("${NBOXKRNL_ROOT_DIR}/import/pdclib")
 
 add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
@@ -39,8 +39,8 @@ add_compile_options(
 )
 
 include_directories(
- "${CXBXRKRNL_ROOT_DIR}/import/pdclib/include"
- "${CXBXRKRNL_ROOT_DIR}/import/pdclib/platform/xbox/include"
+ "${NBOXKRNL_ROOT_DIR}/import/pdclib/include"
+ "${NBOXKRNL_ROOT_DIR}/import/pdclib/platform/xbox/include"
 )
 
 link_directories(
@@ -48,66 +48,66 @@ link_directories(
 )
 
 file (GLOB HEADERS
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/kernel.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ntstatus.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/types.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/dbg.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/halp.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug_codes.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/ke.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/nt/zw.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/exp_sup.hpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ntstatus.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/types.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg/dbg.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/bug_codes.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/ke.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/ki.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/seh.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/zw.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.hpp"
 )
 
 file (GLOB SOURCES
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/main.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/dbg/debug.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/ex.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/exp_sup.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ex/pool.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/interrupt.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/hal/hal.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/hw_exp.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/init.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/ki.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ki/seh.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/apc.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/bug.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/dpc.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/irql.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/kernel.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/semaphore.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/thread.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/ke/timer.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mi.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/mm/mm.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/nt/services.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/exp_sup.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/rtl/rtl.cpp"
- "${CXBXRKRNL_ROOT_DIR}/cxbxrkrnl/xe/xe.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/main.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg/debug.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/exp_sup.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/pool.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/interrupt.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/init.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/ki.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/seh.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/apc.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/bug.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/dpc.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/irql.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/kernel.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/semaphore.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/thread.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/timer.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/services.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
 )
 
-source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
-source_group(TREE ${CXBXRKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
+source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
+source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
-add_executable(cxbxrkrnl ${HEADERS} ${SOURCES})
+add_executable(nboxkrnl ${HEADERS} ${SOURCES})
 
-add_dependencies(cxbxrkrnl pdclib)
+add_dependencies(nboxkrnl pdclib)
 
-target_link_libraries(cxbxrkrnl PUBLIC
+target_link_libraries(nboxkrnl PUBLIC
  pdclib.lib
  debug libcmtd.lib
  optimized libcmt.lib
 )
 
-set_target_properties(cxbxrkrnl PROPERTIES
+set_target_properties(nboxkrnl PROPERTIES
  LINK_FLAGS "
  /BASE:0x80010000 \
  /DYNAMICBASE:NO \
