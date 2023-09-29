@@ -102,6 +102,48 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 	return STATUS_SUCCESS;
 }
 
+EXPORTNUM(244) NTSTATUS XBOXAPI ObOpenObjectByPointer
+(
+	PVOID Object,
+	POBJECT_TYPE ObjectType,
+	PHANDLE ReturnedHandle
+)
+{
+	*ReturnedHandle = NULL_HANDLE;
+
+	if (NTSTATUS Status = NT_SUCCESS(ObReferenceObjectByPointer(Object, ObjectType))) {
+		KIRQL OldIrql = ObLock();
+		HANDLE Handle = ObpCreateHandleForObject(Object);
+		ObUnlock(OldIrql);
+
+		if (Handle == NULL_HANDLE) {
+			ObfDereferenceObject(Object);
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
+
+		*ReturnedHandle = Handle;
+	}
+	else {
+		return Status;
+	}
+
+	return STATUS_SUCCESS;
+}
+
+EXPORTNUM(248) NTSTATUS XBOXAPI ObReferenceObjectByPointer
+(
+	PVOID Object,
+	POBJECT_TYPE ObjectType
+)
+{
+	if (GetObjHeader(Object)->Type == ObjectType) {
+		ObfReferenceObject(Object);
+		return STATUS_SUCCESS;
+	}
+
+	return STATUS_OBJECT_TYPE_MISMATCH;
+}
+
 EXPORTNUM(250) VOID FASTCALL ObfDereferenceObject
 (
 	PVOID Object
