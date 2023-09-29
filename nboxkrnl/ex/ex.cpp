@@ -19,6 +19,18 @@ EXPORTNUM(51) LONG FASTCALL InterlockedCompareExchange
 	}
 }
 
+EXPORTNUM(52) LONG FASTCALL InterlockedDecrement
+(
+	volatile PLONG Addend
+)
+{
+	__asm {
+		or eax, 0xFFFFFFFF
+		xadd [ecx], eax
+		dec eax
+	}
+}
+
 EXPORTNUM(53) LONG FASTCALL InterlockedIncrement
 (
 	volatile PLONG Addend

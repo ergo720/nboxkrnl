@@ -47,6 +47,7 @@ using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
 using KPRIORITY = LONG;
 using HANDLE = PVOID;
+using PHANDLE = HANDLE *;
 
 #include "ntstatus.hpp"
 #include <stddef.h>

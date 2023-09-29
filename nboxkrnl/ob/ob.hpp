@@ -13,6 +13,10 @@
 #define OB_TABLES_PER_SEGMENT        8
 #define OB_HANDLES_PER_SEGMENT       (OB_TABLES_PER_SEGMENT * OB_HANDLES_PER_TABLE) // 512
 
+#define NULL_HANDLE ((HANDLE)(ULONG_PTR)0)
+
+#define OB_NUMBER_HASH_BUCKETS 11
+
 /*
 The handle table RootTable works as if it were a 2D array of handles of one row and multiple columns. The row is allocated in segments increments of 8 elements each, and each
 element has a pointer to a table of 64 handles. When a handle is free, the corresponding 4 byte element in the table holds the handle biased by one of the next free handle. The
@@ -98,6 +102,19 @@ struct OBJECT_HEADER {
 };
 using POBJECT_HEADER = OBJECT_HEADER *;
 
+
+struct OBJECT_DIRECTORY {
+	struct OBJECT_HEADER_NAME_INFO *HashBuckets[OB_NUMBER_HASH_BUCKETS];
+};
+using POBJECT_DIRECTORY = OBJECT_DIRECTORY *;
+
+struct OBJECT_HEADER_NAME_INFO {
+	struct OBJECT_HEADER_NAME_INFO *ChainLink;
+	struct OBJECT_DIRECTORY *Directory;
+	OBJECT_STRING Name;
+};
+using POBJECT_HEADER_NAME_INFO = OBJECT_HEADER_NAME_INFO *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -110,7 +127,20 @@ EXPORTNUM(239) DLLEXPORT NTSTATUS XBOXAPI ObCreateObject
 	PVOID *Object
 );
 
+EXPORTNUM(241) DLLEXPORT NTSTATUS XBOXAPI ObInsertObject
+(
+	PVOID Object,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	ULONG ObjectPointerBias,
+	PHANDLE ReturnedHandle
+);
+
 EXPORTNUM(245) DLLEXPORT extern OBJECT_HANDLE_TABLE ObpObjectHandleTable;
+
+EXPORTNUM(250) DLLEXPORT VOID FASTCALL ObfDereferenceObject
+(
+	PVOID Object
+);
 
 EXPORTNUM(251) DLLEXPORT VOID FASTCALL ObfReferenceObject
 (

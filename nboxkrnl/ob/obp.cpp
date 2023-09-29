@@ -45,3 +45,23 @@ BOOLEAN ObpAllocateNewHandleTable()
 
 	return TRUE;
 }
+
+HANDLE ObpCreateHandleForObject(PVOID Object)
+{
+	if (ObpObjectHandleTable.FirstFreeTableEntry == -1) {
+		if (ObpAllocateNewHandleTable() == FALSE) {
+			return NULL_HANDLE;
+		}
+	}
+
+	// This gets the next free available handle in the system, finds the element pointer of that handle in the handle table, reads the next free handle from that
+	// table element, and writes the object address to it, so that successive references to the handle can recover the object
+	HANDLE Handle = UlongToHandle(ObpObjectHandleTable.FirstFreeTableEntry);
+	PVOID *HandlePtr = GetHandleContentsPointer(Handle);
+	ObpObjectHandleTable.FirstFreeTableEntry = DecodeFreeHandle(*HandlePtr);
+	*HandlePtr = Object;
+	++ObpObjectHandleTable.HandleCount;
+	++GetObjHeader(Object)->HandleCount;
+
+	return Handle;
+}
