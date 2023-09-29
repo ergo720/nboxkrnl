@@ -239,6 +239,26 @@ EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
 	return MiAllocateSystemMemory(NumberOfBytes, Protect, SystemMemory, FALSE);
 }
 
+EXPORTNUM(169) PVOID XBOXAPI MmCreateKernelStack
+(
+	ULONG NumberOfBytes,
+	BOOLEAN DebuggerThread
+)
+{
+	return MiAllocateSystemMemory(NumberOfBytes, PAGE_READWRITE, DebuggerThread ? Debugger : Stack, TRUE);
+}
+
+EXPORTNUM(170) VOID XBOXAPI MmDeleteKernelStack
+(
+	PVOID StackBase,
+	PVOID StackLimit
+)
+{
+	ULONG StackSize = (ULONG_PTR)StackBase - (ULONG_PTR)StackLimit + PAGE_SIZE;
+	PVOID StackBottom = (PVOID)((ULONG_PTR)StackBase - StackSize);
+	MiFreeSystemMemory(StackBottom, StackSize);
+}
+
 EXPORTNUM(172) ULONG XBOXAPI MmFreeSystemMemory
 (
 	PVOID BaseAddress,

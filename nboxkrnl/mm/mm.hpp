@@ -126,6 +126,18 @@ EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
 	ULONG Protect
 );
 
+EXPORTNUM(169) DLLEXPORT PVOID XBOXAPI MmCreateKernelStack
+(
+	ULONG NumberOfBytes,
+	BOOLEAN DebuggerThread
+);
+
+EXPORTNUM(170) DLLEXPORT VOID XBOXAPI MmDeleteKernelStack
+(
+	PVOID StackBase,
+	PVOID StackLimit
+);
+
 EXPORTNUM(172) DLLEXPORT ULONG XBOXAPI MmFreeSystemMemory
 (
 	PVOID BaseAddress,

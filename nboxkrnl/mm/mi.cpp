@@ -255,7 +255,7 @@ PFN_NUMBER MiRemoveAnyPageFromFreeList()
 	RIP_API_MSG("should always find a free page.");
 }
 
-static BOOLEAN ConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
+static BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
 {
 	ULONG Mask = 0;
 
@@ -407,20 +407,19 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 
 PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyType, BOOLEAN AddGuardPage)
 {
-	assert(AddGuardPage == FALSE); // TODO
-
 	if (NumberOfBytes == 0) {
 		return nullptr;
 	}
 
 	MMPTE TempPte;
-	if (ConvertPageToSystemPtePermissions(Protect, &TempPte) == FALSE) {
+	if (MiConvertPageToSystemPtePermissions(Protect, &TempPte) == FALSE) {
 		return nullptr;
 	}
 
 	KIRQL OldIrql = MiLock();
 
 	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
+	ULONG NumberOfVirtualPages = AddGuardPage ? NumberOfPages + 1 : NumberOfPages;
 	if (NumberOfPages > MiTotalPagesAvailable) {
 		MiUnlock(OldIrql);
 		return nullptr;
@@ -434,7 +433,7 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 		PteRegion = &MiDevkitPteRegion;
 	}
 
-	PMMPTE Pte = MiReservePtes(PteRegion, NumberOfPages);
+	PMMPTE Pte = MiReservePtes(PteRegion, NumberOfVirtualPages);
 	if (Pte == nullptr) {
 		MiUnlock(OldIrql);
 		return nullptr;
@@ -442,12 +441,18 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 
 	// We have to check again because MiReservePtes might have consumed some pages to commit the pts
 	if (NumberOfPages > MiTotalPagesAvailable) {
-		MiReleasePtes(PteRegion, Pte, NumberOfPages);
+		MiReleasePtes(PteRegion, Pte, NumberOfVirtualPages);
 		MiUnlock(OldIrql);
 		return nullptr;
 	}
 
 	PMMPTE StartPte = Pte, PteEnd = Pte + NumberOfPages - 1;
+	if (AddGuardPage) {
+		WriteZeroPte(Pte); // the guard page of the stack is not backed by a physical page
+		StartPte = PteEnd + 1; // returns the top of the allocation
+		++Pte;
+	}
+
 	while (Pte <= PteEnd) {
 		WritePte(Pte, TempPte.Hw | (MiRemoveAnyPageFromFreeList(BusyType, Pte) << PAGE_SHIFT));
 		++Pte;
