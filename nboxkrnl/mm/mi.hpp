@@ -130,7 +130,7 @@ enum PageType {
 #define SetPfn(Addr) (ROUND_DOWN_4K((ULONG)(Addr)))
 #define GetPfnFromContiguous(Addr) ((ULONG)ConvertContiguousToPhysical(Addr) >> PAGE_SHIFT)
 #define GetPfnElement(Pfn) (&((PXBOX_PFN)MiPfnAddress)[Pfn])
-#define GetPfnOfPt(Pte) (GetPfnElement(GetPteAddress(Pte)->Hw >> PAGE_SHIFT))
+#define GetPfnOfPt(Pte) (GetPfnElement(GetPfnFromContiguous(GetPteAddress(Pte)->Hw & PAGE_MASK)))
 #define EncodeFreePfn(PfnIdx) ((USHORT)((USHORT)(PfnIdx) >> (USHORT)PFN_LIST_SHIFT))
 #define DecodeFreePfn(PfnIdx, Idx) ((USHORT)(((USHORT)(PfnIdx) << (USHORT)PFN_LIST_SHIFT) + (USHORT)Idx))
 #define GetPfnListIdx(Pfn) ((Pfn) & PFN_LIST_MASK)
