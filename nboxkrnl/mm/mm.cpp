@@ -80,24 +80,33 @@ VOID MmInitSystem()
 		MiInsertPageRangeInFreeList(0, MiHighestPage);
 	}
 
-	// Map the pt of the kernel image. This is backed by the page immediately following it
-	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
-	WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
-	MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
-	NextPageTableAddr += PAGE_SIZE;
-
 	// Map the kernel image
+	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
 	ULONG TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
-	PMMPTE PteEnd = GetPteAddress(KERNEL_BASE + KernelSize - 1);
+	PMMPTE PteEnd = (PMMPTE)(NextPageTableAddr + GetPteOffset(KERNEL_BASE + KernelSize - 1) * 4);
 	{
 		ULONG Addr = KERNEL_BASE;
-		for (PMMPTE Pte = GetPteAddress(KERNEL_BASE); Pte <= PteEnd; ++Pte) {
+		for (PMMPTE Pte = (PMMPTE)(NextPageTableAddr + GetPteOffset(KERNEL_BASE) * 4); Pte <= PteEnd; ++Pte) {
 			WritePte(Pte, TempPte);
 			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, Pte);
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
+	}
+
+	{
+		// Map the pt of the kernel image. This is backed by the page immediately following it
+		// This must happen after the ptes of the pt have been written, because writing the new pde invalidates the large page the kernel is currently using. Otherwise,
+		// if some kernel code resides on a 4K page that was not yet cached in the TLB, it will cause a page fault
+		WritePte(GetPdeAddress(KERNEL_BASE), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the kernel image and also of the pt
+		PXBOX_PFN Pf = MiRemovePageFromFreeList(GetPfnFromContiguous(NextPageTableAddr));
+		Pf->PtPageFrame.Busy = 1;
+		Pf->PtPageFrame.BusyType = VirtualPageTable;
+		Pf->PtPageFrame.LockCount = 0;
+		Pf->PtPageFrame.PtesUsed = PAGES_SPANNED(KERNEL_BASE, KernelSize);
+		++MiPagesByUsage[VirtualPageTable];
+		NextPageTableAddr += PAGE_SIZE;
 	}
 
 	{
