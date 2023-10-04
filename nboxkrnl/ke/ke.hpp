@@ -122,6 +122,11 @@ enum KTHREAD_STATE {
 	Transition
 };
 
+enum KINTERRUPT_MODE {
+	LevelSensitive,
+	Edged
+};
+
 struct KAPC_STATE {
 	LIST_ENTRY ApcListHead[MaximumMode];
 	struct KPROCESS *Process;

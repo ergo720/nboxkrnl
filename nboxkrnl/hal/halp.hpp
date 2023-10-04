@@ -8,6 +8,31 @@
 #include "..\ki\ki.hpp"
 #include "..\ki\hw_exp.hpp"
 
+ // PIC i/o ports
+#define PIC_MASTER_CMD          0x20
+#define PIC_MASTER_DATA         0x21
+#define PIC_MASTER_ELCR         0x4D0
+#define PIC_SLAVE_CMD           0xA0
+#define PIC_SLAVE_DATA          0xA1
+#define PIC_SLAVE_ELCR          0x4D1
+
+// PIC icw1 command bytes
+#define ICW1_ICW4_NEEDED        0x01
+#define ICW1_CASCADE            0x00
+#define ICW1_INTERVAL8          0x00
+#define ICW1_EDGE               0x00
+#define ICW1_INIT               0x10
+
+// PIC icw4 command bytes
+#define ICW4_8086               0x01
+#define ICW4_NORNAL_EOI         0x00
+#define ICW4_NON_BUFFERED       0x00
+#define ICW4_NOT_FULLY_NESTED   0x00
+
+// PIC irq base (icw2)
+#define PIC_MASTER_VECTOR_BASE  IDT_INT_VECTOR_BASE
+#define PIC_SLAVE_VECTOR_BASE   (IDT_INT_VECTOR_BASE + 8)
+
 
 // This is used to track sw/hw interrupts currently pending. First four are for sw interrupts,
 // while the remaining 16 are for the hw interrupts of the 8259 PIC
@@ -67,6 +92,8 @@ VOID XBOXAPI HalpHwInt13();
 VOID XBOXAPI HalpHwInt14();
 VOID XBOXAPI HalpHwInt15();
 
+VOID XBOXAPI HalpClockIsr();
+
 inline VOID(XBOXAPI *const SwIntHandlers[])() = {
 	&KiUnexpectedInterrupt,
 	&HalpSwIntApc,
@@ -91,3 +118,5 @@ inline VOID(XBOXAPI *const SwIntHandlers[])() = {
 };
 
 [[noreturn]] VOID HalpShutdownSystem();
+VOID HalpInitPIC();
+VOID HalpInitPIT();

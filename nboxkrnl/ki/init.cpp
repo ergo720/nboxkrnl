@@ -7,6 +7,7 @@
 #include "..\mm\mm.hpp"
 #include "..\ob\ob.hpp"
 #include "..\kernel.hpp"
+#include "..\hal\hal.hpp"
 #include <string.h>
 
 
@@ -188,4 +189,6 @@ void KiInitializeKernel()
 	if (ObInitSystem() == FALSE) {
 		KeBugCheck(INIT_FAILURE);
 	}
+
+	HalInitSystem();
 }

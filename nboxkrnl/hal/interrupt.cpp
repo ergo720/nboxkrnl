@@ -2,8 +2,13 @@
  * ergo720                Copyright (c) 2022
  */
 
+#include "hal.hpp"
+#include "halp.hpp"
 #include "..\rtl\rtl.hpp"
 
+
+// Mask of interrupts currently disabled on the pic. 1st byte: master, 2nd byte: slave. Note that IRQ2 of the slave connects to the master, so it's never disabled
+static WORD HalpIntDisabled = 0xFFFB;
 
 VOID XBOXAPI HalpSwIntApc()
 {
@@ -34,7 +39,7 @@ VOID XBOXAPI HalpHwInt1()
 VOID XBOXAPI HalpHwInt2()
 {
 	__asm {
-		int IDT_INT_VECTOR_BASE+ 2
+		int IDT_INT_VECTOR_BASE + 2
 	}
 }
 
@@ -126,5 +131,46 @@ VOID XBOXAPI HalpHwInt15()
 {
 	__asm {
 		int IDT_INT_VECTOR_BASE + 15
+	}
+}
+
+VOID XBOXAPI HalpClockIsr()
+{
+	RIP_UNIMPLEMENTED();
+}
+
+EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
+(
+	ULONG BusInterruptLevel,
+	KINTERRUPT_MODE InterruptMode
+)
+{
+	__asm cli
+
+	// NOTE: the bit in KINTERRUPT_MODE is the opposite of what needs to be set in elcr
+	ULONG ElcrPort, DataPort;
+	BYTE PicImr, ElcrMask = (InterruptMode == Edged) ? 0 : 1 << (BusInterruptLevel & 7);
+	HalpIntDisabled &= ~(1 << BusInterruptLevel);
+
+	if (BusInterruptLevel > 7) {
+		ElcrPort = PIC_SLAVE_ELCR;
+		DataPort = PIC_SLAVE_DATA;
+		PicImr = (HalpIntDisabled >> 8) & 0xFF;
+	}
+	else {
+		ElcrPort = PIC_MASTER_ELCR;
+		DataPort = PIC_MASTER_DATA;
+		PicImr = HalpIntDisabled & 0xFF;
+	}
+
+	__asm {
+		mov edx, ElcrPort
+		in al, dx
+		or al, ElcrMask
+		out dx, al
+		mov al, PicImr
+		mov edx, DataPort
+		out dx, al
+		sti
 	}
 }

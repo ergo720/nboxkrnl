@@ -1,12 +1,21 @@
 /*
  * ergo720                Copyright (c) 2022
- * PatrickvL              Copyright (c) 2017
+ * PatrickvL              Copyright (c) 2016-2017
  */
 
 #pragma once
 
 #include "..\kernel.hpp"
 
+
+EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
+{
+	0,     // Flags: 1=INTERNAL_USB, 2=DEVKIT, 4=MACROVISION, 8=CHIHIRO
+	0xA2,  // GpuRevision, byte read from NV2A first register, at 0xFD0000000 - see NV_PMC_BOOT_0
+	0xD3,  // McpRevision, Retail 1.6
+	0,     // unknown
+	0      // unknown
+};
 
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)
 {

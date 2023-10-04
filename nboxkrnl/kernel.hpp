@@ -26,6 +26,25 @@ enum SystemType {
 	SYSTEM_DEVKIT
 };
 
+struct XBOX_HARDWARE_INFO {
+	ULONG Flags;
+	UCHAR GpuRevision;
+	UCHAR McpRevision;
+	UCHAR Unknown3;
+	UCHAR Unknown4;
+};
+
+inline SystemType XboxType;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
+
+#ifdef __cplusplus
+}
+#endif
 
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port);
 ULONG FASTCALL InputFromHost(USHORT Port);

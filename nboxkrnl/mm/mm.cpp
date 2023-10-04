@@ -25,10 +25,10 @@ VOID MmInitSystem()
 {
 	ULONG RequiredPt = 2;
 
-	SystemType Type = static_cast<SystemType>(InputFromHost(KE_SYSTEM_TYPE));
-	MiLayoutRetail = (Type == SYSTEM_XBOX);
-	MiLayoutChihiro = (Type == SYSTEM_CHIHIRO);
-	MiLayoutDevkit = (Type == SYSTEM_DEVKIT);
+	XboxType = static_cast<SystemType>(InputFromHost(KE_SYSTEM_TYPE));
+	MiLayoutRetail = (XboxType == SYSTEM_XBOX);
+	MiLayoutChihiro = (XboxType == SYSTEM_CHIHIRO);
+	MiLayoutDevkit = (XboxType == SYSTEM_DEVKIT);
 
 	// Set up general memory variables according to the xbe type
 	if (MiLayoutChihiro) {
