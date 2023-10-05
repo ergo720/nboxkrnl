@@ -7,7 +7,7 @@
 #include "..\rtl\rtl.hpp"
 
 
-// Mask of interrupts currently disabled on the pic. 1st byte: master, 2nd byte: slave. Note that IRQ2 of the slave connects to the master, so it's never disabled
+// Mask of interrupts currently disabled on the pic. 1st byte: master, 2nd byte: slave. Note that IRQ2 of the master connects to the slave, so it's never disabled
 static WORD HalpIntDisabled = 0xFFFB;
 
 VOID XBOXAPI HalpSwIntApc()

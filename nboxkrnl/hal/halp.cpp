@@ -36,9 +36,10 @@ VOID HalpInitPIC()
 		mov al, ICW4_8086 | ICW4_NORNAL_EOI | ICW4_NON_BUFFERED | ICW4_NOT_FULLY_NESTED
 		out PIC_MASTER_DATA, al
 		out PIC_SLAVE_DATA, al
-		// Mask all interrupts in the IMR
-		mov al, 0xFF
+		// Mask all interrupts in the IMR (except for IRQ2 on the master)
+		mov al, 0xFB
 		out PIC_MASTER_DATA, al
+		add al, 4
 		out PIC_SLAVE_DATA, al
 	}
 }
