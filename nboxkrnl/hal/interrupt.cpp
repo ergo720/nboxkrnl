@@ -149,7 +149,7 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 
 	// NOTE: the bit in KINTERRUPT_MODE is the opposite of what needs to be set in elcr
 	ULONG ElcrPort, DataPort;
-	BYTE PicImr, ElcrMask = (InterruptMode == Edged) ? 0 : 1 << (BusInterruptLevel & 7);
+	BYTE PicImr, CurrElcr, ElcrMask = 1 << (BusInterruptLevel & 7);
 	HalpIntDisabled &= ~(1 << BusInterruptLevel);
 
 	if (BusInterruptLevel > 7) {
@@ -166,7 +166,19 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 	__asm {
 		mov edx, ElcrPort
 		in al, dx
-		or al, ElcrMask
+		mov CurrElcr, al
+	}
+
+	if (InterruptMode == Edge) {
+		CurrElcr &= ~ElcrMask;
+	}
+	else {
+		CurrElcr |= ElcrMask;
+	}
+
+	__asm {
+		mov edx, ElcrPort
+		mov al, CurrElcr
 		out dx, al
 		mov al, PicImr
 		mov edx, DataPort

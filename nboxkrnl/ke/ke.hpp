@@ -124,7 +124,7 @@ enum KTHREAD_STATE {
 
 enum KINTERRUPT_MODE {
 	LevelSensitive,
-	Edged
+	Edge
 };
 
 struct KAPC_STATE {

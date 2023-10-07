@@ -13,7 +13,7 @@ VOID HalInitSystem()
 
 	// Connect the PIT (clock) interrupt (NOTE: this will also enable interrupts)
 	KiIdt[IDT_INT_VECTOR_BASE + 0] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpClockIsr & 0x0000FFFF) | (((uint64_t)&HalpClockIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
-	HalEnableSystemInterrupt(0, Edged);
+	HalEnableSystemInterrupt(0, Edge);
 
 	if (XboxType == SYSTEM_DEVKIT) {
 		XboxHardwareInfo.Flags |= 2;
