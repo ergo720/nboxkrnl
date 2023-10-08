@@ -7,8 +7,103 @@
 #include "..\rtl\rtl.hpp"
 
 
+// Mask out sw interrupts in HalpIntInProgress
+#define ACTIVE_IRQ_MASK 0xFFFFFFF0
+
+// Mask of hw interrupts currently being serviced
+static DWORD HalpIntInProgress = 0;
+
+// This is used to track sw/hw interrupts currently pending. First four are for sw interrupts,
+// while the remaining 16 are for the hw interrupts of the 8259 PIC
+static DWORD HalpPendingInt = 0;
+
 // Mask of interrupts currently disabled on the pic. 1st byte: master, 2nd byte: slave. Note that IRQ2 of the master connects to the slave, so it's never disabled
 static WORD HalpIntDisabled = 0xFFFB;
+
+// Mask of all sw/hw interrupts that are unmasked at every IRQL. This table is the opposite of PicIRQMasksForIRQL
+inline constexpr DWORD HalpIrqlMasks[] = {
+	0b11111111111111111111111111111110,  // IRQL 0  (PASSIVE)
+	0b11111111111111111111111111111100,  // IRQL 1  (APC)
+	0b11111111111111111111111111111000,  // IRQL 2  (DPC)
+	0b11111111111111111111111111110000,  // IRQL 3
+	0b00000011111111111111111111110000,  // IRQL 4
+	0b00000001111111111111111111110000,  // IRQL 5
+	0b00000000111111111111111111110000,  // IRQL 6
+	0b00000000011111111111111111110000,  // IRQL 7
+	0b00000000001111111111111111110000,  // IRQL 8
+	0b00000000000111111111111111110000,  // IRQL 9
+	0b00000000000011111111111111110000,  // IRQL 10
+	0b00000000000001111111111111110000,  // IRQL 11
+	0b00000000000000111111111111110000,  // IRQL 12 (IDE)
+	0b00000000000000011111111111110000,  // IRQL 13
+	0b00000000000000011111111111110000,  // IRQL 14
+	0b00000000000000010111111111110000,  // IRQL 15 (SMBUS)
+	0b00000000000000010011111111110000,  // IRQL 16
+	0b00000000000000010001111111110000,  // IRQL 17 (USB1)
+	0b00000000000000010001111111110000,  // IRQL 18
+	0b00000000000000010001011111110000,  // IRQL 19
+	0b00000000000000010001001111110000,  // IRQL 20 (ACI)
+	0b00000000000000010001000111110000,  // IRQL 21 (APU)
+	0b00000000000000010001000011110000,  // IRQL 22 (NIC)
+	0b00000000000000010001000001110000,  // IRQL 23 (GPU)
+	0b00000000000000010001000000110000,  // IRQL 24
+	0b00000000000000010001000000010000,  // IRQL 25 (USB0)
+	0b00000000000000010000000000010000,  // IRQL 26 (PROFILE)
+	0b00000000000000000000000000010000,  // IRQL 27 (SCI)
+	0b00000000000000000000000000000000,  // IRQL 28 (CLOCK)
+	0b00000000000000000000000000000000,  // IRQL 29 (IPI)
+	0b00000000000000000000000000000000,  // IRQL 30 (POWER)
+	0b00000000000000000000000000000000,  // IRQL 31 (HIGH)
+};
+
+// Mask of IRQs disabled on the PIC for each IRQL. Every row of the table shows all IRQs disabled at that IRQL because, the corresponding IRQL of that IRQ is less or
+// equal to the IRQL of that level. Example: IRQL12 (IDE) -> only IRQ14 is masked because all other devices have an IRQL greater than 12
+// IRQL = 26 - IRQ, except for PIT (CLOCK), PROFILE and SCI, which use arbitrarily chosen IRQLs
+// PIT:     IRQ0
+// USB0:    IRQ1 -> IRQL25
+// GPU:     IRQ3 -> IRQL23
+// NIC:     IRQ4 -> IRQL22
+// APU:     IRQ5 -> IRQL21
+// ACI:     IRQ6 -> IRQL20
+// PROFILE: IRQ8
+// USB1:    IRQ9 -> IRQL17
+// SMBUS:   IRQ11 -> IRQL15
+// SCI:     IRQ12
+// IDE:     IRQ14 -> IRQL12
+static constexpr WORD PicIRQMasksForIRQL[] = {
+	0b0000000000000000,  // IRQL 0  (PASSIVE)
+	0b0000000000000000,  // IRQL 1  (APC)
+	0b0000000000000000,  // IRQL 2  (DPC)
+	0b0000000000000000,  // IRQL 3
+	0b0000000000000000,  // IRQL 4
+	0b0000000000000000,  // IRQL 5
+	0b0000000000000000,  // IRQL 6
+	0b0000000000000000,  // IRQL 7
+	0b0000000000000000,  // IRQL 8
+	0b0000000000000000,  // IRQL 9
+	0b0000000000000000,  // IRQL 10
+	0b1000000000000000,  // IRQL 11
+	0b1100000000000000,  // IRQL 12 (IDE)
+	0b1110000000000000,  // IRQL 13
+	0b1110000000000000,  // IRQL 14
+	0b1110100000000000,  // IRQL 15 (SMBUS)
+	0b1110110000000000,  // IRQL 16
+	0b1110111000000000,  // IRQL 17 (USB1)
+	0b1110111000000000,  // IRQL 18
+	0b1110111010000000,  // IRQL 19
+	0b1110111011000000,  // IRQL 20 (ACI)
+	0b1110111011100000,  // IRQL 21 (APU)
+	0b1110111011110000,  // IRQL 22 (NIC)
+	0b1110111011111000,  // IRQL 23 (GPU)
+	0b1110111011111000,  // IRQL 24
+	0b1110111011111010,  // IRQL 25 (USB0)
+	0b1110111111111010,  // IRQL 26 (PROFILE)
+	0b1111111111111010,  // IRQL 27 (SCI)
+	0b1111111111111011,  // IRQL 28 (CLOCK)
+	0b1111111111111011,  // IRQL 29 (IPI)
+	0b1111111111111011,  // IRQL 30 (POWER)
+	0b1111111111111011,  // IRQL 31 (HIGH)
+};
 
 VOID XBOXAPI HalpSwIntApc()
 {
@@ -134,9 +229,112 @@ VOID XBOXAPI HalpHwInt15()
 	}
 }
 
-VOID XBOXAPI HalpClockIsr()
+VOID __declspec(naked) HalpCheckUnmaskedInt()
 {
-	RIP_UNIMPLEMENTED();
+	// On entry, interrupts must be disabled
+
+	__asm {
+	check_int:
+		movzx ecx, byte ptr [KiPcr]KPCR.Irql
+		mov edx, HalpPendingInt
+		and edx, HalpIrqlMasks[ecx * 4] // if not zero, then there are one or more pending interrupts that have become unmasked
+		jnz unmasked_int
+		jmp exit_func
+	unmasked_int:
+		test HalpIntInProgress, ACTIVE_IRQ_MASK // make sure we complete the active IRQ first
+		jnz exit_func
+		bsr ecx, edx
+		cmp ecx, DISPATCH_LEVEL
+		jg hw_int
+		call SwIntHandlers[ecx * 4]
+		jmp check_int
+	hw_int:
+		mov ax, HalpIntDisabled
+		out PIC_MASTER_DATA, al
+		shr ax, 8
+		out PIC_SLAVE_DATA, al
+		mov edx, 1
+		shl edx, cl
+		test HalpIntInProgress, edx // check again HalpIntInProgress because if a sw/hw int comes, it re-enables interrupts, and a hw int could come again
+		jnz exit_func
+		or HalpIntInProgress, edx
+		xor HalpPendingInt, edx
+		call SwIntHandlers[ecx * 4]
+		xor HalpIntInProgress, edx
+		jmp check_int
+	exit_func:
+		ret
+	}
+}
+
+VOID __declspec(naked) XBOXAPI HalpClockIsr()
+{
+	__asm {
+		CREATE_KTRAP_FRAME_FOR_INT;
+		movzx eax, byte ptr [KiPcr]KPCR.Irql
+		cmp eax, CLOCK_LEVEL
+		jge masked_int
+		mov byte ptr [KiPcr]KPCR.Irql, CLOCK_LEVEL // raise IRQL
+		push eax
+		mov al, OCW2_EOI_IRQ
+		out PIC_MASTER_CMD, al // send eoi to master pic
+		// Query the total execution time and use that as the kernel time. If we instead just increment the time with the xbox increment, if the host
+		// doesn't manage to call this every ms, then the time will start to lag behind the system clock time read from the CMOS, which in turn is synchronized
+		// with the current host time
+		mov edx, KE_TIME_LOW
+		in eax, dx
+		mov esi, eax
+		inc edx
+		in eax, dx
+		mov edi, eax
+		inc edx
+		in eax, dx
+		sti
+		mov [KeInterruptTime]KSYSTEM_TIME.High2Time, edi
+		mov [KeInterruptTime]KSYSTEM_TIME.LowTime, esi
+		mov [KeInterruptTime]KSYSTEM_TIME.HighTime, edi
+		mov [KeSystemTime]KSYSTEM_TIME.High2Time, edi
+		mov [KeSystemTime]KSYSTEM_TIME.LowTime, esi
+		mov [KeSystemTime]KSYSTEM_TIME.HighTime, edi
+		mov ebx, KeTickCount
+		mov KeTickCount, eax
+		// TODO: check if any timers have expired
+		sub eax, ebx
+		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
+		mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread
+		cmp byte ptr [esp], DISPATCH_LEVEL
+		jb kernel_time
+		ja interrupt_time
+		cmp [KiPcr]KPCR.PrcbData.DpcRoutineActive, 0
+		jz kernel_time
+		add [KiPcr]KPCR.PrcbData.DpcTime, eax // DpcTime: time spent executing DPCs, in ms
+		jmp quantum
+	interrupt_time:
+		add [KiPcr]KPCR.PrcbData.InterruptTime, eax // InterruptTime: time spent executing code at IRQL > 2, in ms
+		jmp quantum
+	kernel_time:
+		add [ecx]KTHREAD.KernelTime, eax // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
+	quantum:
+		sub [ecx]KTHREAD.Quantum, eax
+		// TODO: thread switch if thread quantum has expired
+		cli
+		pop ecx
+		mov byte ptr [KiPcr]KPCR.Irql, cl // lower IRQL
+		call HalpCheckUnmaskedInt
+		jmp end_isr
+	masked_int:
+		mov edx, 1
+		mov ecx, IRQL_OFFSET_FOR_IRQ // clock IRQ is zero
+		shl edx, cl
+		or HalpPendingInt, edx // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
+		mov ax, PicIRQMasksForIRQL[eax * 2]
+		or ax, HalpIntDisabled // mask all IRQs on the PIC with IRQL <= than current IRQL
+		out PIC_MASTER_DATA, al
+		shr ax, 8
+		out PIC_SLAVE_DATA, al
+	end_isr:
+		EXIT_INTERRUPT;
+	}
 }
 
 EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt

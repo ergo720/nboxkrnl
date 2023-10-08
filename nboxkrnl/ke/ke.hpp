@@ -8,14 +8,17 @@
 
 #define XBOX_KEY_LENGTH 16
 
-#define THREAD_QUANTUM 60
+#define THREAD_QUANTUM 20 // ms that a thread is allowed to run before being preempted
 #define NORMAL_BASE_PRIORITY 8
 #define HIGH_PRIORITY 31
 
 #define HIGH_LEVEL 31
+#define CLOCK_LEVEL 28
 #define DISPATCH_LEVEL 2
 #define APC_LEVEL 1
 #define PASSIVE_LEVEL 0
+
+#define IRQL_OFFSET_FOR_IRQ 4
 
 #define IDT_SERVICE_VECTOR_BASE 0x20
 #define IDT_INT_VECTOR_BASE 0x30
@@ -306,6 +309,11 @@ struct KDPC {
 };
 using PKDPC = KDPC *;
 
+struct KSYSTEM_TIME {
+	ULONG LowTime;
+	LONG HighTime;
+	LONG High2Time;
+};
 
 #ifdef __cplusplus
 extern "C" {
@@ -358,7 +366,11 @@ EXPORTNUM(113) DLLEXPORT VOID XBOXAPI KeInitializeTimerEx
 	TIMER_TYPE Type
 );
 
+EXPORTNUM(120) DLLEXPORT extern KSYSTEM_TIME KeInterruptTime;
+
 EXPORTNUM(129) DLLEXPORT KIRQL XBOXAPI KeRaiseIrqlToDpcLevel();
+
+EXPORTNUM(154) DLLEXPORT extern KSYSTEM_TIME KeSystemTime;
 
 EXPORTNUM(155) DLLEXPORT BOOLEAN XBOXAPI KeTestAlertThread
 (

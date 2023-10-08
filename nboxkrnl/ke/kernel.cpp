@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "..\ke\ke.hpp"
 #include "..\kernel.hpp"
 
 
@@ -16,6 +17,12 @@ EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 	0,     // unknown
 	0      // unknown
 };
+
+EXPORTNUM(120) KSYSTEM_TIME KeInterruptTime = { 0, 0, 0 };
+
+EXPORTNUM(154) KSYSTEM_TIME KeSystemTime = { 0, 0, 0 };
+
+EXPORTNUM(156) volatile DWORD KeTickCount = 0;
 
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)
 {

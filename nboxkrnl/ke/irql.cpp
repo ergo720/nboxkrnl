@@ -62,20 +62,7 @@ EXPORTNUM(161) VOID FASTCALL KfLowerIrql
 		pushfd
 		cli
 		mov byte ptr [KiPcr].Irql, cl
-		mov edx, HalpInterruptRequestRegister
-		and edx, HalpIrqlMasks[ecx * 4]
-		jz no_int
-		bsr ecx, edx
-		cmp ecx, DISPATCH_LEVEL
-		jbe sw_int
-		// FIXME: this should mask the interrupts of the 8259 with the IMR register. However, lib86cpu doesn't implement interrupts
-		// at the moment, so we will ignore this for now
-		mov edx, 1
-		shl edx, cl
-		xor HalpInterruptRequestRegister, edx // this clears the interrupt in the IRR
-	sw_int:
-		call SwIntHandlers[ecx * 4]
-	no_int:
+		call HalpCheckUnmaskedInt
 		popfd
 	}
 }

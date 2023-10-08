@@ -8,8 +8,6 @@
 #include "..\kernel.hpp"
 
 
-EXPORTNUM(156) volatile DWORD KeTickCount = 0;
-
 VOID XBOXAPI KeInitializeTimer(PKTIMER Timer)
 {
 	KeInitializeTimerEx(Timer, NotificationTimer);

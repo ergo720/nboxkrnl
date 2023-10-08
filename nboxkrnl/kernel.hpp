@@ -16,6 +16,11 @@
 #define KE_SYSTEM_TYPE 0x0201
 // Request an abort interrupt to terminate execution
 #define KE_ABORT 0x202
+// Request the total execution time since booting in 100 ns units
+#define KE_TIME_LOW 0x203
+#define KE_TIME_HIGH 0x204
+// Request the total execution time since booting in ms
+#define KE_TIME_MS 0x205
 
 #define KERNEL_STACK_SIZE 12288
 #define KERNEL_BASE 0x80010000
