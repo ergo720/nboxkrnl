@@ -21,7 +21,7 @@ EXPORTNUM(102) MMGLOBALDATA MmGlobalData = {
 	nullptr
 };
 
-VOID MmInitSystem()
+BOOLEAN MmInitSystem()
 {
 	ULONG RequiredPt = 2;
 
@@ -236,7 +236,14 @@ VOID MmInitSystem()
 	// We have changed the memory mappings so flush the tlb now
 	MiFlushEntireTlb();
 
+	KiPcr.PrcbData.DpcStack = MmCreateKernelStack(KERNEL_STACK_SIZE, FALSE);
+	if (KiPcr.PrcbData.DpcStack == nullptr) {
+		return FALSE;
+	}
+
 	// TODO: initialize the VAD tree
+
+	return TRUE;
 }
 
 EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory

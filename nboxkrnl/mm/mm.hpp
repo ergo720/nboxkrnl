@@ -155,4 +155,4 @@ EXPORTNUM(180) DLLEXPORT SIZE_T XBOXAPI MmQueryAllocationSize
 
 inline ULONG MmSystemMaxMemory = XBOX_MEMORY_SIZE;
 
-VOID MmInitSystem();
+BOOLEAN MmInitSystem();

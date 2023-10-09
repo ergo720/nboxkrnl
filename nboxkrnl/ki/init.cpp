@@ -184,7 +184,9 @@ void KiInitializeKernel()
 	KiPcr.Prcb->NextThread = nullptr;
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
 
-	MmInitSystem();
+	if (MmInitSystem() == FALSE) {
+		KeBugCheck(INIT_FAILURE);
+	}
 
 	if (ObInitSystem() == FALSE) {
 		KeBugCheck(INIT_FAILURE);
