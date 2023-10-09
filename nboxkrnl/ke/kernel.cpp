@@ -24,6 +24,25 @@ EXPORTNUM(154) KSYSTEM_TIME KeSystemTime = { 0, 0, 0 };
 
 EXPORTNUM(156) volatile DWORD KeTickCount = 0;
 
+EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
+(
+	PLARGE_INTEGER CurrentTime
+)
+{
+	LARGE_INTEGER SystemTime;
+
+	while (true) {
+		SystemTime.u.HighPart = KeSystemTime.HighTime;
+		SystemTime.u.LowPart = KeSystemTime.LowTime;
+
+		if (SystemTime.u.HighPart == KeSystemTime.High2Time) {
+			break;
+		}
+	}
+
+	*CurrentTime = SystemTime;
+}
+
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)
 {
 	__asm {
