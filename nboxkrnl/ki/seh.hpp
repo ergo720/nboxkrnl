@@ -22,22 +22,6 @@
 #define EXCEPTION_CONTINUE_SEARCH 0
 #define EXCEPTION_CONTINUE_EXECUTION (-1)
 
-// retrieve excptPtrs written by _except_handler3 right below EXCEPTION_REGISTRATION_SEH
-#define GetExceptionInformation(var) \
-	__asm { \
-		__asm mov eax, dowrd ptr [ebp - 20] \
-		__asm mov var, eax \
-	}
-
-// retrieve the ExceptionCode member of EXCEPTION_RECORD pointed by ExceptionRecord of excptPtrs
-#define GetExceptionCode(var) \
-	__asm { \
-		__asm mov eax, dowrd ptr [ebp - 20] \
-		__asm mov eax, [eax] \
-		__asm mov eax, [eax] \
-		__asm mov var, eax \
-	}
-
 
 enum EXCEPTION_DISPOSITION {
 	ExceptionContinueExecution = 0,
@@ -82,3 +66,28 @@ using PEXCEPTION_POINTERS = EXCEPTION_POINTERS *;
 
 using PEXCEPTION_ROUTINE = EXCEPTION_DISPOSITION(CDECL *)(EXCEPTION_RECORD *, EXCEPTION_REGISTRATION_RECORD *,
 	CONTEXT *, EXCEPTION_REGISTRATION_RECORD **);
+
+
+inline PEXCEPTION_POINTERS __declspec(naked) GetExceptionInformation()
+{
+	// Retrieves excptPtrs written by _except_handler3 right below EXCEPTION_REGISTRATION_SEH
+	// This function must be naked because it needs to use the ebp of its caller, not the ebp of this function
+
+	__asm {
+		mov eax, dword ptr [ebp - 20]
+		ret
+	}
+}
+
+inline NTSTATUS __declspec(naked) GetExceptionCode()
+{
+	// Retrieves the ExceptionCode member of EXCEPTION_RECORD pointed by ExceptionRecord of excptPtrs
+	// This function must be naked because it needs to use the ebp of its caller, not the ebp of this function
+
+	__asm {
+		mov eax, dword ptr [ebp - 20]
+		mov eax, [eax]
+		mov eax, [eax]
+		ret
+	}
+}

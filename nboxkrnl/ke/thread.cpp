@@ -121,6 +121,45 @@ VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSiz
 	KfLowerIrql(OldIrql);
 }
 
+EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
+(
+	PLARGE_INTEGER CurrentTime
+)
+{
+	LARGE_INTEGER SystemTime;
+
+	while (true) {
+		SystemTime.u.HighPart = KeSystemTime.HighTime;
+		SystemTime.u.LowPart = KeSystemTime.LowTime;
+
+		if (SystemTime.u.HighPart == KeSystemTime.High2Time) {
+			break;
+		}
+	}
+
+	*CurrentTime = SystemTime;
+}
+
+EXPORTNUM(140) ULONG XBOXAPI KeResumeThread
+(
+	PKTHREAD Thread
+)
+{
+	RIP_UNIMPLEMENTED();
+
+	return 1;
+}
+
+EXPORTNUM(152) ULONG XBOXAPI KeSuspendThread
+(
+	PKTHREAD Thread
+)
+{
+	RIP_UNIMPLEMENTED();
+
+	return 0;
+}
+
 EXPORTNUM(155) BOOLEAN XBOXAPI KeTestAlertThread
 (
 	KPROCESSOR_MODE AlertMode

@@ -62,11 +62,15 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/seh.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/nt.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/zw.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ob/ob.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ob/obp.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/ps.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/psp.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
 )
 
 file (GLOB SOURCES
@@ -92,9 +96,12 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/timer.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/objects.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/services.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ob/ob.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ob/obp.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/ps.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/psp.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"

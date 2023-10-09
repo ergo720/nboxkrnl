@@ -33,6 +33,7 @@ using WORD = uint16_t;
 using DWORD = uint32_t;
 using ULONG = uint32_t;
 using LONG = int32_t;
+using LONGLONG = int64_t;
 using ULONGLONG = uint64_t;
 using QUAD = ULONGLONG;
 using PCHAR = CHAR *;
@@ -109,6 +110,21 @@ union ULARGE_INTEGER {
 	DWORDLONG QuadPart;
 };
 using PULARGE_INTEGER = ULARGE_INTEGER *;
+
+union LARGE_INTEGER {
+	struct {
+		DWORD LowPart;
+		LONG HighPart;
+	};
+
+	struct {
+		DWORD LowPart;
+		LONG HighPart;
+	} u;
+
+	LONGLONG QuadPart;
+};
+using PLARGE_INTEGER = LARGE_INTEGER *;
 
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES    16
 #define IMAGE_SIZEOF_SHORT_NAME              8

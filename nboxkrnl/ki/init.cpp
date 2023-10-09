@@ -8,6 +8,7 @@
 #include "..\ob\ob.hpp"
 #include "..\kernel.hpp"
 #include "..\hal\hal.hpp"
+#include "..\ps\ps.hpp"
 #include <string.h>
 
 
@@ -193,4 +194,8 @@ void KiInitializeKernel()
 	}
 
 	HalInitSystem();
+
+	if (PsInitSystem() == FALSE) {
+		KeBugCheck(INIT_FAILURE);
+	}
 }
