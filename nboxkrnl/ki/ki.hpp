@@ -21,6 +21,8 @@
 
 #define TIMER_TABLE_SIZE 32
 
+#define NUM_OF_THREAD_PRIORITIES 32
+
 using KGDT = uint64_t;
 using KIDT = uint64_t;
 using KTSS = uint32_t[26];
@@ -133,6 +135,12 @@ using PKTIMER_TABLE_ENTRY = KTIMER_TABLE_ENTRY *;
 inline KTHREAD KiIdleThread;
 inline uint8_t alignas(4) KiIdleThreadStack[KERNEL_STACK_SIZE];
 
+// List of all thread that can be scheduled, one for each priority level
+inline LIST_ENTRY KiReadyThreadLists[NUM_OF_THREAD_PRIORITIES];
+
+// Bitmask of KiReadyThreadLists -> bit position is one if there is at least one ready thread at that priority
+inline DWORD KiReadyThreadMask = 1;
+
 inline LIST_ENTRY KiWaitInListHead;
 
 inline KTIMER_TABLE_ENTRY KiTimerTableListHead[TIMER_TABLE_SIZE];
@@ -150,9 +158,11 @@ extern KPROCESS KiUniqueProcess;
 extern KPROCESS KiIdleProcess;
 
 
-void InitializeCrt();
-void KiInitializeKernel();
-void KiInitSystem();
+VOID InitializeCrt();
+[[noreturn]] VOID KiInitializeKernel();
+VOID KiInitSystem();
+[[noreturn]] VOID KiIdleLoopThread();
+DWORD KiSwapThreadContext();
 
 VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
 

@@ -60,8 +60,5 @@
 		lidt [esp]
 	}
 
-	KiInitializeKernel();
-
-	// We should never return from the entry point
-	KeBugCheck(INIT_FAILURE);
+	KiInitializeKernel(); // won't return
 }

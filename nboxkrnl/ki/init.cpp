@@ -154,7 +154,7 @@ void InitializeCrt()
 	}
 }
 
-void KiInitializeKernel()
+VOID KiInitializeKernel()
 {
 	KiPcr.SelfPcr = &KiPcr;
 	KiPcr.Prcb = &KiPcr.PrcbData;
@@ -172,15 +172,15 @@ void KiInitializeKernel()
 
 	KiInitSystem();
 
-	KiInitializeProcess(&KiIdleProcess, 0, 127);
+	KiInitializeProcess(&KiIdleProcess, LOW_PRIORITY, 127);
 	KiInitializeProcess(&KiUniqueProcess, NORMAL_BASE_PRIORITY, THREAD_QUANTUM);
 
 	KeInitializeThread(&KiIdleThread, KiIdleThreadStack + KERNEL_STACK_SIZE,
 		KERNEL_STACK_SIZE, 0, nullptr, nullptr, nullptr, &KiIdleProcess);
 
-	KiIdleThread.Priority = HIGH_PRIORITY;
+	KiIdleThread.Priority = LOW_PRIORITY;
 	KiIdleThread.State = Running;
-	KiIdleThread.WaitIrql = DISPATCH_LEVEL;
+	KiIdleThread.WaitIrql = PASSIVE_LEVEL;
 
 	KiPcr.Prcb->NextThread = nullptr;
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
@@ -198,4 +198,6 @@ void KiInitializeKernel()
 	if (PsInitSystem() == FALSE) {
 		KeBugCheck(INIT_FAILURE);
 	}
+
+	KiIdleLoopThread(); // won't return
 }

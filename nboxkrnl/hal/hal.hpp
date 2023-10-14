@@ -18,6 +18,11 @@ EXPORTNUM(43) DLLEXPORT VOID XBOXAPI HalEnableSystemInterrupt
 	KINTERRUPT_MODE InterruptMode
 );
 
+EXPORTNUM(48) DLLEXPORT VOID FASTCALL HalRequestSoftwareInterrupt
+(
+	KIRQL Request
+);
+
 #ifdef __cplusplus
 }
 #endif

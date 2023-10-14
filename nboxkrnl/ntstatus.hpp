@@ -7,6 +7,7 @@
 #define STATUS_SUCCESS                          ((NTSTATUS)0x00000000L)
 #define STATUS_TIMEOUT                          ((NTSTATUS)0x00000102L)
 #define STATUS_BREAKPOINT                       ((NTSTATUS)0x80000003L)
+#define STATUS_NO_MEMORY                        ((NTSTATUS)0xC0000017L)
 #define STATUS_OBJECT_TYPE_MISMATCH             ((NTSTATUS)0xC0000024L)
 #define STATUS_NONCONTINUABLE_EXCEPTION         ((NTSTATUS)0xC0000025L)
 #define STATUS_INVALID_DISPOSITION              ((NTSTATUS)0xC0000026L)

@@ -10,6 +10,7 @@
 
 #define THREAD_QUANTUM 20 // ms that a thread is allowed to run before being preempted
 #define NORMAL_BASE_PRIORITY 8
+#define LOW_PRIORITY 0
 #define HIGH_PRIORITY 31
 
 #define HIGH_LEVEL 31
@@ -411,6 +412,11 @@ EXPORTNUM(161) DLLEXPORT VOID FASTCALL KfLowerIrql
 	KIRQL NewIrql
 );
 
+EXPORTNUM(163) DLLEXPORT VOID FASTCALL KiUnlockDispatcherDatabase
+(
+	KIRQL NewIrql
+);
+
 EXPORTNUM(321) DLLEXPORT extern XBOX_KEY_DATA XboxEEPROMKey;
 
 #ifdef __cplusplus
@@ -425,3 +431,5 @@ VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSiz
 	PVOID StartContext, PKPROCESS Process);
 
 VOID XBOXAPI KeInitializeTimer(PKTIMER Timer);
+VOID KeScheduleThread(PKTHREAD Thread);
+VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread);

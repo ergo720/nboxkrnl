@@ -122,7 +122,7 @@ EXPORTNUM(255) NTSTATUS XBOXAPI PsCreateSystemThreadEx
 	}
 
 	KeQuerySystemTime(&eThread->CreateTime);
-	// TODO: attempt to schedule the thread
+	KeScheduleThread(&eThread->Tcb);
 
 	ObfDereferenceObject(eThread);
 

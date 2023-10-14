@@ -5,6 +5,7 @@
 #include "hal.hpp"
 #include "halp.hpp"
 #include "..\rtl\rtl.hpp"
+#include <assert.h>
 
 
 // Mask out sw interrupts in HalpIntInProgress
@@ -21,7 +22,7 @@ static DWORD HalpPendingInt = 0;
 static WORD HalpIntDisabled = 0xFFFB;
 
 // Mask of all sw/hw interrupts that are unmasked at every IRQL. This table is the opposite of PicIRQMasksForIRQL
-inline constexpr DWORD HalpIrqlMasks[] = {
+static constexpr DWORD HalpIrqlMasks[] = {
 	0b11111111111111111111111111111110,  // IRQL 0  (PASSIVE)
 	0b11111111111111111111111111111100,  // IRQL 1  (APC)
 	0b11111111111111111111111111111000,  // IRQL 2  (DPC)
@@ -316,7 +317,13 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		add [ecx]KTHREAD.KernelTime, eax // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
 	quantum:
 		sub [ecx]KTHREAD.Quantum, eax
-		// TODO: thread switch if thread quantum has expired
+		jg not_expired
+		cmp ecx, offset KiIdleThread // if it's the idle thread, then don't switch
+		jz not_expired
+		mov [KiPcr]KPCR.PrcbData.QuantumEnd, 1
+		mov cl, DISPATCH_LEVEL
+		call HalRequestSoftwareInterrupt
+	not_expired:
 		cli
 		pop ecx
 		mov byte ptr [KiPcr]KPCR.Irql, cl // lower IRQL
@@ -383,4 +390,24 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 		out dx, al
 		sti
 	}
+}
+
+EXPORTNUM(48) VOID FASTCALL HalRequestSoftwareInterrupt
+(
+	KIRQL Request
+)
+{
+	assert((Request == APC_LEVEL) || (Request == DISPATCH_LEVEL));
+
+	__asm {
+		pushfd
+		cli
+	}
+
+	HalpPendingInt |= (1 << Request);
+	if (HalpIrqlMasks[KiPcr.Irql] & (1 << Request)) { // is the requested IRQL unmasked at the current IRQL?
+		SwIntHandlers[Request]();
+	}
+
+	__asm popfd
 }

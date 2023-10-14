@@ -58,7 +58,7 @@ VOID XBOXAPI HalpHwInt15();
 
 VOID XBOXAPI HalpClockIsr();
 
-inline VOID(XBOXAPI *const SwIntHandlers[])() = {
+inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {
 	&KiUnexpectedInterrupt,
 	&HalpSwIntApc,
 	&HalpSwIntDpc,
