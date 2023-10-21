@@ -7,6 +7,7 @@
 #include "..\rtl\rtl.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
+#include "vad_tree.hpp"
 #include <assert.h>
 
 
@@ -15,10 +16,10 @@ EXPORTNUM(102) MMGLOBALDATA MmGlobalData = {
 	&MiSystemPteRegion,
 	&MiTotalPagesAvailable,
 	MiPagesByUsage,
+	&MiVadLock,
+	(PVOID *)&MiVadRoot,
 	nullptr,
-	nullptr,
-	nullptr,
-	nullptr
+	(PVOID *)&MiLastFree
 };
 
 BOOLEAN MmInitSystem()
@@ -58,7 +59,7 @@ BOOLEAN MmInitSystem()
 	ULONG PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, KernelSize);
 	PdeNumber = PAGES_SPANNED_LARGE(KERNEL_BASE, (PdeNumber + RequiredPt) * PAGE_SIZE + KernelSize); // also count the space needed for the pts
 	if ((KERNEL_BASE + KernelSize + PdeNumber * PAGE_SIZE) >= 0x80400000) {
-		KeBugCheck(INIT_FAILURE);
+		return FALSE;
 	}
 
 	// Mark all the entries in the pfn database as free
@@ -137,12 +138,12 @@ BOOLEAN MmInitSystem()
 		// Map the pfn database
 		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(DatabasePfn);
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
-		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
+		MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
-			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
+			MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
@@ -213,7 +214,7 @@ BOOLEAN MmInitSystem()
 			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
-			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, 0);
+			MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
 			PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
@@ -241,7 +242,13 @@ BOOLEAN MmInitSystem()
 		return FALSE;
 	}
 
-	// TODO: initialize the VAD tree
+	if (InsertVADNode(LOWEST_USER_ADDRESS, HIGHEST_USER_ADDRESS, Free, PAGE_NOACCESS) == FALSE) {
+		return FALSE;
+	}
+
+	MiLastFree = GetVADNode(LOWEST_USER_ADDRESS);
+
+	RtlpInitializeCriticalSection(&MiVadLock);
 
 	return TRUE;
 }

@@ -8,6 +8,14 @@
 #include "..\ki\seh.hpp"
 
 
+struct RTL_CRITICAL_SECTION {
+	DISPATCHER_HEADER Event;
+	LONG LockCount;
+	LONG RecursionCount;
+	HANDLE OwningThread;
+};
+using PRTL_CRITICAL_SECTION = RTL_CRITICAL_SECTION *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,11 +33,36 @@ EXPORTNUM(265) DLLEXPORT VOID XBOXAPI RtlCaptureContext
 	PCONTEXT ContextRecord
 );
 
+EXPORTNUM(277) DLLEXPORT VOID XBOXAPI RtlEnterCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+);
+
+EXPORTNUM(278) DLLEXPORT VOID XBOXAPI RtlEnterCriticalSectionAndRegion
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+);
+
 EXPORTNUM(285) DLLEXPORT VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,
 	SIZE_T Length,
 	ULONG Pattern
+);
+
+EXPORTNUM(291) DLLEXPORT VOID XBOXAPI RtlInitializeCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+);
+
+EXPORTNUM(294) DLLEXPORT VOID XBOXAPI RtlLeaveCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+);
+
+EXPORTNUM(295) DLLEXPORT VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
+(
+	PRTL_CRITICAL_SECTION CriticalSection
 );
 
 EXPORTNUM(302) DLLEXPORT VOID XBOXAPI RtlRaiseException
@@ -63,3 +96,5 @@ EXPORTNUM(312) DLLEXPORT VOID XBOXAPI RtlUnwind
 
 #define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
 #define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))
+
+VOID RtlpInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);

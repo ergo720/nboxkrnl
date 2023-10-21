@@ -12,6 +12,7 @@
 #define NORMAL_BASE_PRIORITY 8
 #define LOW_PRIORITY 0
 #define HIGH_PRIORITY 31
+#define PRIORITY_BOOST_EVENT 1
 
 #define HIGH_LEVEL 31
 #define CLOCK_LEVEL 28
@@ -131,6 +132,42 @@ enum KINTERRUPT_MODE {
 	Edge
 };
 
+enum KWAIT_REASON {
+	Executive = 0,
+	FreePage = 1,
+	PageIn = 2,
+	PoolAllocation = 3,
+	DelayExecution = 4,
+	Suspended = 5,
+	UserRequest = 6,
+	WrExecutive = 7,
+	WrFreePage = 8,
+	WrPageIn = 9,
+	WrPoolAllocation = 10,
+	WrDelayExecution = 11,
+	WrSuspended = 12,
+	WrUserRequest = 13,
+	WrEventPair = 14,
+	WrQueue = 15,
+	WrLpcReceive = 16,
+	WrLpcReply = 17,
+	WrVirtualMemory = 18,
+	WrPageOut = 19,
+	WrRendezvous = 20,
+	WrFsCacheIn = 21,
+	WrFsCacheOut = 22,
+	Spare4 = 23,
+	Spare5 = 24,
+	Spare6 = 25,
+	WrKernel = 26,
+	MaximumWaitReason = 27
+};
+
+enum EVENT_TYPE {
+	NotificationEvent = 0,
+	SynchronizationEvent
+};
+
 struct KAPC_STATE {
 	LIST_ENTRY ApcListHead[MaximumMode];
 	struct KPROCESS *Process;
@@ -219,6 +256,11 @@ struct KSEMAPHORE {
 	LONG Limit;
 };
 using PKSEMAPHORE = KSEMAPHORE *;
+
+struct KEVENT {
+	DISPATCHER_HEADER Header;
+};
+using PKEVENT = KEVENT *;
 
 struct KSTART_FRAME {
 	PKSYSTEM_ROUTINE SystemRoutine;
@@ -346,7 +388,11 @@ extern "C" {
 	ULONG_PTR BugCheckParameter4
 );
 
+EXPORTNUM(101) DLLEXPORT VOID XBOXAPI KeEnterCriticalRegion();
+
 EXPORTNUM(103) DLLEXPORT KIRQL XBOXAPI KeGetCurrentIrql();
+
+EXPORTNUM(104) DLLEXPORT PKTHREAD XBOXAPI KeGetCurrentThread();
 
 EXPORTNUM(105) DLLEXPORT VOID XBOXAPI KeInitializeApc
 (
@@ -366,6 +412,13 @@ EXPORTNUM(107) DLLEXPORT VOID XBOXAPI KeInitializeDpc
 	PVOID DeferredContext
 );
 
+EXPORTNUM(108) DLLEXPORT VOID XBOXAPI KeInitializeEvent
+(
+	PKEVENT Event,
+	EVENT_TYPE Type,
+	BOOLEAN SignalState
+);
+
 EXPORTNUM(112) DLLEXPORT VOID XBOXAPI KeInitializeSemaphore
 (
 	PKSEMAPHORE Semaphore,
@@ -381,6 +434,8 @@ EXPORTNUM(113) DLLEXPORT VOID XBOXAPI KeInitializeTimerEx
 
 EXPORTNUM(120) DLLEXPORT extern volatile KSYSTEM_TIME KeInterruptTime;
 
+EXPORTNUM(122) DLLEXPORT VOID XBOXAPI KeLeaveCriticalRegion();
+
 EXPORTNUM(128) DLLEXPORT VOID XBOXAPI KeQuerySystemTime
 (
 	PLARGE_INTEGER CurrentTime
@@ -391,6 +446,13 @@ EXPORTNUM(129) DLLEXPORT KIRQL XBOXAPI KeRaiseIrqlToDpcLevel();
 EXPORTNUM(140) DLLEXPORT ULONG XBOXAPI KeResumeThread
 (
 	PKTHREAD Thread
+);
+
+EXPORTNUM(145) DLLEXPORT LONG XBOXAPI KeSetEvent
+(
+	PKEVENT Event,
+	KPRIORITY Increment,
+	BOOLEAN	Wait
 );
 
 EXPORTNUM(152) DLLEXPORT ULONG XBOXAPI KeSuspendThread
@@ -406,6 +468,15 @@ EXPORTNUM(155) DLLEXPORT BOOLEAN XBOXAPI KeTestAlertThread
 );
 
 EXPORTNUM(156) DLLEXPORT extern volatile DWORD KeTickCount;
+
+EXPORTNUM(159) DLLEXPORT NTSTATUS XBOXAPI KeWaitForSingleObject
+(
+	PVOID Object,
+	KWAIT_REASON WaitReason,
+	KPROCESSOR_MODE WaitMode,
+	BOOLEAN Alertable,
+	PLARGE_INTEGER Timeout
+);
 
 EXPORTNUM(161) DLLEXPORT VOID FASTCALL KfLowerIrql
 (

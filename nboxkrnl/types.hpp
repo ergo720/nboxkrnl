@@ -44,6 +44,7 @@ using ULONG_PTR = uintptr_t;
 using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
 using SIZE_T = ULONG_PTR;
+using PSIZE_T = SIZE_T *;
 using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
 using KPRIORITY = LONG;

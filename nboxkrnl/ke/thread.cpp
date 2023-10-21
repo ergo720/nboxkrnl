@@ -250,6 +250,11 @@ DWORD __declspec(naked) KiSwapThreadContext()
 	}
 }
 
+EXPORTNUM(104) PKTHREAD XBOXAPI KeGetCurrentThread()
+{
+	__asm mov eax, [KiPcr]KPCR.PrcbData.CurrentThread
+}
+
 EXPORTNUM(140) ULONG XBOXAPI KeResumeThread
 (
 	PKTHREAD Thread

@@ -188,9 +188,9 @@ VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE P
 	++MiPagesByUsage[BusyType];
 }
 
-VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, BOOLEAN Unused)
+VOID MiRemoveAndZeroPageTableFromFreeListNoFlush(PFN_NUMBER Pfn, PageType BusyType)
 {
-	// NOTE: this overload doesn't flush the identity mapping done below from the tlb, and should only be used by MmInitSystem
+	// NOTE: same as MiRemoveAndZeroPageTableFromFreeList, but it doesn't flush the identity mapping done below from the tlb, and should only be used by MmInitSystem
 	assert((BusyType == SystemPageTable) || (BusyType == VirtualPageTable));
 
 	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
@@ -228,24 +228,26 @@ VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType)
 	++MiPagesByUsage[BusyType];
 }
 
-PFN_NUMBER MiRemoveAnyPageFromFreeList(PageType BusyType, PMMPTE Pte)
+PFN_NUMBER MiRemovePageFromFreeList(PageType BusyType, PMMPTE Pte, PFN_COUNT(*AllocationRoutine)())
 {
-	PFN_NUMBER Pfn = MiRemoveAnyPageFromFreeList();
+	PFN_NUMBER Pfn = AllocationRoutine();
 	MiRemovePageFromFreeList(Pfn, BusyType, Pte);
 	return Pfn;
 }
 
-PFN_NUMBER MiRemoveAnyPageFromFreeList()
+PFN_NUMBER MiRemoveRetailPageFromFreeList()
 {
-	// The caller should have already checked that we have enough free pages available
-	assert(MiTotalPagesAvailable);
-
 	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
 		if (MiRetailRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
 			return DecodeFreePfn(MiRetailRegion.FreeListHead[ListIdx].Blink, ListIdx);
 		}
 	}
 
+	RIP_API_MSG("should always find a free page.");
+}
+
+PFN_NUMBER MiRemoveDevkitPageFromFreeList()
+{
 	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
 		if (MiDevkitRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
 			return DecodeFreePfn(MiDevkitRegion.FreeListHead[ListIdx].Blink, ListIdx);
@@ -253,6 +255,73 @@ PFN_NUMBER MiRemoveAnyPageFromFreeList()
 	}
 
 	RIP_API_MSG("should always find a free page.");
+}
+
+PFN_NUMBER MiRemoveAnyPageFromFreeList()
+{
+	// The caller should have already checked that we have enough free pages available
+	assert(MiTotalPagesAvailable);
+
+	MiRemoveRetailPageFromFreeList();
+	MiRemoveDevkitPageFromFreeList();
+
+	RIP_API_MSG("should always find a free page.");
+}
+
+BOOLEAN MiConvertPageToPtePermissions(ULONG Protect, PMMPTE Pte)
+{
+	if (Protect & ~(PAGE_GUARD | PAGE_NOCACHE | PAGE_WRITECOMBINE | 0xFF)) {
+		return FALSE; // unknown or not allowed flag specified
+	}
+
+	if (Protect & PAGE_NOACCESS) {
+		if (Protect & (PAGE_GUARD | PAGE_NOCACHE | PAGE_WRITECOMBINE)) {
+			return FALSE; // PAGE_NOACCESS cannot be specified together with the other access modifiers
+		}
+	}
+
+	if ((Protect & PAGE_NOCACHE) && (Protect & PAGE_WRITECOMBINE)) {
+		return FALSE; // PAGE_NOCACHE and PAGE_WRITECOMBINE cannot be specified together
+	}
+
+	ULONG Mask = 0;
+	ULONG LowNibble = Protect & 0xF;
+	ULONG HighNibble = (Protect >> 4) & 0xF;
+
+	if ((LowNibble == 0 && HighNibble == 0) || (LowNibble != 0 && HighNibble != 0)) {
+		return FALSE; // high and low permission flags cannot be mixed together
+	}
+
+	if ((LowNibble | HighNibble) == 1 || (LowNibble | HighNibble) == 2) {
+		Mask = PTE_READONLY;
+	}
+	else if ((LowNibble | HighNibble) == 4) {
+		Mask = PTE_READWRITE;
+	}
+	else {
+		return FALSE; // all the other combinations are invalid
+	}
+
+	// Apply the rest of the access modifiers to the pte mask
+	if ((Protect & (PAGE_NOACCESS | PAGE_GUARD)) == 0) {
+		Mask |= PTE_VALID_MASK;
+	}
+	else if (Protect & PAGE_GUARD) {
+		Mask |= PTE_GUARD;
+	}
+
+	if (Protect & PAGE_NOCACHE) {
+		Mask |= PTE_CACHE_DISABLE_MASK;
+	}
+	else if (Protect & PAGE_WRITECOMBINE) {
+		Mask |= PTE_WRITE_THROUGH_MASK;
+	}
+
+	assert((Mask & ~(PTE_VALID_PROTECTION_MASK)) == 0); // ensure that we've created a valid permission mask
+
+	Pte->Hw = Mask;
+
+	return TRUE;
 }
 
 static BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
@@ -377,7 +446,7 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 
 	// If we reach here, it means that no pte block is large enough to satisfy the request, so we need to allocate new pts
 	ULONG NumberOfPts = (ROUND_UP(NumberOfPtes, PTE_PER_PAGE)) / PTE_PER_PAGE;
-	if (NumberOfPts > MiTotalPagesAvailable) {
+	if (NumberOfPts > *PteRegion->PagesAvailable) {
 		return nullptr;
 	}
 
@@ -388,7 +457,7 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 
 	ULONG Start4MiBlock = PteRegion->Next4MiBlock;
 	for (ULONG PtsCommitted = 0; PtsCommitted < NumberOfPts; ++PtsCommitted) {
-		PFN_NUMBER PtPfn = MiRemoveAnyPageFromFreeList();
+		PFN_NUMBER PtPfn = PteRegion->AllocationRoutine();
 		ULONG PtAddr = PtPfn << PAGE_SHIFT;
 		PMMPTE PtPde = GetPdeAddress(PteRegion->Next4MiBlock);
 
@@ -419,12 +488,6 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 	KIRQL OldIrql = MiLock();
 
 	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
-	ULONG NumberOfVirtualPages = AddGuardPage ? NumberOfPages + 1 : NumberOfPages;
-	if (NumberOfPages > MiTotalPagesAvailable) {
-		MiUnlock(OldIrql);
-		return nullptr;
-	}
-
 	PPTEREGION PteRegion;
 	if (BusyType != Debugger) {
 		PteRegion = &MiSystemPteRegion;
@@ -433,6 +496,12 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 		PteRegion = &MiDevkitPteRegion;
 	}
 
+	if (NumberOfPages > *PteRegion->PagesAvailable) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	ULONG NumberOfVirtualPages = AddGuardPage ? NumberOfPages + 1 : NumberOfPages;
 	PMMPTE Pte = MiReservePtes(PteRegion, NumberOfVirtualPages);
 	if (Pte == nullptr) {
 		MiUnlock(OldIrql);
@@ -440,7 +509,7 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 	}
 
 	// We have to check again because MiReservePtes might have consumed some pages to commit the pts
-	if (NumberOfPages > MiTotalPagesAvailable) {
+	if (NumberOfPages > *PteRegion->PagesAvailable) {
 		MiReleasePtes(PteRegion, Pte, NumberOfVirtualPages);
 		MiUnlock(OldIrql);
 		return nullptr;
@@ -454,7 +523,7 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 	}
 
 	while (Pte <= PteEnd) {
-		WritePte(Pte, TempPte.Hw | (MiRemoveAnyPageFromFreeList(BusyType, Pte) << PAGE_SHIFT));
+		WritePte(Pte, TempPte.Hw | (MiRemovePageFromFreeList(BusyType, Pte, PteRegion->AllocationRoutine) << PAGE_SHIFT));
 		++Pte;
 	}
 	PteEnd->Hw |= PTE_GUARD_END_MASK;

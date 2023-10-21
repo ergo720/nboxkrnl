@@ -8,6 +8,7 @@
 
 #define KiB(x) ((x) *    1024 ) // = 0x00000400
 #define MiB(x) ((x) * KiB(1024)) // = 0x00100000
+#define X64K   (KiB(64)) // = 0x00010000
 
 #define PAGE_SHIFT                          12 // 2^12 = 4 KiB
 #define PAGE_SIZE                           (1 << PAGE_SHIFT) // = 0x00001000 = KiB(4)
@@ -24,12 +25,26 @@
 #define PAGE_EXECUTE           0x10
 #define PAGE_EXECUTE_READ      0x20
 #define PAGE_EXECUTE_READWRITE 0x40
+#define PAGE_EXECUTE_WRITECOPY 0x80
 #define PAGE_GUARD             0x100
 #define PAGE_NOCACHE           0x200
 #define PAGE_WRITECOMBINE      0x400
 
+// Memory Masks
+#define MEM_COMMIT             0x1000
+#define MEM_RESERVE            0x2000
+#define MEM_DECOMMIT           0x4000
+#define MEM_RELEASE            0x8000
+#define MEM_FREE               0x10000
+#define MEM_PRIVATE            0x20000
+#define MEM_RESET              0x80000
+#define MEM_TOP_DOWN           0x100000
+#define MEM_NOZERO             0x800000
+
+#define MAXIMUM_ZERO_BITS                   21
 #define NV2A_INSTANCE_PAGE_COUNT            16
 #define PAGE_DIRECTORY_PHYSICAL_ADDRESS     0x0F000
+#define MAX_VIRTUAL_ADDRESS                 0xFFFFFFFF
 
  // Common page calculations
 #define ROUND_UP_4K(size)                   (((size) + PAGE_MASK) & (~PAGE_MASK))
@@ -60,7 +75,7 @@
 // Memory ranges
 #define LOWEST_USER_ADDRESS                 0x00010000
 #define HIGHEST_USER_ADDRESS                0x7FFEFFFF
-#define HIGHEST_VAD_ADDRESS                 (HIGHEST_USER_ADDRESS - KiB(64)) // for NtAllocateVirtualMemory
+#define HIGHEST_VAD_ADDRESS                 (HIGHEST_USER_ADDRESS - X64K) // for NtAllocateVirtualMemory
 #define USER_MEMORY_SIZE                    (HIGHEST_USER_ADDRESS - LOWEST_USER_ADDRESS + 1) // 0x7FFE0000 = 2 GiB - 128 KiB
 
 #define PHYSICAL_MAP_BASE                   0x80000000

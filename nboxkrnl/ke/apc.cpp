@@ -4,7 +4,13 @@
  */
 
 #include "ke.hpp"
+#include "..\hal\hal.hpp"
 
+
+EXPORTNUM(101) VOID XBOXAPI KeEnterCriticalRegion()
+{
+	(*(volatile ULONG *)&KeGetCurrentThread()->KernelApcDisable) -= 1;
+}
 
 EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
 (
@@ -28,5 +34,15 @@ EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
 	if (NormalRoutine == nullptr) {
 		Apc->ApcMode = KernelMode;
 		Apc->NormalContext = nullptr;
+	}
+}
+
+EXPORTNUM(122) VOID XBOXAPI KeLeaveCriticalRegion()
+{
+	PKTHREAD Thread = KeGetCurrentThread();
+	if ((((*(volatile ULONG *)&Thread->KernelApcDisable) += 1) == 0) &&
+		!((*(volatile PLIST_ENTRY *)&Thread->ApcState.ApcListHead[KernelMode].Flink) != &Thread->ApcState.ApcListHead[KernelMode])) {
+		Thread->ApcState.KernelApcPending = TRUE;
+		HalRequestSoftwareInterrupt(APC_LEVEL);
 	}
 }

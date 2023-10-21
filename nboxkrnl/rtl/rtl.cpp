@@ -1,12 +1,21 @@
 /*
  * ergo720                Copyright (c) 2023
+ * Fisherman166           Copyright (c) 2018
  */
 
 #include "rtl.hpp"
 #include "..\hal\halp.hpp"
 #include "..\dbg\dbg.hpp"
+#include "..\ex\ex.hpp"
 #include <assert.h>
 
+
+VOID RtlpInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
+{
+	RtlInitializeCriticalSection(CriticalSection);
+	CriticalSection->Event.Absolute = FALSE;
+	CriticalSection->Event.Inserted = FALSE;
+}
 
 EXPORTNUM(264) VOID XBOXAPI RtlAssert
 (
@@ -62,6 +71,49 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 	}
 }
 
+EXPORTNUM(277) VOID XBOXAPI RtlEnterCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+)
+{
+	// This function must update the members of CriticalSection atomically, so we use assembly
+
+	__asm {
+		mov ecx, CriticalSection
+		mov eax, [KiPcr]KPCR.PrcbData.CurrentThread
+		inc [ecx]RTL_CRITICAL_SECTION.LockCount
+		jnz already_owned
+		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, eax
+		mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1
+		jmp end_func
+	already_owned:
+		cmp [ecx]RTL_CRITICAL_SECTION.OwningThread, eax
+		jz owned_by_self
+		push eax
+		push 0
+		push FALSE
+		push KernelMode
+		push WrExecutive
+		push ecx
+		call KeWaitForSingleObject
+		pop [ecx]RTL_CRITICAL_SECTION.OwningThread
+		mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1
+		jmp end_func
+	owned_by_self:
+		inc [ecx]RTL_CRITICAL_SECTION.RecursionCount
+	end_func:
+	}
+}
+
+EXPORTNUM(278) VOID XBOXAPI RtlEnterCriticalSectionAndRegion
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+)
+{
+	KeEnterCriticalRegion();
+	RtlEnterCriticalSection(CriticalSection);
+}
+
 EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,
@@ -78,6 +130,70 @@ EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
 
 	for (unsigned i = 0; i < NumOfRepeats; ++i) {
 		d[i] = Pattern; // copy an ULONG at a time
+	}
+}
+
+EXPORTNUM(291) VOID XBOXAPI RtlInitializeCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+)
+{
+	KeInitializeEvent((PKEVENT)&CriticalSection->Event, SynchronizationEvent, FALSE);
+	CriticalSection->LockCount = -1;
+	CriticalSection->RecursionCount = 0;
+	CriticalSection->OwningThread = 0;
+}
+
+EXPORTNUM(294) VOID XBOXAPI RtlLeaveCriticalSection
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+)
+{
+	// This function must update the members of CriticalSection atomically, so we use assembly
+
+	__asm {
+		mov ecx, CriticalSection
+		dec [ecx]RTL_CRITICAL_SECTION.RecursionCount
+		jnz dec_count
+		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0
+		jl end_func
+		push FALSE
+		push PRIORITY_BOOST_EVENT
+		push ecx
+		call KeSetEvent
+		jmp end_func
+	dec_count:
+		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+	end_func:
+	}
+}
+
+EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
+(
+	PRTL_CRITICAL_SECTION CriticalSection
+)
+{
+	// NOTE: this must check RecursionCount only once, so that it can unconditionally call KeLeaveCriticalRegion if the counter is zero regardless of
+	// its current value. This, to guard against the case where a thread switch happens after the counter is updated but before KeLeaveCriticalRegion is called
+
+	__asm {
+		mov ecx, CriticalSection
+		dec [ecx]RTL_CRITICAL_SECTION.RecursionCount
+		jnz dec_count
+		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0
+		jl not_signalled
+		push FALSE
+		push PRIORITY_BOOST_EVENT
+		push ecx
+		call KeSetEvent
+	not_signalled:
+		call KeLeaveCriticalRegion
+		jmp end_func
+	dec_count:
+		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+	end_func:
 	}
 }
 

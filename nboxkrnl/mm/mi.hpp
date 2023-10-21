@@ -6,6 +6,7 @@
 
 #include "..\kernel.hpp"
 #include "..\ke\ke.hpp"
+#include "..\rtl\rtl.hpp"
 #include "mm.hpp"
 
  // Pte protection masks
@@ -57,6 +58,8 @@ struct PTEREGION {
 	MMPTE Head;
 	ULONG Next4MiBlock;
 	ULONG EndAddr;
+	PFN_COUNT *PagesAvailable;
+	PFN_NUMBER(*AllocationRoutine)();
 };
 using PPTEREGION = PTEREGION *;
 
@@ -143,6 +146,9 @@ inline bool MiLayoutRetail;
 inline bool MiLayoutChihiro;
 inline bool MiLayoutDevkit;
 
+PFN_NUMBER MiRemoveRetailPageFromFreeList();
+PFN_NUMBER MiRemoveDevkitPageFromFreeList();
+
 // Highest pfn available for contiguous allocations
 inline PFN MiMaxContiguousPfn = XBOX_CONTIGUOUS_MEMORY_LIMIT;
 // Highest page on the system
@@ -158,11 +164,18 @@ inline PFNREGION MiRetailRegion = { {{ PFN_LIST_END, PFN_LIST_END }, { PFN_LIST_
 // Tracks free pfns for the upper 64 MiB of a devkit
 inline PFNREGION MiDevkitRegion = { {{ PFN_LIST_END, PFN_LIST_END }, { PFN_LIST_END, PFN_LIST_END }}, 0 };
 // Tracks free pte blocks in the system region
-inline PTEREGION MiSystemPteRegion = { PTE_LIST_END << 2, SYSTEM_MEMORY_BASE, SYSTEM_MEMORY_END };
+inline PTEREGION MiSystemPteRegion = { PTE_LIST_END << 2, SYSTEM_MEMORY_BASE, SYSTEM_MEMORY_END, &MiRetailRegion.PagesAvailable, MiRemoveRetailPageFromFreeList };
 // Tracks free pte blocks in the devkit region
-inline PTEREGION MiDevkitPteRegion = { PTE_LIST_END << 2, DEVKIT_MEMORY_BASE, DEVKIT_MEMORY_END };
+inline PTEREGION MiDevkitPteRegion = { PTE_LIST_END << 2, DEVKIT_MEMORY_BASE, DEVKIT_MEMORY_END, &MiDevkitRegion.PagesAvailable, MiRemoveDevkitPageFromFreeList };
 // Start address of the pfn database
 inline PCHAR MiPfnAddress = XBOX_PFN_ADDRESS;
+// Lock used to synchronize access to the VAD tree
+inline RTL_CRITICAL_SECTION MiVadLock;
+// Whether or not to allow NtAllocateVirtualMemory to use physical pages from the devkit region too (devkits only)
+inline BOOLEAN MiAllowNonDebuggerOnTop64MiB = FALSE;
+
+#define VadLock() RtlEnterCriticalSectionAndRegion(&MiVadLock)
+#define VadUnlock() RtlLeaveCriticalSectionAndRegion(&MiVadLock)
 
 VOID MiFlushEntireTlb();
 VOID MiFlushTlbForPage(PVOID Addr);
@@ -170,10 +183,11 @@ VOID MiInsertPageInFreeList(PFN_NUMBER Pfn);
 VOID MiInsertPageRangeInFreeList(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd);
 PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn);
 VOID MiRemovePageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte);
-VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, BOOLEAN Unused);
+VOID MiRemoveAndZeroPageTableFromFreeListNoFlush(PFN_NUMBER Pfn, PageType BusyType);
 VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType);
 VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte);
-PFN_NUMBER MiRemoveAnyPageFromFreeList(PageType BusyType, PMMPTE Pte);
+PFN_NUMBER MiRemovePageFromFreeList(PageType BusyType, PMMPTE Pte, PFN_COUNT(*AllocationRoutine)());
 PFN_NUMBER MiRemoveAnyPageFromFreeList();
 PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyType, BOOLEAN AddGuardPage);
 ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes);
+BOOLEAN MiConvertPageToPtePermissions(ULONG Protect, PMMPTE Pte);
