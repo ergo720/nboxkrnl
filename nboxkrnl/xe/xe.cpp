@@ -6,8 +6,6 @@
 #include "..\rtl\rtl.hpp"
 
 
-XBOX_KEY_DATA XboxCERTKey;
-
 VOID XBOXAPI XbeStartupThread(PVOID Opaque)
 {
 	RIP_UNIMPLEMENTED();

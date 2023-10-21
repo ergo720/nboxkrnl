@@ -9,6 +9,16 @@
 #include "..\kernel.hpp"
 
 
+XBOX_KEY_DATA XboxCERTKey;
+
+EXPORTNUM(120) volatile KSYSTEM_TIME KeInterruptTime = { 0, 0, 0 };
+
+EXPORTNUM(154) volatile KSYSTEM_TIME KeSystemTime = { 0, 0, 0 };
+
+EXPORTNUM(156) volatile DWORD KeTickCount = 0;
+
+EXPORTNUM(321) XBOX_KEY_DATA XboxEEPROMKey;
+
 EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 {
 	0,     // Flags: 1=INTERNAL_USB, 2=DEVKIT, 4=MACROVISION, 8=CHIHIRO
@@ -17,12 +27,6 @@ EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 	0,     // unknown
 	0      // unknown
 };
-
-EXPORTNUM(120) volatile KSYSTEM_TIME KeInterruptTime = { 0, 0, 0 };
-
-EXPORTNUM(154) volatile KSYSTEM_TIME KeSystemTime = { 0, 0, 0 };
-
-EXPORTNUM(156) volatile DWORD KeTickCount = 0;
 
 EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
 (

@@ -54,5 +54,3 @@ EXPORTNUM(54) LONG FASTCALL InterlockedExchange
 		xchg [ecx], eax
 	}
 }
-
-EXPORTNUM(321) XBOX_KEY_DATA XboxEEPROMKey;
