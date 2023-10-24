@@ -16,6 +16,20 @@ struct RTL_CRITICAL_SECTION {
 };
 using PRTL_CRITICAL_SECTION = RTL_CRITICAL_SECTION *;
 
+#define INITIALIZE_GLOBAL_CRITICAL_SECTION(CriticalSection)        \
+    RTL_CRITICAL_SECTION CriticalSection = {                       \
+        SynchronizationEvent,                                      \
+        FALSE,                                                     \
+        offsetof(RTL_CRITICAL_SECTION, LockCount) / sizeof(LONG),  \
+        FALSE,                                                     \
+        FALSE,                                                     \
+        &CriticalSection.Event.WaitListHead,                       \
+        &CriticalSection.Event.WaitListHead,                       \
+        -1,                                                        \
+        0,                                                         \
+        NULL                                                       \
+    }
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -96,5 +110,3 @@ EXPORTNUM(312) DLLEXPORT VOID XBOXAPI RtlUnwind
 
 #define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
 #define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))
-
-VOID RtlpInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);

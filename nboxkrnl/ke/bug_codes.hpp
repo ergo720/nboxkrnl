@@ -14,3 +14,4 @@
 #define UNHANDLED_NESTED_EXCEPTION        6
 #define UNHANDLED_UNWIND_EXCEPTION        7
 #define NORETURN_FUNCTION_RETURNED        8
+#define XBE_LAUNCH_FAILED                 9

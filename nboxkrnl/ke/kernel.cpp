@@ -63,6 +63,45 @@ ULONG FASTCALL InputFromHost(USHORT Port)
 	}
 }
 
+VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
+{
+	__asm {
+		pushfd
+		cli
+		mov dx, IO_REQUEST_TYPE
+		mov eax, [ecx]IoRequest.Type
+		out dx, eax
+		inc dx
+		mov eax, [ecx]IoRequest.Handle
+		out dx, eax
+		inc dx
+		mov eax, [ecx]IoRequest.Offset
+		out dx, eax
+		inc dx
+		mov eax, [ecx]IoRequest.Size
+		out dx, eax
+		inc dx
+		mov eax, [ecx]IoRequest.Address
+		out dx, eax
+		popfd
+	}
+}
+
+VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info)
+{
+	__asm {
+		pushfd
+		cli
+		mov dx, IO_QUERY_STATUS
+		in eax, dx
+		mov [ecx]IoInfoBlock.Status, eax
+		inc dx
+		in eax, dx
+		mov [ecx]IoInfoBlock.Info, eax
+		popfd
+	}
+}
+
 VOID InitializeListHead(PLIST_ENTRY pListHead)
 {
 	pListHead->Flink = pListHead->Blink = pListHead;

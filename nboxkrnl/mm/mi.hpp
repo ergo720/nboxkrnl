@@ -170,7 +170,7 @@ inline PTEREGION MiDevkitPteRegion = { PTE_LIST_END << 2, DEVKIT_MEMORY_BASE, DE
 // Start address of the pfn database
 inline PCHAR MiPfnAddress = XBOX_PFN_ADDRESS;
 // Lock used to synchronize access to the VAD tree
-inline RTL_CRITICAL_SECTION MiVadLock;
+inline INITIALIZE_GLOBAL_CRITICAL_SECTION(MiVadLock);
 // Whether or not to allow NtAllocateVirtualMemory to use physical pages from the devkit region too (devkits only)
 inline BOOLEAN MiAllowNonDebuggerOnTop64MiB = FALSE;
 

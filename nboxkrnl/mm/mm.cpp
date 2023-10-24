@@ -43,11 +43,6 @@ BOOLEAN MmInitSystem()
 		MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
 		MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
 		RequiredPt += 2;
-
-		// Note that even if this is true, only the heap/Nt functions of the title are affected, the Mm functions
-		// will still use only the lower 64 MiB and the same is true for the debugger pages, meaning they will only
-		// use the upper extra 64 MiB regardless of this flag
-		//if (CxbxKrnl_Xbe->m_Header.dwInitFlags.bLimit64MB) { m_bAllowNonDebuggerOnTop64MiB = false; }
 	}
 
 	// Calculate how large is the kernel image, so that we can keep its allocation and unmap all the other large pages we were booted with
@@ -247,8 +242,6 @@ BOOLEAN MmInitSystem()
 	}
 
 	MiLastFree = GetVADNode(LOWEST_USER_ADDRESS);
-
-	RtlpInitializeCriticalSection(&MiVadLock);
 
 	return TRUE;
 }

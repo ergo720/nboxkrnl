@@ -10,13 +10,6 @@
 #include <assert.h>
 
 
-VOID RtlpInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
-{
-	RtlInitializeCriticalSection(CriticalSection);
-	CriticalSection->Event.Absolute = FALSE;
-	CriticalSection->Event.Inserted = FALSE;
-}
-
 EXPORTNUM(264) VOID XBOXAPI RtlAssert
 (
 	PVOID FailedAssertion,

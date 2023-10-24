@@ -71,6 +71,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/psp.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
 )
 
