@@ -74,10 +74,11 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 		CREATE_KTRAP_FRAME \
 	}
 
+// dword ptr required or else MSVC will aceess ExceptionList as a byte
 #define CREATE_KTRAP_FRAME_FOR_INT \
 	__asm { \
 		CREATE_KTRAP_FRAME_NO_CODE \
-		__asm mov [KiPcr]KPCR.NtTib.ExceptionList, 0xFFFFFFFF \
+		__asm mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2 \
 	}
 
 #define CREATE_EXCEPTION_RECORD_ARG0 \

@@ -146,9 +146,9 @@ VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSiz
 }
 
 template<bool AddToTail>
-static VOID FASTCALL KeAddThreadToReadyList(PKTHREAD Thread)
+static VOID FASTCALL KiAddThreadToReadyList(PKTHREAD Thread)
 {
-	assert(KeGetCurrentIrql() >= DISPATCH_LEVEL);
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
 
 	Thread->State = Ready;
 	if constexpr (AddToTail) {
@@ -162,20 +162,17 @@ static VOID FASTCALL KeAddThreadToReadyList(PKTHREAD Thread)
 
 VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread)
 {
-	KeAddThreadToReadyList<true>(Thread);
+	KiAddThreadToReadyList<true>(Thread);
 }
 
-VOID KeScheduleThread(PKTHREAD Thread)
+static VOID KiScheduleThread(PKTHREAD Thread)
 {
-	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
-
 	if (KiPcr.PrcbData.NextThread) {
 		// If another thread was selected and this one has higher priority, preempt it
 		if (Thread->Priority > KiPcr.PrcbData.NextThread->Priority) {
-			KeAddThreadToReadyList<false>(KiPcr.PrcbData.NextThread);
+			KiAddThreadToReadyList<false>(KiPcr.PrcbData.NextThread);
 			KiPcr.PrcbData.NextThread = Thread;
 			Thread->State = Standby;
-			KiUnlockDispatcherDatabase(OldIrql);
 			return;
 		}
 	}
@@ -184,14 +181,18 @@ VOID KeScheduleThread(PKTHREAD Thread)
 		if (Thread->Priority > KiPcr.PrcbData.CurrentThread->Priority) {
 			KiPcr.PrcbData.NextThread = Thread;
 			Thread->State = Standby;
-			KiUnlockDispatcherDatabase(OldIrql);
 			return;
 		}
 	}
 
 	// Add thread to the tail of the ready list (round robin scheduling)
-	KeAddThreadToReadyList<true>(Thread);
+	KiAddThreadToReadyList<true>(Thread);
+}
 
+VOID KeScheduleThread(PKTHREAD Thread)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	KiScheduleThread(Thread);
 	KiUnlockDispatcherDatabase(OldIrql);
 }
 
@@ -231,7 +232,7 @@ DWORD __declspec(naked) KiSwapThreadContext()
 		sti
 		inc [edi]KTHREAD.ContextSwitches // per-thread number of context switches
 		inc [KiPcr]KPCR.PrcbData.KeContextSwitches // total number of context switches
-		pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList // restore exception list; NOTE: for some reason, msvc will emit the size override prefix here if dword ptr is not specified
+		pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList // restore exception list; NOTE: dword ptr required or else MSVC will aceess ExceptionList as a byte
 		cmp [edi]KTHREAD.ApcState.KernelApcPending, 0
 		jnz kernel_apc
 		popfd // restore eflags
@@ -248,6 +249,137 @@ DWORD __declspec(naked) KiSwapThreadContext()
 		mov eax, 1
 		ret // load eip for the new thread
 	}
+}
+
+static PKTHREAD KiFindAndRemoveHighestPriorityThread(KPRIORITY LowPriority)
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	KPRIORITY HighestPriority;
+	__asm {
+		bsr eax, KiReadyThreadMask
+		mov HighestPriority, eax
+	}
+
+	if (HighestPriority < LowPriority) {
+		return nullptr;
+	}
+
+	PLIST_ENTRY ListHead = &KiReadyThreadLists[HighestPriority];
+	assert(ListHead->Flink);
+
+	PKTHREAD Thread = CONTAINING_RECORD(ListHead->Flink, KTHREAD, WaitListEntry);
+	RemoveEntryList(&Thread->WaitListEntry);
+	if (IsListEmpty(&KiReadyThreadLists[HighestPriority])) {
+		KiReadyThreadMask &= ~(1 << HighestPriority);
+	}
+
+	return Thread;
+}
+
+static VOID KiSetPriorityThread(PKTHREAD Thread, KPRIORITY NewPriority)
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	KPRIORITY OldPriority = Thread->Priority;
+
+	if (OldPriority != NewPriority) {
+		Thread->Priority = NewPriority;
+
+		switch (Thread->State)
+		{
+		case Ready:
+			RemoveEntryList(&Thread->WaitListEntry);
+			if (IsListEmpty(&KiReadyThreadLists[OldPriority])) {
+				KiReadyThreadMask &= ~(1 << OldPriority);
+			}
+
+			if (NewPriority < OldPriority) {
+				// Add the thread to the tail of the ready list (round robin scheduling)
+				KiAddThreadToReadyList<true>(Thread);
+			}
+			else {
+				// If NewPriority is higher than OldPriority, check to see if the thread can preempt other threads
+				KiScheduleThread(Thread);
+			}
+			break;
+
+		case Standby:
+			if (NewPriority < OldPriority) {
+				// Attempt to find another thread to run instead of the one we were about to execute
+				PKTHREAD NewThread = KiFindAndRemoveHighestPriorityThread(NewPriority);
+				if (NewThread) {
+					NewThread->State = Standby;
+					KiPcr.PrcbData.NextThread = NewThread;
+					KiScheduleThread(Thread);
+				}
+			}
+			break;
+
+		case Running:
+			if (KiPcr.PrcbData.NextThread == nullptr) {
+				if (NewPriority < OldPriority) {
+					// Attempt to preempt the currently running thread (NOTE: the dispatch request should be done by the caller)
+					PKTHREAD NewThread = KiFindAndRemoveHighestPriorityThread(NewPriority);
+					if (NewThread) {
+						NewThread->State = Standby;
+						KiPcr.PrcbData.NextThread = NewThread;
+					}
+				}
+			}
+			break;
+
+		case Initialized:
+			// The thread is being created by PsCreateSystemThreadEx. The function will schedule it at the end of the initialization, so nothing to do here
+			break;
+
+		case Terminated:
+			// The thread is being killed by PsTerminateSystemThread, so there's no point to re-schedule it here
+			break;
+
+		case Waiting:
+			// The thread is blocked in a wait (for example, in KeWaitForSingleObject). When the wait ends, a re-schedule will happen, so nothing to do here
+			break;
+		}
+	}
+}
+
+PKTHREAD XBOXAPI KiQuantumEnd()
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PKTHREAD Thread = KeGetCurrentThread();
+
+	if (Thread->Quantum <= 0) {
+		Thread->Quantum = Thread->ApcState.Process->ThreadQuantum;
+		KPRIORITY NewPriority, Priority = Thread->Priority;
+
+		if (Priority < LOW_REALTIME_PRIORITY) {
+			NewPriority = Priority - 1;
+			if (NewPriority < Thread->BasePriority) {
+				NewPriority = Priority;
+			}
+		}
+		else {
+			NewPriority = Priority;
+		}
+
+		if (Priority != NewPriority) {
+			KiSetPriorityThread(Thread, NewPriority);
+		}
+		else {
+			if (KiPcr.PrcbData.NextThread == nullptr) {
+				// Attempt to find another thread to run since the current one has just ended its quantum
+				PKTHREAD NewThread = KiFindAndRemoveHighestPriorityThread(Priority);
+				if (NewThread) {
+					NewThread->State = Standby;
+					KiPcr.PrcbData.NextThread = NewThread;
+				}
+			}
+		}
+	}
+
+	return KiPcr.PrcbData.NextThread;
 }
 
 EXPORTNUM(104) PKTHREAD XBOXAPI KeGetCurrentThread()

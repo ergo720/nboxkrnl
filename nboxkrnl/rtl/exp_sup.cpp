@@ -288,7 +288,7 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		__asm {
 			mov eax, [RegistrationPointer]
 			mov eax, [eax]
-			mov [KiPcr].NtTib.ExceptionList, eax
+			mov dword ptr [KiPcr].NtTib.ExceptionList, eax
 		}
 
 		RegistrationPointer = RegistrationPointer->Prev;

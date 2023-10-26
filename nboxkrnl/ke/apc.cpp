@@ -41,7 +41,7 @@ EXPORTNUM(122) VOID XBOXAPI KeLeaveCriticalRegion()
 {
 	PKTHREAD Thread = KeGetCurrentThread();
 	if ((((*(volatile ULONG *)&Thread->KernelApcDisable) += 1) == 0) &&
-		!((*(volatile PLIST_ENTRY *)&Thread->ApcState.ApcListHead[KernelMode].Flink) != &Thread->ApcState.ApcListHead[KernelMode])) {
+		((*(volatile PLIST_ENTRY *)&Thread->ApcState.ApcListHead[KernelMode].Flink) != &Thread->ApcState.ApcListHead[KernelMode])) {
 		Thread->ApcState.KernelApcPending = TRUE;
 		HalRequestSoftwareInterrupt(APC_LEVEL);
 	}

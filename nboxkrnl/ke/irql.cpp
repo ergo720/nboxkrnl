@@ -98,7 +98,7 @@ EXPORTNUM(163) __declspec(naked) VOID FASTCALL KiUnlockDispatcherDatabase
 		mov ecx, esi
 		call KeAddThreadToTailOfReadyList
 		mov [KiPcr]KPCR.PrcbData.CurrentThread, edi
-		mov [KiPcr]KPCR.PrcbData.NextThread, 0
+		mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0 // dword ptr required or else MSVC will aceess NextThread as a byte
 		movzx ebx, byte ptr [esi]KTHREAD.WaitIrql
 		call KiSwapThreadContext // when this returns, it means this thread was switched back again
 		test eax, eax

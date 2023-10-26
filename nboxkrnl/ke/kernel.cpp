@@ -107,6 +107,11 @@ VOID InitializeListHead(PLIST_ENTRY pListHead)
 	pListHead->Flink = pListHead->Blink = pListHead;
 }
 
+BOOLEAN IsListEmpty(PLIST_ENTRY pListHead)
+{
+	return (pListHead->Flink == pListHead);
+}
+
 VOID InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 {
 	PLIST_ENTRY _EX_ListHead = pListHead;
@@ -127,4 +132,26 @@ VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 	pEntry->Blink = _EX_ListHead;
 	_EX_Flink->Blink = pEntry;
 	_EX_ListHead->Flink = pEntry;
+}
+
+VOID RemoveEntryList(PLIST_ENTRY pEntry)
+{
+	PLIST_ENTRY _EX_Flink = pEntry->Flink;
+	PLIST_ENTRY _EX_Blink = pEntry->Blink;
+	_EX_Blink->Flink = _EX_Flink;
+	_EX_Flink->Blink = _EX_Blink;
+}
+
+PLIST_ENTRY RemoveTailList(PLIST_ENTRY pListHead)
+{
+	PLIST_ENTRY pList = pListHead->Blink;
+	RemoveEntryList(pList);
+	return pList;
+}
+
+PLIST_ENTRY RemoveHeadList(PLIST_ENTRY pListHead)
+{
+	PLIST_ENTRY pList = pListHead->Flink;
+	RemoveEntryList(pList);
+	return pList;
 }

@@ -98,5 +98,9 @@ VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request);
 VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);
+BOOLEAN IsListEmpty(PLIST_ENTRY pListHead);
 VOID InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry);
 VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry);
+VOID RemoveEntryList(PLIST_ENTRY pEntry);
+PLIST_ENTRY RemoveTailList(PLIST_ENTRY pListHead);
+PLIST_ENTRY RemoveHeadList(PLIST_ENTRY pListHead);

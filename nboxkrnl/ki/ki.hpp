@@ -8,7 +8,8 @@
 #include "..\ke\ke.hpp"
 #include "..\kernel.hpp"
 
-#define EXCEPTION_CHAIN_END reinterpret_cast<EXCEPTION_REGISTRATION_RECORD *>(0xFFFFFFFF)
+#define EXCEPTION_CHAIN_END2 0xFFFFFFFF
+#define EXCEPTION_CHAIN_END reinterpret_cast<EXCEPTION_REGISTRATION_RECORD *>(EXCEPTION_CHAIN_END2)
 
 // cr0 flags
 #define CR0_TS (1 << 3) // task switched
@@ -163,6 +164,8 @@ VOID InitializeCrt();
 VOID KiInitSystem();
 [[noreturn]] VOID KiIdleLoopThread();
 DWORD KiSwapThreadContext();
+VOID XBOXAPI KiExecuteDpcQueue();
+PKTHREAD XBOXAPI KiQuantumEnd();
 
 VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
 

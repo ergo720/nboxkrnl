@@ -11,6 +11,7 @@
 #define THREAD_QUANTUM 20 // ms that a thread is allowed to run before being preempted
 #define NORMAL_BASE_PRIORITY 8
 #define LOW_PRIORITY 0
+#define LOW_REALTIME_PRIORITY 16
 #define HIGH_PRIORITY 31
 #define PRIORITY_BOOST_EVENT 1
 

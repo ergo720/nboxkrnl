@@ -112,10 +112,63 @@ VOID XBOXAPI HalpSwIntApc()
 	RIP_UNIMPLEMENTED();
 }
 
-VOID XBOXAPI HalpSwIntDpc()
+VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
 {
-	// Dpc interrupt not implemented yet
-	RIP_UNIMPLEMENTED();
+	// On entry, interrupts must be disabled
+
+	__asm {
+		movzx eax, byte ptr [KiPcr]KPCR.Irql
+		mov byte ptr [KiPcr]KPCR.Irql, DISPATCH_LEVEL // raise IRQL
+		and HalpPendingInt, ~(1 << DISPATCH_LEVEL)
+		push eax
+		lea eax, [KiPcr]KPCR.PrcbData.DpcListHead
+		cmp eax, [eax]LIST_ENTRY.Flink
+		jz no_dpc
+		push [KiPcr]KPCR.NtTib.ExceptionList
+		mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2 // dword ptr required or else MSVC will aceess ExceptionList as a byte
+		push esp
+		mov esp, [KiPcr]KPCR.PrcbData.DpcStack // switch to DPC stack
+		call KiExecuteDpcQueue
+		pop esp
+		pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList // dword ptr required or else MSVC will aceess ExceptionList as a byte
+	no_dpc:
+		sti
+		cmp eax, [KiPcr]KPCR.PrcbData.QuantumEnd
+		jnz quantum_end
+		mov eax, [KiPcr]KPCR.PrcbData.NextThread
+		test eax, eax
+		jnz thread_switch
+		jmp end_func
+	thread_switch:
+		push esi
+		push edi
+		push ebx
+		push ebp
+		mov edi, eax
+		mov esi, [KiPcr]KPCR.PrcbData.CurrentThread
+		mov ecx, esi
+		call KeAddThreadToTailOfReadyList
+		mov [KiPcr]KPCR.PrcbData.CurrentThread, edi
+		mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0 // dword ptr required or else MSVC will aceess NextThread as a byte
+		mov ebx, 1
+		call KiSwapThreadContext // when this returns, it means this thread was switched back again
+		pop ebp
+		pop ebx
+		pop edi
+		pop esi
+		jmp end_func
+	quantum_end:
+		mov [KiPcr]KPCR.PrcbData.QuantumEnd, 0
+		call KiQuantumEnd
+		test eax, eax
+		jnz thread_switch
+	end_func:
+		cli
+		pop eax
+		mov byte ptr [KiPcr]KPCR.Irql, al // lower IRQL
+		call HalpCheckUnmaskedInt
+		ret
+	}
 }
 
 VOID XBOXAPI HalpHwInt0()
