@@ -146,7 +146,7 @@ static NTSTATUS XeLoadXbe()
 		}
 
 		// Disable security checks. TODO: is this necessary?
-		XBE_CERTIFICATE *XbeCertificate = (XBE_CERTIFICATE *)(GetXbeAddress()->dwCertificateAddr - GetXbeAddress()->dwBaseAddr);
+		XBE_CERTIFICATE *XbeCertificate = (XBE_CERTIFICATE *)(GetXbeAddress()->dwCertificateAddr);
 		XbeCertificate->dwAllowedMedia |= (
 			XBEIMAGE_MEDIA_TYPE_HARD_DISK |
 			XBEIMAGE_MEDIA_TYPE_DVD_X2 |

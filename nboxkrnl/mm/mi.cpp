@@ -20,7 +20,7 @@ VOID MiFlushTlbForPage(PVOID Addr)
 	__asm invlpg Addr
 }
 
-VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
+PageType MiInsertPageInFreeListNoBusy(PFN_NUMBER Pfn)
 {
 	assert(Pfn <= MiHighestPage);
 
@@ -67,15 +67,21 @@ VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
 
 	++Region->PagesAvailable;
 	++MiTotalPagesAvailable;
-	--MiPagesByUsage[BusyType];
+
+	return BusyType;
 }
 
-VOID MiInsertPageRangeInFreeList(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd)
+VOID MiInsertPageInFreeList(PFN_NUMBER Pfn)
+{
+	--MiPagesByUsage[MiInsertPageInFreeListNoBusy(Pfn)];
+}
+
+VOID MiInsertPageRangeInFreeListNoBusy(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd)
 {
 	assert(Pfn <= PfnEnd);
 
 	for (PFN_NUMBER Pfn1 = Pfn; Pfn1 <= PfnEnd; ++Pfn1) {
-		MiInsertPageInFreeList(Pfn1);
+		MiInsertPageInFreeListNoBusy(Pfn1);
 	}
 }
 
@@ -151,16 +157,15 @@ VOID MiRemovePageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte)
 
 	// Also update PtesUsed of the pfn that maps the pt that holds the pte
 	Pf = GetPfnOfPt(Pte);
-	if (Pte->Hw == 0) {
-		// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
-		++Pf->PtPageFrame.PtesUsed;
-	}
+	++Pf->PtPageFrame.PtesUsed;
 
 	++MiPagesByUsage[BusyType];
 }
 
 VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pte)
 {
+	// NOTE: "Pte" is the PTE that maps the page with a physical address mapped by "Pfn"
+
 	assert((BusyType != SystemPageTable) && (BusyType != VirtualPageTable));
 
 	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
@@ -171,26 +176,18 @@ VOID MiRemoveAndZeroPageFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE P
 
 	// Also update PtesUsed of the pfn that maps the pt that holds the pte
 	Pf = GetPfnOfPt(Pte);
-	if (Pte->Hw == 0) {
-		// Pte could already be valid because NtAllocateVirtualMemory supports committing over an already committed memory range
-		++Pf->PtPageFrame.PtesUsed;
-	}
+	++Pf->PtPageFrame.PtesUsed;
 
-	// Temporarily identity map the page we are going to zero
-	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
-	assert(GetPdeAddress(PageAddr)->Hw & PTE_VALID_MASK);
-
-	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
-	WriteZeroPte(GetPteAddress(PageAddr));
-	MiFlushTlbForPage(PageAddr);
+	// Zero out the page
+	RtlFillMemoryUlong((PCHAR)GetVAddrMappedByPte(Pte), PAGE_SIZE, 0);
 
 	++MiPagesByUsage[BusyType];
 }
 
-VOID MiRemoveAndZeroPageTableFromFreeListNoFlush(PFN_NUMBER Pfn, PageType BusyType)
+VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType, PMMPTE Pde)
 {
-	// NOTE: same as MiRemoveAndZeroPageTableFromFreeList, but it doesn't flush the identity mapping done below from the tlb, and should only be used by MmInitSystem
+	// NOTE: "Pde" is the PDE that maps the page table with a physical address mapped by "Pfn"
+
 	assert((BusyType == SystemPageTable) || (BusyType == VirtualPageTable));
 
 	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
@@ -199,31 +196,9 @@ VOID MiRemoveAndZeroPageTableFromFreeListNoFlush(PFN_NUMBER Pfn, PageType BusyTy
 	Pf->PtPageFrame.LockCount = 0;
 	Pf->PtPageFrame.PtesUsed = 0;
 
-	// Temporarily identity map the page we are going to zero
-	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
-	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
-
-	++MiPagesByUsage[BusyType];
-}
-
-VOID MiRemoveAndZeroPageTableFromFreeList(PFN_NUMBER Pfn, PageType BusyType)
-{
-	assert((BusyType == SystemPageTable) || (BusyType == VirtualPageTable));
-
-	PXBOX_PFN Pf = MiRemovePageFromFreeList(Pfn);
-	Pf->PtPageFrame.Busy = 1;
-	Pf->PtPageFrame.BusyType = BusyType;
-	Pf->PtPageFrame.LockCount = 0;
-	Pf->PtPageFrame.PtesUsed = 0;
-
-	// Temporarily identity map the page we are going to zero
-	PCHAR PageAddr = ConvertPfnToContiguous(Pfn);
-	assert(GetPdeAddress(PageAddr)->Hw & PTE_VALID_MASK);
-
-	WritePte(GetPteAddress(PageAddr), ValidKernelPteBits | SetPfn(PageAddr));
-	RtlFillMemoryUlong(PageAddr, PAGE_SIZE, 0);
-	MiFlushTlbForPage(PageAddr);
+	// Zero out the page table
+	PCHAR PageTableAddr = (PCHAR)(PAGE_TABLES_BASE + ((((ULONG)Pde & PAGE_MASK) >> 2) << PAGE_SHIFT));
+	RtlFillMemoryUlong(PageTableAddr, PAGE_SIZE, 0);
 
 	++MiPagesByUsage[BusyType];
 }
@@ -464,7 +439,7 @@ static PMMPTE MiReservePtes(PPTEREGION PteRegion, ULONG NumberOfPtes)
 		assert(PtPde->Hw == 0);
 
 		WritePte(PtPde, ValidKernelPdeBits | PtAddr); // write pde for the new pt
-		MiRemoveAndZeroPageTableFromFreeList(PtPfn, SystemPageTable);
+		MiRemoveAndZeroPageTableFromFreeList(PtPfn, SystemPageTable, PtPde);
 		PteRegion->Next4MiBlock += MiB(4);
 	}
 

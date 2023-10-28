@@ -73,18 +73,29 @@ BOOLEAN MmInitSystem()
 			DatabasePfnEnd = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
 		}
 
-		MiInsertPageRangeInFreeList(0, MiHighestPage);
+		MiInsertPageRangeInFreeListNoBusy(0, MiHighestPage);
 	}
 
 	// Map the kernel image
 	ULONG NextPageTableAddr = KERNEL_BASE + KernelSize;
 	ULONG TempPte = ValidKernelPteBits | SetPfn(KERNEL_BASE);
 	PMMPTE PteEnd = (PMMPTE)(NextPageTableAddr + GetPteOffset(KERNEL_BASE + KernelSize - 1) * 4);
+	RtlFillMemoryUlong((PCHAR)NextPageTableAddr, PAGE_SIZE, 0); // zero out the page table used by the kernel
 	{
 		ULONG Addr = KERNEL_BASE;
 		for (PMMPTE Pte = (PMMPTE)(NextPageTableAddr + GetPteOffset(KERNEL_BASE) * 4); Pte <= PteEnd; ++Pte) {
 			WritePte(Pte, TempPte);
-			MiRemovePageFromFreeList(GetPfnFromContiguous(Addr), Contiguous, Pte);
+
+			// NOTE: this cannot use the overload MiRemovePageFromFreeList that updates PtesUsed of the pfn of the page table that maps this allocation. This, because
+			// the PDE of the kernel is written below, and thus GetPfnOfPt will calculate a wrong physical address for the page table, causing it to corrupt
+			// the PFN entry with index zero
+			PXBOX_PFN Pf = MiRemovePageFromFreeList(GetPfnFromContiguous(Addr));
+			Pf->Busy.Busy = 1;
+			Pf->Busy.BusyType = Contiguous;
+			Pf->Busy.LockCount = 0;
+			Pf->Busy.PteIndex = GetPteOffset(GetVAddrMappedByPte(Pte));
+			++MiPagesByUsage[Contiguous];
+
 			TempPte += PAGE_SIZE;
 			Addr += PAGE_SIZE;
 		}
@@ -133,12 +144,12 @@ BOOLEAN MmInitSystem()
 		// Map the pfn database
 		ULONG Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(DatabasePfn);
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
-		MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
+		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
-			MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
@@ -209,7 +220,7 @@ BOOLEAN MmInitSystem()
 			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
 			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
-			MiRemoveAndZeroPageTableFromFreeListNoFlush(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable);
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
 
 			TempPte = ValidKernelPteBits | DisableCachingBits | SetPfn(Addr);
 			PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));

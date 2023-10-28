@@ -263,9 +263,9 @@ EXPORTNUM(184) NTSTATUS XBOXAPI NtAllocateVirtualMemory
 		++PointerPte;
 	}
 
-	if (PteNumber < MiRetailRegion.PagesAvailable) {
+	if (PteNumber > MiRetailRegion.PagesAvailable) {
 		if (MiAllowNonDebuggerOnTop64MiB) {
-			if (PteNumber >= MiDevkitRegion.PagesAvailable) {
+			if (PteNumber <= MiDevkitRegion.PagesAvailable) {
 				goto EnoughPages;
 			}
 		}
@@ -294,12 +294,16 @@ EXPORTNUM(184) NTSTATUS XBOXAPI NtAllocateVirtualMemory
 		if ((PointerPte == StartingPte) || IsPteOnPdeBoundary(PointerPte)) {
 			PMMPTE PointerPde = GetPteAddress(PointerPte);
 			if ((PointerPde->Hw & PTE_VALID_MASK) == 0) {
-				MiRemoveAndZeroPageTableFromFreeList(PfnAllocationRoutine(), VirtualPageTable);
+				PFN_NUMBER PageTablePfn = PfnAllocationRoutine();
+				WritePte(PointerPde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
+				MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, PointerPde);
 			}
 		}
 
 		if (PointerPte->Hw == 0) {
-			PageAllocationRoutine(PfnAllocationRoutine(), BusyType, PointerPte);
+			PFN_NUMBER PagePfn = PfnAllocationRoutine();
+			WritePte(PointerPte, ValidKernelPteBits | SetPfn(ConvertPfnToContiguous(PagePfn)));
+			PageAllocationRoutine(PagePfn, BusyType, PointerPte);
 		}
 
 		++PointerPte;
