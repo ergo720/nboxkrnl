@@ -4,6 +4,7 @@
 
 #include "mi.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\dbg\dbg.hpp"
 #include <assert.h>
 
 
@@ -562,4 +563,12 @@ ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
 	MiUnlock(OldIrql);
 
 	return NumberOfPages;
+}
+
+VOID XBOXAPI MiPageFaultHandler(ULONG Cr2, ULONG Eip)
+{
+	// For now, this just logs the faulting access and terminates
+
+	DbgPrint("Page fault at %p while touching address %p", Eip, Cr2);
+	KeBugCheck(KERNEL_UNHANDLED_EXCEPTION);
 }

@@ -6,6 +6,7 @@
 #include "hw_exp.hpp"
 #include "..\rtl\rtl.hpp"
 #include "..\rtl\exp_sup.hpp"
+#include "..\mm\mi.hpp"
 #include <string.h>
 
 
@@ -103,7 +104,14 @@ void __declspec(naked) XBOXAPI KiTrap13()
 // Page fault
 void __declspec(naked) XBOXAPI KiTrap14()
 {
-	RIP_UNIMPLEMENTED();
+	__asm {
+		CREATE_KTRAP_FRAME_WITH_CODE;
+		push [ebp]KTRAP_FRAME.Eip
+		mov edx, cr2
+		push edx
+		call MiPageFaultHandler
+		EXIT_EXCEPTION;
+	}
 }
 
 // Math fault
