@@ -25,6 +25,8 @@ EXPORTNUM(259) OBJECT_TYPE PsThreadObjectType =
 
 BOOLEAN PsInitSystem()
 {
+	KeInitializeDpc(&PspTerminationDpc, PspTerminationRoutine, nullptr);
+
 	HANDLE Handle;
 	NTSTATUS Status = PsCreateSystemThread(&Handle, nullptr, XbeStartupThread, nullptr, FALSE);
 	
@@ -134,5 +136,64 @@ EXPORTNUM(258) DLLEXPORT VOID XBOXAPI PsTerminateSystemThread
 	NTSTATUS ExitStatus
 )
 {
-	RIP_UNIMPLEMENTED();
+	PKTHREAD kThread = KeGetCurrentThread();
+	kThread->HasTerminated = TRUE;
+
+	KfLowerIrql(PASSIVE_LEVEL);
+
+	PETHREAD eThread = (PETHREAD)kThread;
+	if (eThread->UniqueThread) {
+		PspCallThreadNotificationRoutines(eThread, FALSE);
+	}
+
+	if (kThread->Priority < LOW_REALTIME_PRIORITY) {
+		KeSetPriorityThread(kThread, LOW_REALTIME_PRIORITY);
+	}
+
+	// TODO: cancel I/O, timers and mutants associated to this thread
+
+	KeQuerySystemTime(&eThread->ExitTime);
+	eThread->ExitStatus = ExitStatus;
+
+	if (eThread->UniqueThread) {
+		NtClose(eThread->UniqueThread);
+		eThread->UniqueThread = NULL_HANDLE;
+	}
+
+	KeEnterCriticalRegion();
+	__asm mov byte ptr [kThread]KTHREAD.ApcState.ApcQueueable, FALSE
+	// TODO: resume thread if it was suspended
+	KeLeaveCriticalRegion();
+
+	// TODO: flush APC lists
+
+	KeRaiseIrqlToDpcLevel();
+
+	// TODO: process thread's queue
+
+	eThread->Tcb.Header.SignalState = 1;
+	// TODO: satisfy waiters that were waiting on this thread
+
+	RemoveEntryList(&kThread->ThreadListEntry);
+
+	kThread->State = Terminated;
+	kThread->ApcState.Process->StackCount -= 1;
+
+	if (KiPcr.PrcbData.NpxThread == kThread) {
+		KiPcr.PrcbData.NpxThread = nullptr;
+	}
+
+	InsertTailList(&PspTerminationListHead, &eThread->ReaperLink);
+	KeInsertQueueDpc(&PspTerminationDpc, nullptr, nullptr);
+
+	KiSwapThread(); // won't return
+	__asm {
+	noreturn_eip:
+		push 0
+		push 0
+		push 0
+		push noreturn_eip
+		push NORETURN_FUNCTION_RETURNED
+		call KeBugCheckEx // won't return
+	}
 }

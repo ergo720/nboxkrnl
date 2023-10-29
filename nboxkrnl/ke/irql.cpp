@@ -36,6 +36,32 @@ EXPORTNUM(129) KIRQL XBOXAPI KeRaiseIrqlToDpcLevel()
 	}
 }
 
+EXPORTNUM(160) KIRQL FASTCALL KfRaiseIrql
+(
+	KIRQL NewIrql
+)
+{
+	// This function must update the irql atomically, so we use inline assembly
+
+	__asm {
+		movzx eax, byte ptr [KiPcr].Irql // clear the high bits to avoid returning a bogus irql
+		mov byte ptr [KiPcr].Irql, cl
+#if _DEBUG
+		// Only bug check in debug builds
+		cmp al, cl
+		jle ok
+		movzx ecx, cl
+		push 0
+		push 0
+		push ecx
+		push eax
+		push IRQL_NOT_GREATER_OR_EQUAL
+		call KeBugCheckEx
+	ok:
+#endif
+	}
+}
+
 EXPORTNUM(161) VOID FASTCALL KfLowerIrql
 (
 	KIRQL NewIrql

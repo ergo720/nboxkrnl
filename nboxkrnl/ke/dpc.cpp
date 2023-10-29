@@ -5,6 +5,7 @@
 
 #include "ke.hpp"
 #include "..\ki\ki.hpp"
+#include "..\hal\hal.hpp"
 
 
 EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
@@ -18,6 +19,33 @@ EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
 	Dpc->Inserted = FALSE;
 	Dpc->DeferredRoutine = DeferredRoutine;
 	Dpc->DeferredContext = DeferredContext;
+}
+
+EXPORTNUM(119) BOOLEAN XBOXAPI KeInsertQueueDpc
+(
+	PKDPC Dpc,
+	PVOID SystemArgument1,
+	PVOID SystemArgument2
+)
+{
+	KIRQL OldIrql = KfRaiseIrql(HIGH_LEVEL);
+
+	BOOLEAN Inserted = Dpc->Inserted;
+	if (!Inserted) {
+		Dpc->Inserted = TRUE;
+		Dpc->SystemArgument1 = SystemArgument1;
+		Dpc->SystemArgument2 = SystemArgument2;
+		InsertTailList(&KiPcr.PrcbData.DpcListHead, &Dpc->DpcListEntry);
+
+		if ((KiPcr.PrcbData.DpcRoutineActive == FALSE) && (KiPcr.PrcbData.DpcInterruptRequested == FALSE)) {
+			KiPcr.PrcbData.DpcInterruptRequested = TRUE;
+			HalRequestSoftwareInterrupt(DISPATCH_LEVEL);
+		}
+	}
+
+	KfLowerIrql(OldIrql);
+
+	return Inserted == FALSE;
 }
 
 VOID XBOXAPI KiExecuteDpcQueue()

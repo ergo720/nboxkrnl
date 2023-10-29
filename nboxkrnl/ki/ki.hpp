@@ -166,6 +166,7 @@ VOID KiInitSystem();
 DWORD KiSwapThreadContext();
 VOID XBOXAPI KiExecuteDpcQueue();
 PKTHREAD XBOXAPI KiQuantumEnd();
+NTSTATUS XBOXAPI KiSwapThread();
 
 VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
 

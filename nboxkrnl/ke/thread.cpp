@@ -251,7 +251,7 @@ DWORD __declspec(naked) KiSwapThreadContext()
 	}
 }
 
-static PKTHREAD KiFindAndRemoveHighestPriorityThread(KPRIORITY LowPriority)
+static PKTHREAD XBOXAPI KiFindAndRemoveHighestPriorityThread(KPRIORITY LowPriority)
 {
 	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
 
@@ -384,6 +384,53 @@ PKTHREAD XBOXAPI KiQuantumEnd()
 	return KiPcr.PrcbData.NextThread;
 }
 
+NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
+{
+	// On entry, IRQL must be at DISPATCH_LEVEL
+
+	__asm {
+		mov eax, [KiPcr]KPCR.PrcbData.NextThread
+		test eax, eax
+		jnz thread_switch // check to see if a new thread was selected by the scheduler
+		push LOW_PRIORITY
+		call KiFindAndRemoveHighestPriorityThread
+		jnz thread_switch
+		lea eax, KiIdleThread
+	thread_switch:
+		// Save non-volatile registers
+		push esi
+		push edi
+		push ebx
+		push ebp
+		mov edi, eax
+		mov esi, [KiPcr]KPCR.PrcbData.CurrentThread
+		mov [KiPcr]KPCR.PrcbData.CurrentThread, edi
+		mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0 // dword ptr required or else MSVC will access NextThread as a byte
+		movzx ebx, byte ptr [esi]KTHREAD.WaitIrql
+		call KiSwapThreadContext // when this returns, it means this thread was switched back again
+		test eax, eax
+		mov cl, byte ptr [edi]KTHREAD.WaitIrql
+		mov ebx, [edi]KTHREAD.WaitStatus
+		jnz deliver_apc
+	restore_regs:
+		call KfLowerIrql
+		mov eax, ebx
+		// Restore non-volatile registers
+		pop ebp
+		pop ebx
+		pop edi
+		pop esi
+		jmp end_func
+	deliver_apc:
+		mov cl, APC_LEVEL
+		call KfLowerIrql
+		call HalpSwIntApc // NOTE: this might not be right, depending on how that function is going to be implemented
+		xor ecx, ecx // if KiSwapThreadContext signals an APC, then WaitIrql of the previous thread must have been zero
+		jmp restore_regs
+	end_func:
+	}
+}
+
 EXPORTNUM(104) PKTHREAD XBOXAPI KeGetCurrentThread()
 {
 	__asm mov eax, [KiPcr]KPCR.PrcbData.CurrentThread
@@ -397,6 +444,21 @@ EXPORTNUM(140) ULONG XBOXAPI KeResumeThread
 	RIP_UNIMPLEMENTED();
 
 	return 1;
+}
+
+EXPORTNUM(148) KPRIORITY XBOXAPI KeSetPriorityThread
+(
+	PKTHREAD Thread,
+	LONG Priority
+)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	KPRIORITY OldPriority = Thread->Priority;
+	Thread->Quantum = Thread->ApcState.Process->ThreadQuantum;
+	KiSetPriorityThread(Thread, Priority);
+	KiUnlockDispatcherDatabase(OldIrql);
+
+	return OldPriority;
 }
 
 EXPORTNUM(152) ULONG XBOXAPI KeSuspendThread

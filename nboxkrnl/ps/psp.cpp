@@ -6,6 +6,8 @@
 #include "psp.hpp"
 #include "..\ki\seh.hpp"
 #include "..\dbg\dbg.hpp"
+#include "..\mm\mm.hpp"
+#include <assert.h>
 
 
 static ULONG PspUnhandledExceptionFilter(PEXCEPTION_POINTERS ExpPtr)
@@ -44,5 +46,20 @@ VOID PspCallThreadNotificationRoutines(PETHREAD eThread, BOOLEAN Create)
 		if (PspNotifyRoutines[i]) {
 			(*PspNotifyRoutines[i])(eThread, eThread->UniqueThread, Create);
 		}
+	}
+}
+
+VOID XBOXAPI PspTerminationRoutine(PKDPC Dpc, PVOID DpcContext, PVOID DpcArg0, PVOID DpcArg1)
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PLIST_ENTRY Entry = PspTerminationListHead.Flink;
+	while (Entry != &PspTerminationListHead) {
+		RemoveEntryList(Entry);
+		PETHREAD Thread = CONTAINING_RECORD(Entry, ETHREAD, ReaperLink);
+		MmDeleteKernelStack(Thread->Tcb.StackBase, Thread->Tcb.StackLimit);
+		Thread->Tcb.StackBase = nullptr;
+		ObfDereferenceObject(Thread);
+		Entry = PspTerminationListHead.Flink;
 	}
 }

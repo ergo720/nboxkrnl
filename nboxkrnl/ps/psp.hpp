@@ -17,6 +17,7 @@ using PCREATE_THREAD_NOTIFY_ROUTINE = VOID(XBOXAPI *)(
 	);
 
 VOID XBOXAPI PspSystemThreadStartup(PKSTART_ROUTINE StartRoutine, PVOID StartContext);
+VOID XBOXAPI PspTerminationRoutine(PKDPC Dpc, PVOID DpcContext, PVOID DpcArg0, PVOID DpcArg1);
 VOID PspCallThreadNotificationRoutines(PETHREAD eThread, BOOLEAN Create);
 
 inline PCREATE_THREAD_NOTIFY_ROUTINE PspNotifyRoutines[PSP_MAX_CREATE_THREAD_NOTIFY] = {
@@ -29,3 +30,6 @@ inline PCREATE_THREAD_NOTIFY_ROUTINE PspNotifyRoutines[PSP_MAX_CREATE_THREAD_NOT
 	nullptr,
 	nullptr
 };
+
+inline KDPC PspTerminationDpc;
+inline LIST_ENTRY PspTerminationListHead = { &PspTerminationListHead, &PspTerminationListHead };
