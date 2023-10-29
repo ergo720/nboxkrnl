@@ -65,3 +65,21 @@ HANDLE ObpCreateHandleForObject(PVOID Object)
 
 	return Handle;
 }
+
+PVOID ObpDestroyObjectHandle(HANDLE Handle)
+{
+	if (HandleToUlong(Handle) < HandleToUlong(ObpObjectHandleTable.NextHandleNeedingPool)) {
+		PVOID *HandlePtr = GetHandleContentsPointer(Handle);
+		PVOID Object = *HandlePtr;
+
+		if (Object && !IsFreeHandle(Object)) {
+			*HandlePtr = (PVOID)ObpObjectHandleTable.FirstFreeTableEntry;
+			ObpObjectHandleTable.FirstFreeTableEntry = HandleToUlong(Handle);
+			--ObpObjectHandleTable.HandleCount;
+
+			return Object;
+		}
+	}
+
+	return NULL_HANDLE;
+}
