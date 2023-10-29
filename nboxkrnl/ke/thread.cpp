@@ -258,6 +258,8 @@ static PKTHREAD KiFindAndRemoveHighestPriorityThread(KPRIORITY LowPriority)
 	KPRIORITY HighestPriority;
 	__asm {
 		bsr eax, KiReadyThreadMask
+		mov ecx, -1
+		cmovz eax, ecx
 		mov HighestPriority, eax
 	}
 
