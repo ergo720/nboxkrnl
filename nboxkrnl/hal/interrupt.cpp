@@ -126,14 +126,15 @@ VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
 		jz no_dpc
 		push [KiPcr]KPCR.NtTib.ExceptionList
 		mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2 // dword ptr required or else MSVC will aceess ExceptionList as a byte
-		push esp
+		mov eax, esp
 		mov esp, [KiPcr]KPCR.PrcbData.DpcStack // switch to DPC stack
+		push eax
 		call KiExecuteDpcQueue
 		pop esp
 		pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList // dword ptr required or else MSVC will aceess ExceptionList as a byte
 	no_dpc:
 		sti
-		cmp eax, [KiPcr]KPCR.PrcbData.QuantumEnd
+		cmp [KiPcr]KPCR.PrcbData.QuantumEnd, 0
 		jnz quantum_end
 		mov eax, [KiPcr]KPCR.PrcbData.NextThread
 		test eax, eax
