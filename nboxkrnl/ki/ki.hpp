@@ -47,15 +47,12 @@ struct FLOATING_SAVE_AREA {
 };
 #pragma pack()
 
-struct alignas(16) FX_SAVE_AREA {
+struct  FX_SAVE_AREA {
 	FLOATING_SAVE_AREA FloatSave;
 	ULONG Align16Byte[3];
 };
 using PFX_SAVE_AREA = FX_SAVE_AREA *;
 
-// Sanity check: this struct is used to save the npx state with the fxsave instruction, and the Intel docs require that the buffer
-// must be 16-bytes aligned
-static_assert(alignof(FX_SAVE_AREA) == 16);
 
 #define CONTEXT_i386                0x00010000
 #define CONTEXT_CONTROL             (CONTEXT_i386 | 0x00000001L)
@@ -97,6 +94,8 @@ struct KPRCB {
 	ULONG DpcRoutineActive;
 	PVOID DpcStack;
 	ULONG QuantumEnd;
+	// NOTE: if this is used with a fxsave instruction to save the float state, then this buffer must be 16-bytes aligned.
+	// At the moment, we only use the Npx area in the thread's stack
 	FX_SAVE_AREA NpxSaveArea;
 	VOID *DmEnetFunc;
 	VOID *DebugMonitorData;
