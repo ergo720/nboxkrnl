@@ -66,38 +66,60 @@ ULONG FASTCALL InputFromHost(USHORT Port)
 VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
 {
 	__asm {
-		pushfd
-		cli
-		mov dx, IO_REQUEST_TYPE
-		mov eax, [ecx]IoRequest.Type
+		mov dx, IO_START
+		mov eax, ecx
 		out dx, eax
-		inc dx
-		mov eax, [ecx]IoRequest.Handle
+		mov dx, IO_CHECK_ENQUEUE
+		in eax, dx
+		test eax, eax
+		jz ok
+	retry:
+		mov dx, IO_RETRY
 		out dx, eax
-		inc dx
-		mov eax, [ecx]IoRequest.Offset
-		out dx, eax
-		inc dx
-		mov eax, [ecx]IoRequest.Size
-		out dx, eax
-		inc dx
-		mov eax, [ecx]IoRequest.Address
-		out dx, eax
-		popfd
+		mov dx, IO_CHECK_ENQUEUE
+		in eax, dx
+		test eax, eax
+		jnz retry
+	ok:
 	}
 }
 
-VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info)
+VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, LONG Id)
 {
+	// NOTE: ebx is already saved by the compiler
+	// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
+
 	__asm {
 		pushfd
 		cli
+		mov ebx, edx
+		mov eax, edx
+		mov dx, IO_SET_ID
+		out dx, eax
 		mov dx, IO_QUERY_STATUS
 		in eax, dx
 		mov [ecx]IoInfoBlock.Status, eax
-		inc dx
+		mov dx, IO_QUERY_INFO
 		in eax, dx
 		mov [ecx]IoInfoBlock.Info, eax
+		cmp dword ptr [ecx]IoInfoBlock.Status, Pending
+		jnz ok
+	retry:
+		cli
+		mov eax, ebx
+		mov dx, IO_SET_ID
+		out dx, eax
+		mov dx, IO_QUERY_STATUS
+		in eax, dx
+		mov [ecx]IoInfoBlock.Status, eax
+		mov dx, IO_QUERY_INFO
+		in eax, dx
+		mov [ecx]IoInfoBlock.Info, eax
+		sti
+		cmp dword ptr [ecx]IoInfoBlock.Status, Pending
+		jz retry
+	ok:
+		dec IoRequestId
 		popfd
 	}
 }

@@ -9,7 +9,6 @@
 #include "..\mm\mi.hpp"
 #include <string.h>
 
-#define XBE_HANDLE (HANDLE)-3
 #define XBE_BASE_ADDRESS 0x10000
 #define GetXbeAddress() ((XBE_HEADER *)XBE_BASE_ADDRESS)
 
@@ -29,8 +28,6 @@ EXPORTNUM(164) PLAUNCH_DATA_PAGE LaunchDataPage = nullptr;
 
 EXPORTNUM(326) OBJECT_STRING XeImageFileName = { 0, 0, nullptr };
 
-static const CHAR *XepDefaultXbePath = "\\Device\\CdRom0\\default.xbe";
-
 static INITIALIZE_GLOBAL_CRITICAL_SECTION(XepXbeLoaderLock);
 
 static NTSTATUS XeLoadXbe()
@@ -41,33 +38,48 @@ static NTSTATUS XeLoadXbe()
 	}
 	else {
 		// TODO: instead of just loading the XBE directly from the host, this should parse the default XBE path with the IO functions
-		size_t PathSize = strlen(XepDefaultXbePath);
+		// NOTE: we cannot just assume that the XBE name from the DVD drive is called "default.xbe", because the user might have renamed it
+		ULONG PathSize;
+		__asm {
+			mov edx, XE_DVD_XBE_LENGTH
+			in eax, dx
+			mov PathSize, eax
+		}
+		ULONG DvdPathSize = strlen("\\Device\\CdRom0\\");
+		PathSize += (DvdPathSize + 1);
 		PCHAR PathBuffer = (PCHAR)ExAllocatePoolWithTag(PathSize, 'PebX');
 		if (!PathBuffer) {
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
+		strncpy(PathBuffer, "\\Device\\CdRom0\\", DvdPathSize);
+		{
+			PCHAR XbeNameAddr = &PathBuffer[DvdPathSize];
+			__asm {
+				mov edx, XE_DVD_XBE_ADDR
+				mov eax, XbeNameAddr
+				out dx, eax
+			}
+		}
+
 		XeImageFileName.Buffer = PathBuffer;
-		XeImageFileName.Length = (USHORT)PathSize;
-		XeImageFileName.MaximumLength = (USHORT)PathSize;
-		memcpy(XeImageFileName.Buffer, XepDefaultXbePath, XeImageFileName.Length); // NOTE: doesn't copy the terminating NULL character
+		XeImageFileName.Length = (USHORT)PathSize - 1;
+		XeImageFileName.MaximumLength = (USHORT)PathSize - 1;
+		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize - 1); // NOTE: doesn't copy the terminating NULL character
 
-		IoRequest Request;
-		Request.Type = IoRequestType::Open;
-		Request.Handle = XBE_HANDLE;
-		Request.Offset = 0;
-		Request.Size = 0;
-		Request.Address = nullptr;
-		SubmitIoRequestToHost(&Request);
-
-		// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
 		IoInfoBlock InfoBlock;
-		do {
-			RetrieveIoRequestFromHost(&InfoBlock);
-		} while (InfoBlock.Status == NoIoPending);
+		IoRequest Packet;
+		Packet.Id = InterlockedIncrement(&IoRequestId);
+		Packet.Type = IoRequestType::Open;
+		Packet.HandleOrAddress = XBE_HANDLE;
+		Packet.Offset = 0;
+		Packet.Size = PathSize - 7;
+		Packet.HandleOrPath = (ULONG_PTR)&PathBuffer[7];
+		SubmitIoRequestToHost(&Packet);
+		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
 		if (InfoBlock.Status != Success) {
-			return STATUS_INVALID_PARAMETER; // fix me
+			return STATUS_INVALID_PARAMETER; // fixme
 		}
 
 		PXBE_HEADER XbeHeader = (PXBE_HEADER)ExAllocatePoolWithTag(PAGE_SIZE, 'hIeX');
@@ -75,15 +87,14 @@ static NTSTATUS XeLoadXbe()
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		Request.Type = IoRequestType::Read;
-		Request.Handle = XBE_HANDLE;
-		Request.Offset = 0;
-		Request.Size = PAGE_SIZE;
-		Request.Address = XbeHeader;
-		SubmitIoRequestToHost(&Request);
-		do {
-			RetrieveIoRequestFromHost(&InfoBlock);
-		} while (InfoBlock.Status == NoIoPending);
+		Packet.Id = InterlockedIncrement(&IoRequestId);
+		Packet.Type = IoRequestType::Read;
+		Packet.HandleOrPath = XBE_HANDLE;
+		Packet.Offset = 0;
+		Packet.Size = PAGE_SIZE;
+		Packet.HandleOrAddress = (ULONG_PTR)XbeHeader;
+		SubmitIoRequestToHost(&Packet);
+		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
 		if (InfoBlock.Status != Success) {
 			return STATUS_INVALID_PARAMETER; // fixme
@@ -115,15 +126,14 @@ static NTSTATUS XeLoadXbe()
 		XbeHeader = nullptr;
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
-			Request.Type = IoRequestType::Read;
-			Request.Handle = XBE_HANDLE;
-			Request.Offset = PAGE_SIZE;
-			Request.Size = GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE;
-			Request.Address = (PCHAR)XbeHeader + Request.Offset;
-			SubmitIoRequestToHost(&Request);
-			do {
-				RetrieveIoRequestFromHost(&InfoBlock);
-			} while (InfoBlock.Status == NoIoPending);
+			Packet.Id = InterlockedIncrement(&IoRequestId);
+			Packet.Type = IoRequestType::Read;
+			Packet.HandleOrPath = XBE_HANDLE;
+			Packet.Offset = PAGE_SIZE;
+			Packet.Size = GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE;
+			Packet.HandleOrAddress = (ULONG_PTR)((PCHAR)XbeHeader + Packet.Offset);
+			SubmitIoRequestToHost(&Packet);
+			RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
 			if (InfoBlock.Status != Success) {
 				return STATUS_INVALID_PARAMETER; // fixme
@@ -237,16 +247,15 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 
 		// Copy the section data
 		IoInfoBlock InfoBlock;
-		IoRequest Request;
-		Request.Type = IoRequestType::Read;
-		Request.Handle = XBE_HANDLE;
-		Request.Offset = Section->FileAddress;
-		Request.Size = Section->FileSize;
-		Request.Address = Section->VirtualAddress;
-		SubmitIoRequestToHost(&Request);
-		do {
-			RetrieveIoRequestFromHost(&InfoBlock);
-		} while (InfoBlock.Status == NoIoPending);
+		IoRequest Packet;
+		Packet.Id = InterlockedIncrement(&IoRequestId);
+		Packet.Type = IoRequestType::Read;
+		Packet.HandleOrPath = XBE_HANDLE;
+		Packet.Offset = Section->FileAddress;
+		Packet.Size = Section->FileSize;
+		Packet.HandleOrAddress = (ULONG_PTR)Section->VirtualAddress;
+		SubmitIoRequestToHost(&Packet);
+		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
 		if (InfoBlock.Status != Success) {
 			BaseAddress = Section->VirtualAddress;
