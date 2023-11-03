@@ -33,6 +33,7 @@ using WORD = uint16_t;
 using DWORD = uint32_t;
 using ULONG = uint32_t;
 using LONG = int32_t;
+using INT = int32_t;
 using LONGLONG = int64_t;
 using ULONGLONG = uint64_t;
 using QUAD = ULONGLONG;

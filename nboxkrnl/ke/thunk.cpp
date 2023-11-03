@@ -42,7 +42,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&ExInterlockedCompareExchange64),          // 0x0015 (21)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&ExMutantObjectType),                  // 0x0016 (22)
 	(ULONG)FUNC(&ExQueryPoolBlockSize),                    // 0x0017 (23)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&ExQueryNonVolatileSetting),               // 0x0018 (24)
+	(ULONG)FUNC(&ExQueryNonVolatileSetting),               // 0x0018 (24)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&ExReadWriteRefurbInfo),                   // 0x0019 (25)
 	(ULONG)FUNC(&ExRaiseException),                        // 0x001A (26)
 	(ULONG)FUNC(&ExRaiseStatus),                           // 0x001B (27)

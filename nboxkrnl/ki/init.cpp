@@ -9,6 +9,7 @@
 #include "..\kernel.hpp"
 #include "..\hal\hal.hpp"
 #include "..\ps\ps.hpp"
+#include "..\io\io.hpp"
 #include <string.h>
 
 
@@ -194,6 +195,10 @@ VOID KiInitializeKernel()
 	}
 
 	HalInitSystem();
+
+	if (IoInitSystem() == FALSE) {
+		KeBugCheck(INIT_FAILURE);
+	}
 
 	if (PsInitSystem() == FALSE) {
 		KeBugCheck(INIT_FAILURE);
