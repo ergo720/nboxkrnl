@@ -44,6 +44,7 @@ using PUCHAR = UCHAR *;
 using PLONG = LONG *;
 using PCSZ = const CHAR *;
 using ULONG_PTR = uintptr_t;
+using DWORD_PTR = uintptr_t;
 using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
 using SIZE_T = ULONG_PTR;
@@ -53,11 +54,15 @@ using NTSTATUS = LONG;
 using KPRIORITY = LONG;
 using HANDLE = PVOID;
 using PHANDLE = HANDLE *;
+using HRESULT = LONG;
 
 #include "ntstatus.hpp"
 #include <stddef.h>
 
 #define CONTAINING_RECORD(address, type, field) ((type *)((PCHAR)(address) - (ULONG_PTR)offsetof(type, field)))
+
+#define LOWORD(l) ((WORD)((DWORD_PTR)(l)))
+#define HIWORD(l) ((WORD)(((DWORD_PTR)(l) >> 16) & 0xFFFF))
 
 struct LIST_ENTRY {
 	LIST_ENTRY *Flink;

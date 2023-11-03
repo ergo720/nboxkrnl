@@ -319,7 +319,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlMoveMemory),                           // 0x012A (298)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlMultiByteToUnicodeN),                  // 0x012B (299)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlMultiByteToUnicodeSize),               // 0x012C (300)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlNtStatusToDosError),                   // 0x012D (301)
+	(ULONG)FUNC(&RtlNtStatusToDosError),                   // 0x012D (301)
 	(ULONG)FUNC(&RtlRaiseException),                       // 0x012E (302)
 	(ULONG)FUNC(&RtlRaiseStatus),                          // 0x012F (303)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlTimeFieldsToTime),                     // 0x0130 (304)
