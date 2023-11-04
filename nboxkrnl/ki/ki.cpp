@@ -40,9 +40,7 @@ VOID KiInitSystem()
 
 	KeInitializeDpc(&KiTimerExpireDpc, KiTimerExpiration, nullptr);
 	for (unsigned i = 0; i < TIMER_TABLE_SIZE; ++i) {
-		InitializeListHead(&KiTimerTableListHead[i].Entry);
-		KiTimerTableListHead[i].Time.u.HighPart = 0xFFFFFFFF;
-		KiTimerTableListHead[i].Time.u.LowPart = 0;
+		InitializeListHead(&KiTimerTableListHead[i]);
 	}
 
 	for (unsigned i = 0; i < NUM_OF_THREAD_PRIORITIES; ++i) {

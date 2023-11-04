@@ -353,8 +353,10 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		mov [KeSystemTime]KSYSTEM_TIME.HighTime, edi
 		mov ebx, KeTickCount
 		mov KeTickCount, eax
-		// TODO: check if any timers have expired
-		sub eax, ebx
+		mov edi, eax
+		mov ecx, ebx
+		call KiCheckExpiredTimers
+		sub edi, ebx
 		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
 		mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread
 		cmp byte ptr [esp], DISPATCH_LEVEL
@@ -362,15 +364,15 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		ja interrupt_time
 		cmp [KiPcr]KPCR.PrcbData.DpcRoutineActive, 0
 		jz kernel_time
-		add [KiPcr]KPCR.PrcbData.DpcTime, eax // DpcTime: time spent executing DPCs, in ms
+		add [KiPcr]KPCR.PrcbData.DpcTime, edi // DpcTime: time spent executing DPCs, in ms
 		jmp quantum
 	interrupt_time:
-		add [KiPcr]KPCR.PrcbData.InterruptTime, eax // InterruptTime: time spent executing code at IRQL > 2, in ms
+		add [KiPcr]KPCR.PrcbData.InterruptTime, edi // InterruptTime: time spent executing code at IRQL > 2, in ms
 		jmp quantum
 	kernel_time:
-		add [ecx]KTHREAD.KernelTime, eax // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
+		add [ecx]KTHREAD.KernelTime, edi // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
 	quantum:
-		sub [ecx]KTHREAD.Quantum, eax
+		sub [ecx]KTHREAD.Quantum, edi
 		jg not_expired
 		cmp ecx, offset KiIdleThread // if it's the idle thread, then don't switch
 		jz not_expired

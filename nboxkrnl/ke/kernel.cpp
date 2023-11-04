@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "..\ke\ke.hpp"
+#include "..\ki\ki.hpp"
 #include "..\kernel.hpp"
 
 
@@ -17,6 +17,8 @@ EXPORTNUM(154) volatile KSYSTEM_TIME KeSystemTime = { 0, 0, 0 };
 
 EXPORTNUM(156) volatile DWORD KeTickCount = 0;
 
+EXPORTNUM(157) ULONG KeTimeIncrement = CLOCK_TIME_INCREMENT;
+
 EXPORTNUM(321) XBOX_KEY_DATA XboxEEPROMKey;
 
 EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
@@ -27,6 +29,23 @@ EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 	0,     // unknown
 	0      // unknown
 };
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(125) ULONGLONG XBOXAPI KeQueryInterruptTime()
+{
+	LARGE_INTEGER InterruptTime;
+
+	while (true) {
+		InterruptTime.u.HighPart = KeInterruptTime.HighTime;
+		InterruptTime.u.LowPart = KeInterruptTime.LowTime;
+
+		if (InterruptTime.u.HighPart == KeInterruptTime.High2Time) {
+			break;
+		}
+	}
+
+	return (ULONGLONG)InterruptTime.QuadPart;
+}
 
 // Source: Cxbx-Reloaded
 EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime

@@ -21,6 +21,7 @@
 #define NPX_STATE_LOADED 0                     // x87 fpu, XMM, and MXCSR registers saved
 
 #define TIMER_TABLE_SIZE 32
+#define CLOCK_TIME_INCREMENT 10000 // one clock interrupt every ms -> 1ms == 10000 units of 100ns
 
 #define NUM_OF_THREAD_PRIORITIES 32
 
@@ -125,12 +126,6 @@ struct KPCR {
 };
 using PKPCR = KPCR *;
 
-struct KTIMER_TABLE_ENTRY {
-	LIST_ENTRY Entry;
-	ULARGE_INTEGER Time;
-};
-using PKTIMER_TABLE_ENTRY = KTIMER_TABLE_ENTRY *;
-
 
 inline KTHREAD KiIdleThread;
 inline uint8_t alignas(4) KiIdleThreadStack[KERNEL_STACK_SIZE];
@@ -143,7 +138,7 @@ inline DWORD KiReadyThreadMask = 1;
 
 inline LIST_ENTRY KiWaitInListHead;
 
-inline KTIMER_TABLE_ENTRY KiTimerTableListHead[TIMER_TABLE_SIZE];
+inline LIST_ENTRY KiTimerTableListHead[TIMER_TABLE_SIZE];
 
 inline KDPC KiTimerExpireDpc;
 
