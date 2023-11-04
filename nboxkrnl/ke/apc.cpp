@@ -12,6 +12,7 @@ EXPORTNUM(101) VOID XBOXAPI KeEnterCriticalRegion()
 	(*(volatile ULONG *)&KeGetCurrentThread()->KernelApcDisable) -= 1;
 }
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
 (
 	PKAPC Apc,

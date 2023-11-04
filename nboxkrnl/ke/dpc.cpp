@@ -8,6 +8,7 @@
 #include "..\hal\hal.hpp"
 
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(107) VOID XBOXAPI KeInitializeDpc
 (
 	PKDPC Dpc,
@@ -48,6 +49,7 @@ EXPORTNUM(119) BOOLEAN XBOXAPI KeInsertQueueDpc
 	return Inserted == FALSE;
 }
 
+// Source: Cxbx-Reloaded
 VOID XBOXAPI KiExecuteDpcQueue()
 {
 	// On entry, interrupts must be disabled

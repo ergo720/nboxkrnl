@@ -7,6 +7,7 @@
 #include "..\kernel.hpp"
 
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(112) VOID XBOXAPI KeInitializeSemaphore
 (
 	PKSEMAPHORE Semaphore,

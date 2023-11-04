@@ -22,6 +22,7 @@ struct EepromInfo {
 	INT ValueLength;
 };
 
+// Source: Cxbx-Reloaded
 static const EepromInfo EepromInfos[] = {
 	EEPROM_INFO_ENTRY(XC_TIMEZONE_BIAS,         UserSettings.TimeZoneBias,                REG_DWORD),
 	EEPROM_INFO_ENTRY(XC_TZ_STD_NAME,           UserSettings.TimeZoneStdName,             REG_BINARY),
@@ -57,6 +58,7 @@ static const EepromInfo EepromInfos[] = {
 
 static INITIALIZE_GLOBAL_CRITICAL_SECTION(ExpEepromLock);
 
+// Source: Cxbx-Reloaded
 static const EepromInfo *ExpFindEepromInfo(XC_VALUE_INDEX Index)
 {
 	for (int i = 0; EepromInfos[i].Index != XC_END_MARKER; ++i) {
@@ -68,6 +70,7 @@ static const EepromInfo *ExpFindEepromInfo(XC_VALUE_INDEX Index)
 	return nullptr;
 }
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(24) NTSTATUS XBOXAPI ExQueryNonVolatileSetting
 (
 	DWORD ValueIndex,

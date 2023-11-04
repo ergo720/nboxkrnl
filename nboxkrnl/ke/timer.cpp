@@ -13,6 +13,7 @@ VOID XBOXAPI KeInitializeTimer(PKTIMER Timer)
 	KeInitializeTimerEx(Timer, NotificationTimer);
 }
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(113) VOID XBOXAPI KeInitializeTimerEx
 (
 	PKTIMER Timer,

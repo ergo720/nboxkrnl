@@ -50,6 +50,7 @@ VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID S
 	}
 }
 
+// Source: Cxbx-Reloaded
 VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine, PVOID StartContext)
 {
 	ULONG_PTR StackAddress = reinterpret_cast<ULONG_PTR>(Thread->StackBase);
@@ -89,6 +90,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 	Thread->KernelStack = reinterpret_cast<PVOID>(CtxSwitchFrame);
 }
 
+// Source: Cxbx-Reloaded
 VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSize, ULONG TlsDataSize, PKSYSTEM_ROUTINE SystemRoutine, PKSTART_ROUTINE StartRoutine,
 	PVOID StartContext, PKPROCESS Process)
 {

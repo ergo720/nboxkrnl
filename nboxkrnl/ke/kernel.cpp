@@ -28,6 +28,7 @@ EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 	0      // unknown
 };
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
 (
 	PLARGE_INTEGER CurrentTime
@@ -124,16 +125,19 @@ VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, LONG Id)
 	}
 }
 
+// Source: Cxbx-Reloaded
 VOID InitializeListHead(PLIST_ENTRY pListHead)
 {
 	pListHead->Flink = pListHead->Blink = pListHead;
 }
 
+// Source: Cxbx-Reloaded
 BOOLEAN IsListEmpty(PLIST_ENTRY pListHead)
 {
 	return (pListHead->Flink == pListHead);
 }
 
+// Source: Cxbx-Reloaded
 VOID InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 {
 	PLIST_ENTRY _EX_ListHead = pListHead;
@@ -145,6 +149,7 @@ VOID InsertTailList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 	_EX_ListHead->Blink = pEntry;
 }
 
+// Source: Cxbx-Reloaded
 VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 {
 	PLIST_ENTRY _EX_ListHead = pListHead;
@@ -156,6 +161,7 @@ VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry)
 	_EX_ListHead->Flink = pEntry;
 }
 
+// Source: Cxbx-Reloaded
 VOID RemoveEntryList(PLIST_ENTRY pEntry)
 {
 	PLIST_ENTRY _EX_Flink = pEntry->Flink;
@@ -164,6 +170,7 @@ VOID RemoveEntryList(PLIST_ENTRY pEntry)
 	_EX_Flink->Blink = _EX_Blink;
 }
 
+// Source: Cxbx-Reloaded
 PLIST_ENTRY RemoveTailList(PLIST_ENTRY pListHead)
 {
 	PLIST_ENTRY pList = pListHead->Blink;
@@ -171,6 +178,7 @@ PLIST_ENTRY RemoveTailList(PLIST_ENTRY pListHead)
 	return pList;
 }
 
+// Source: Cxbx-Reloaded
 PLIST_ENTRY RemoveHeadList(PLIST_ENTRY pListHead)
 {
 	PLIST_ENTRY pList = pListHead->Flink;

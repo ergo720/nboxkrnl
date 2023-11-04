@@ -1,5 +1,6 @@
 /*
  * ergo720                Copyright (c) 2022
+ * LukeUsher              Copyright (c) 2017
  */
 
 #include "..\ke\ke.hpp"
@@ -30,6 +31,7 @@ EXPORTNUM(326) OBJECT_STRING XeImageFileName = { 0, 0, nullptr };
 
 static INITIALIZE_GLOBAL_CRITICAL_SECTION(XepXbeLoaderLock);
 
+// Source: partially from Cxbx-Reloaded
 static NTSTATUS XeLoadXbe()
 {
 	if (LaunchDataPage) {
@@ -218,6 +220,7 @@ VOID XBOXAPI XbeStartupThread(PVOID Opaque)
 	XbeEntryPoint();
 }
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 (
 	PXBE_SECTION Section
