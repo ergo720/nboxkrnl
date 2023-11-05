@@ -1,8 +1,8 @@
 # Nboxkrnl
 
 "nboxkrnl" is a work in progress, open source reimplementation of the kernel of the original xbox, with some input from the kernel code found in the xbox emulator
-[Cxbx-Reloaded](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Currently, it can be tested with the test app provided by [lib86cpu](https://github.com/ergo720/lib86cpu),
-a cpu emulation library. Note that it's not a goal of this project to be able to run on xbox emulators such as x(q)emu or on real hardware.
+[Cxbx-Reloaded](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Currently, it can be run with [nxbx](https://github.com/ergo720/nxbx), an XBE launcher program.
+Note that it's not a goal of this project to be able to run on xbox emulators such as x(q)emu or on real hardware.
 
 ## Building
 
