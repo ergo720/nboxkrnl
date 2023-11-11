@@ -70,6 +70,17 @@
 		__asm mov var, eax \
 	}
 
+#define INITIALIZE_GLOBAL_KEVENT(Event, Type, State) \
+    KEVENT Event = {                                 \
+        Type,                                        \
+        FALSE,                                       \
+        sizeof(KEVENT) / sizeof(LONG),               \
+        FALSE,                                       \
+        State,                                       \
+        &Event.Header.WaitListHead,                  \
+        &Event.Header.WaitListHead                   \
+    }
+
 
 using KIRQL = UCHAR;
 using KPROCESSOR_MODE = CCHAR;

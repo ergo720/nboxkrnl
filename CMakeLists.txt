@@ -57,6 +57,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/io.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/iop.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/bug_codes.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/ke.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.hpp"
@@ -105,6 +106,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/vad_tree.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/file.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/memory.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/objects.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/services.cpp"
@@ -115,6 +117,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/error.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/strings.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
 )
 

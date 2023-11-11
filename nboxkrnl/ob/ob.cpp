@@ -6,7 +6,31 @@
 #include "obp.hpp"
 #include "..\rtl\rtl.hpp"
 #include "..\ex\ex.hpp"
+#include "..\ps\ps.hpp"
+#include <string.h>
 
+
+static INITIALIZE_GLOBAL_KEVENT(ObpDefaultObject, SynchronizationEvent, TRUE);
+
+EXPORTNUM(240) OBJECT_TYPE ObDirectoryObjectType = {
+	ExAllocatePoolWithTag,
+	ExFreePool,
+	nullptr,
+	nullptr,
+	nullptr,
+	&ObpDefaultObject,
+	'eriD'
+};
+
+EXPORTNUM(249) OBJECT_TYPE ObSymbolicLinkObjectType = {
+	ExAllocatePoolWithTag,
+	ExFreePool,
+	nullptr,
+	ObpDeleteSymbolicLink,
+	nullptr,
+	&ObpDefaultObject,
+	'bmyS'
+};
 
 BOOLEAN ObInitSystem()
 {
@@ -27,6 +51,10 @@ BOOLEAN ObInitSystem()
 
 	ObpObjectHandleTable.RootTable[0][0] = NULL_HANDLE;
 	ObpObjectHandleTable.FirstFreeTableEntry = 4;
+
+	if (ObpCreatePermanentObjects() == FALSE) {
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -56,7 +84,47 @@ EXPORTNUM(239) NTSTATUS XBOXAPI ObCreateObject
 		return STATUS_SUCCESS;
 	}
 
-	RIP_API_MSG("creating named objects is not supported yet");
+	OBJECT_STRING RemainderName, OriName = *ObjectAttributes->ObjectName;
+	OBJECT_STRING FirstName = { 0, 0, nullptr };
+	while (OriName.Length) {
+		ObpParseName(&OriName, &FirstName, &RemainderName);
+
+		if (RemainderName.Length && (RemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+			// Another delimiter in the name is invalid
+			return STATUS_OBJECT_NAME_INVALID;
+		}
+
+		OriName = RemainderName;
+	}
+
+	if (FirstName.Length == 0) {
+		// Empty object's name is invalid
+		return STATUS_OBJECT_NAME_INVALID;
+	}
+
+	POBJECT_HEADER_NAME_INFO ObjectNameInfo = (POBJECT_HEADER_NAME_INFO)ObjectType->AllocateProcedure(sizeof(OBJECT_HEADER_NAME_INFO) + sizeof(OBJECT_HEADER) - sizeof(OBJECT_HEADER::Body)
+		+ ObjectBodySize + FirstName.Length, ObjectType->PoolTag);
+
+	if (ObjectNameInfo == nullptr) {
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
+
+	POBJECT_HEADER Obj = (POBJECT_HEADER)(ObjectNameInfo + 1);
+	ObjectNameInfo->ChainLink = nullptr;
+	ObjectNameInfo->Directory = nullptr;
+	ObjectNameInfo->Name.Buffer = ((PCHAR)&Obj->Body + ObjectBodySize);
+	ObjectNameInfo->Name.Length = FirstName.Length;
+	ObjectNameInfo->Name.MaximumLength = FirstName.Length;
+	strncpy(ObjectNameInfo->Name.Buffer, FirstName.Buffer, FirstName.Length);
+
+	Obj->PointerCount = 1;
+	Obj->HandleCount = 0;
+	Obj->Type = ObjectType;
+	Obj->Flags = OB_FLAG_NAMED_OBJECT;
+
+	*Object = &Obj->Body;
+
+	return STATUS_SUCCESS;
 }
 
 EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
@@ -68,6 +136,7 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 )
 {
 	KIRQL OldIrql = ObLock();
+	PVOID ObjectToInsert = Object;
 
 	*ReturnedHandle = NULL_HANDLE;
 	POBJECT_DIRECTORY Directory;
@@ -76,10 +145,63 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 		Directory = nullptr;
 	}
 	else {
-		RIP_API_MSG("inserting named objects is not supported yet");
+		if (NTSTATUS Status = ObpResolveRootHandlePath(ObjectAttributes, &Directory);
+			!NT_SUCCESS(Status)) {
+			ObUnlock(OldIrql);
+			ObfDereferenceObject(Object);
+			return Status;
+		}
+
+		OBJECT_STRING FirstName, RemainderName, OriName = *ObjectAttributes->ObjectName;
+		while (true) {
+			ObpParseName(&OriName, &FirstName, &RemainderName);
+
+			// All names between the delimiters must be directory objects, and the object's name must not exist already
+			if (PVOID ObjectInDirectory = ObpFindObjectInDirectory(Directory, &FirstName, TRUE); ObjectInDirectory != NULL_HANDLE) {
+				if (RemainderName.Length == 0) {
+					if (ObjectAttributes->Attributes & OBJ_OPENIF) {
+						if (GetObjHeader(ObjectInDirectory)->Type == GetObjHeader(Object)->Type) {
+							// Special case: if OBJ_OPENIF is set, insert the found object instead
+							ObjectToInsert = ObjectInDirectory;
+							Directory = nullptr;
+							break;
+						}
+						else {
+							ObUnlock(OldIrql);
+							ObfDereferenceObject(Object);
+							return STATUS_OBJECT_TYPE_MISMATCH;
+						}
+					}
+					else {
+						ObUnlock(OldIrql);
+						ObfDereferenceObject(Object);
+						return STATUS_OBJECT_NAME_COLLISION;
+					}
+				}
+
+				if (GetObjHeader(ObjectInDirectory)->Type != &ObDirectoryObjectType) {
+					ObUnlock(OldIrql);
+					ObfDereferenceObject(Object);
+					return STATUS_OBJECT_PATH_NOT_FOUND;
+				}
+
+				Directory = (POBJECT_DIRECTORY)ObjectInDirectory;
+			}
+			else {
+				if (RemainderName.Length) {
+					ObUnlock(OldIrql);
+					ObfDereferenceObject(Object);
+					return STATUS_OBJECT_PATH_NOT_FOUND;
+				}
+
+				break;
+			}
+
+			OriName = RemainderName;
+		}
 	}
 
-	HANDLE Handle = ObpCreateHandleForObject(Object);
+	HANDLE Handle = ObpCreateHandleForObject(ObjectToInsert);
 	if (Handle == NULL_HANDLE) {
 		ObUnlock(OldIrql);
 		ObfDereferenceObject(Object);
@@ -87,8 +209,37 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 	}
 
 	// After this point, it can no longer fail or else ObfDereferenceObject will drop the object PointerCount to zero and delete the object
-	POBJECT_HEADER Obj = GetObjHeader(Object);
+	POBJECT_HEADER Obj = GetObjHeader(ObjectToInsert);
 	Obj->PointerCount += (ObjectPointerBias + 1);
+
+	if (Directory) {
+		POBJECT_HEADER_NAME_INFO ObjDirectoryInfo = GetObjDirInfoHeader(Object);
+		ULONG Index = ObpGetObjectHashIndex(&ObjDirectoryInfo->Name);
+		Obj->Flags |= OB_FLAG_ATTACHED_OBJECT;
+
+		ObjDirectoryInfo->Directory = Directory;
+		ObjDirectoryInfo->ChainLink = Directory->HashBuckets[Index];
+		Directory->HashBuckets[Index] = ObjDirectoryInfo;
+
+		if ((Directory == ObpDosDevicesDirectoryObject) && (ObjDirectoryInfo->Name.Length == 2) && (ObjDirectoryInfo->Name.Buffer[1] == ':')) {
+			PVOID DosDevicesObject = Object;
+
+			if (GetObjHeader(DosDevicesObject)->Type == &ObSymbolicLinkObjectType) {
+				DosDevicesObject = ((POBJECT_SYMBOLIC_LINK)DosDevicesObject)->LinkTargetObject;
+			}
+
+			CHAR DriveLetter = ObjDirectoryInfo->Name.Buffer[0];
+			if ((DriveLetter >= 'A') && (DriveLetter <= 'Z')) {
+				ObpDosDevicesDriveLetterArray[DriveLetter - 'A'] = DosDevicesObject;
+			}
+			else if ((DriveLetter >= 'a') && (DriveLetter <= 'z')) {
+				ObpDosDevicesDriveLetterArray[DriveLetter - 'a'] = DosDevicesObject;
+			}
+		}
+
+		++GetObjHeader(Directory)->PointerCount;
+		++Obj->PointerCount;
+	}
 
 	if (ObjectAttributes && ObjectAttributes->Attributes & OBJ_PERMANENT) {
 		Obj->Flags |= OB_FLAG_PERMANENT_OBJECT;
@@ -99,7 +250,36 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 	ObUnlock(OldIrql);
 	ObfDereferenceObject(Object);
 
-	return STATUS_SUCCESS;
+	return (Object == ObjectToInsert) ? STATUS_SUCCESS : STATUS_OBJECT_NAME_EXISTS;
+}
+
+EXPORTNUM(243) NTSTATUS XBOXAPI ObOpenObjectByName
+(
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	PVOID ParseContext,
+	PHANDLE Handle
+)
+{
+	PVOID Object;
+	HANDLE NewHandle = NULL_HANDLE;
+	NTSTATUS Status = ObpReferenceObjectByName(ObjectAttributes, ObjectType, ParseContext, &Object);
+
+	if (NT_SUCCESS(Status)) {
+
+		KIRQL OldIrql = ObLock();
+		NewHandle = ObpCreateHandleForObject(Object);
+		ObUnlock(OldIrql);
+
+		if (NewHandle == NULL_HANDLE) {
+			ObfDereferenceObject(Object);
+			Status = STATUS_INSUFFICIENT_RESOURCES;
+		}
+	}
+
+	*Handle = NewHandle;
+
+	return Status;
 }
 
 EXPORTNUM(244) NTSTATUS XBOXAPI ObOpenObjectByPointer
@@ -128,6 +308,62 @@ EXPORTNUM(244) NTSTATUS XBOXAPI ObOpenObjectByPointer
 	}
 
 	return STATUS_SUCCESS;
+}
+
+EXPORTNUM(246) DLLEXPORT NTSTATUS XBOXAPI ObReferenceObjectByHandle
+(
+	HANDLE Handle,
+	POBJECT_TYPE ObjectType,
+	PVOID *ReturnedObject
+)
+{
+	*ReturnedObject = NULL_HANDLE;
+
+	// NOTE: on the xbox, NtCurrentProcess is not supported
+	if (Handle == NtCurrentThread()) {
+		if (!ObjectType || (ObjectType == &PsThreadObjectType)) {
+			PVOID Object = (PETHREAD)KeGetCurrentThread();
+			POBJECT_HEADER Obj = GetObjHeader(Object);
+			InterlockedIncrement(&Obj->PointerCount);
+			*ReturnedObject = Object;
+
+			return STATUS_SUCCESS;
+		}
+
+		return STATUS_OBJECT_TYPE_MISMATCH;
+	}
+	else {
+		KIRQL OldIrql = ObLock();
+		PVOID Object = ObpGetObjectFromHandle<true>(Handle);
+		ObUnlock(OldIrql);
+
+		if (Object != NULL_HANDLE) {
+			if (!ObjectType || (GetObjHeader(Object)->Type == ObjectType)) {
+				*ReturnedObject = Object;
+
+				return STATUS_SUCCESS;
+			}
+
+			ObfDereferenceObject(Object);
+			return STATUS_OBJECT_TYPE_MISMATCH;
+		}
+
+		return STATUS_INVALID_HANDLE;
+	}
+}
+
+EXPORTNUM(247) NTSTATUS XBOXAPI ObReferenceObjectByName
+(
+	POBJECT_STRING ObjectName,
+	ULONG Attributes,
+	POBJECT_TYPE ObjectType,
+	PVOID ParseContext,
+	PVOID *Object
+)
+{
+	OBJECT_ATTRIBUTES ObjectAttributes;
+	InitializeObjectAttributes(&ObjectAttributes, ObjectName, Attributes, nullptr);
+	return ObpReferenceObjectByName(&ObjectAttributes, ObjectType, ParseContext, Object);
 }
 
 EXPORTNUM(248) NTSTATUS XBOXAPI ObReferenceObjectByPointer

@@ -55,6 +55,8 @@ using KPRIORITY = LONG;
 using HANDLE = PVOID;
 using PHANDLE = HANDLE *;
 using HRESULT = LONG;
+using ACCESS_MASK = ULONG;
+using PACCESS_MASK = ACCESS_MASK *;
 
 #include "ntstatus.hpp"
 #include <stddef.h>

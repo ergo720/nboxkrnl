@@ -14,10 +14,15 @@
 #define OB_HANDLES_PER_SEGMENT       (OB_TABLES_PER_SEGMENT * OB_HANDLES_PER_TABLE) // 512
 
 #define NULL_HANDLE ((HANDLE)(ULONG_PTR)0)
-#define XBE_HANDLE (ULONG)-3
-#define EEPROM_HANDLE (ULONG)-5
+#define XBE_HANDLE ((ULONG)-5)
+#define EEPROM_HANDLE ((ULONG)-6)
+#define NtCurrentThread() ((HANDLE)-2)
+#define ObDosDevicesDirectory() ((HANDLE)-3)
+#define ObWin32NamedObjectsDirectory() ((HANDLE)-4)
 
 #define OB_NUMBER_HASH_BUCKETS 11
+
+#define OB_PATH_DELIMITER '\\'
 
 /*
 The handle table RootTable works as if it were a 2D array of handles of one row and multiple columns. The row is allocated in segments increments of 8 elements each, and each
@@ -69,7 +74,7 @@ using OB_DELETE_METHOD = VOID(XBOXAPI *)(
 
 using OB_PARSE_METHOD = NTSTATUS(XBOXAPI *)(
 	PVOID ParseObject,
-	struct _OBJECT_TYPE *ObjectType,
+	struct OBJECT_TYPE *ObjectType,
 	ULONG Attributes,
 	POBJECT_STRING CompleteName,
 	POBJECT_STRING RemainingName,
@@ -110,6 +115,12 @@ struct OBJECT_DIRECTORY {
 };
 using POBJECT_DIRECTORY = OBJECT_DIRECTORY *;
 
+struct OBJECT_SYMBOLIC_LINK {
+	PVOID LinkTargetObject;
+	OBJECT_STRING LinkTarget;
+};
+using POBJECT_SYMBOLIC_LINK = OBJECT_SYMBOLIC_LINK *;
+
 struct OBJECT_HEADER_NAME_INFO {
 	struct OBJECT_HEADER_NAME_INFO *ChainLink;
 	struct OBJECT_DIRECTORY *Directory;
@@ -129,6 +140,8 @@ EXPORTNUM(239) DLLEXPORT NTSTATUS XBOXAPI ObCreateObject
 	PVOID *Object
 );
 
+EXPORTNUM(240) DLLEXPORT extern OBJECT_TYPE ObDirectoryObjectType;
+
 EXPORTNUM(241) DLLEXPORT NTSTATUS XBOXAPI ObInsertObject
 (
 	PVOID Object,
@@ -137,7 +150,15 @@ EXPORTNUM(241) DLLEXPORT NTSTATUS XBOXAPI ObInsertObject
 	PHANDLE ReturnedHandle
 );
 
-EXPORTNUM(244) NTSTATUS XBOXAPI ObOpenObjectByPointer
+EXPORTNUM(243) DLLEXPORT NTSTATUS XBOXAPI ObOpenObjectByName
+(
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	PVOID ParseContext,
+	PHANDLE Handle
+);
+
+EXPORTNUM(244) DLLEXPORT NTSTATUS XBOXAPI ObOpenObjectByPointer
 (
 	PVOID Object,
 	POBJECT_TYPE ObjectType,
@@ -146,11 +167,29 @@ EXPORTNUM(244) NTSTATUS XBOXAPI ObOpenObjectByPointer
 
 EXPORTNUM(245) DLLEXPORT extern OBJECT_HANDLE_TABLE ObpObjectHandleTable;
 
+EXPORTNUM(246) DLLEXPORT NTSTATUS XBOXAPI ObReferenceObjectByHandle
+(
+	HANDLE Handle,
+	POBJECT_TYPE ObjectType,
+	PVOID *ReturnedObject
+);
+
+EXPORTNUM(247) DLLEXPORT NTSTATUS XBOXAPI ObReferenceObjectByName
+(
+	POBJECT_STRING ObjectName,
+	ULONG Attributes,
+	POBJECT_TYPE ObjectType,
+	PVOID ParseContext,
+	PVOID *Object
+);
+
 EXPORTNUM(248) DLLEXPORT NTSTATUS XBOXAPI ObReferenceObjectByPointer
 (
 	PVOID Object,
 	POBJECT_TYPE ObjectType
 );
+
+EXPORTNUM(249) DLLEXPORT extern OBJECT_TYPE ObSymbolicLinkObjectType;
 
 EXPORTNUM(250) DLLEXPORT VOID FASTCALL ObfDereferenceObject
 (
