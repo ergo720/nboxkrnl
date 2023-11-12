@@ -9,6 +9,37 @@
 #include "..\..\rtl\rtl.hpp"
 
 
+/*
+Drive Letter  Description  Offset (bytes)  Size (bytes)  Filesystem       Device Object
+N/A           Config Area  0x00000000      0x00080000    Fixed Structure  \Device\Harddisk0\Partition0
+X             Game Cache   0x00080000      0x2ee00000    FATX 	          \Device\Harddisk0\Partition3
+Y             Game Cache   0x2ee80000      0x2ee00000    FATX 	          \Device\Harddisk0\Partition4
+Z             Game Cache   0x5dc80000      0x2ee00000    FATX 	          \Device\Harddisk0\Partition5
+C             System       0x8ca80000      0x1f400000    FATX 	          \Device\Harddisk0\Partition2
+E             Data         0xabe80000      0x131f00000   FATX 	          \Device\Harddisk0\Partition1
+*/
+// Note that this table ignores the non-standard partitions with drive letters F: and G:
+static constexpr XBOX_PARTITION_TABLE HddPartitionTable = {
+	{ '*', '*', '*', '*', 'P', 'A', 'R', 'T', 'I', 'N', 'F', 'O', '*', '*', '*', '*' },
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	{
+		{ { 'X', 'B', 'O', 'X', ' ', 'S', 'H', 'E', 'L', 'L', ' ', ' ', ' ', ' ', ' ', ' ' }, PE_PARTFLAGS_IN_USE, XBOX_MUSICPART_LBA_START, XBOX_MUSICPART_LBA_SIZE, 0 },
+		{ { 'X', 'B', 'O', 'X', ' ', 'D', 'A', 'T', 'A', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, PE_PARTFLAGS_IN_USE, XBOX_SYSPART_LBA_START, XBOX_SYSPART_LBA_SIZE, 0 },
+		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '1' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART1_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
+		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '2' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART2_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
+		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '3' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART3_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
+	}
+};
+
 NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
 	PVOID Context, PVOID *Object);
 
@@ -44,6 +75,9 @@ static DRIVER_OBJECT HddDriverObject = {
 	}
 };
 
+static PDEVICE_OBJECT HddPartitionObjectsArray[XBOX_MAX_NUM_OF_PARTITIONS];
+
+
 BOOLEAN HddInitDriver()
 {
 	// Note that, for ObCreateObject to work, an object with a name "\\Device" must have already been created previously. This is done with the object ObpIoDevicesDirectoryObject
@@ -68,6 +102,38 @@ BOOLEAN HddInitDriver()
 	}
 
 	NtClose(Handle);
+
+	// Create all device objects required by the HDD, one for each partition and the whole disk
+	for (unsigned i = 0; i < XBOX_MAX_NUM_OF_PARTITIONS; ++i) {
+		PDEVICE_OBJECT HddDeviceObject;
+		Status = IoCreateDevice(&HddDriverObject, sizeof(IDE_DISK_EXTENSION), nullptr, FILE_DEVICE_DISK, FALSE, &HddDeviceObject);
+		if (!NT_SUCCESS(Status)) {
+			return FALSE;
+		}
+
+		PIDE_DISK_EXTENSION HddExtension = (PIDE_DISK_EXTENSION)HddDeviceObject->DeviceExtension;
+		if (i == 0) {
+			// Whole disk
+			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO | DO_RAW_MOUNT_ONLY);
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)XBOX_CONFIG_AREA_LBA_START * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)HDD_TOTAL_NUM_OF_SECTORS * HDD_SECTOR_SIZE;
+		}
+		else {
+			// Data partition, system partition or cache partitions
+			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO);
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)HddPartitionTable.TableEntries[i].LBAStart * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)HddPartitionTable.TableEntries[i].LBASize * HDD_SECTOR_SIZE;
+		}
+
+		HddDeviceObject->AlignmentRequirement = HDD_ALIGNMENT_REQUIREMENT;
+		HddDeviceObject->SectorSize = HDD_SECTOR_SIZE;
+		HddExtension->DeviceObject = HddDeviceObject;
+		HddExtension->PartitionInformation.RecognizedPartition = TRUE;
+		HddExtension->PartitionInformation.PartitionNumber = i;
+		HddDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
+
+		HddPartitionObjectsArray[i] = HddDeviceObject;
+	}
 
 	return TRUE;
 }

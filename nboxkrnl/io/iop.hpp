@@ -231,3 +231,21 @@ struct DRIVER_OBJECT {
 
 };
 using PDRIVER_OBJECT = DRIVER_OBJECT *;
+
+struct PARTITION_INFORMATION {
+	LARGE_INTEGER StartingOffset;
+	LARGE_INTEGER PartitionLength;
+	DWORD HiddenSectors;
+	DWORD PartitionNumber;
+	BYTE  PartitionType;
+	BOOLEAN BootIndicator;
+	BOOLEAN RecognizedPartition;
+	BOOLEAN RewritePartition;
+};
+using PPARTITION_INFORMATION = PARTITION_INFORMATION *;
+
+struct IDE_DISK_EXTENSION {
+	PDEVICE_OBJECT DeviceObject;
+	PARTITION_INFORMATION PartitionInformation;
+};
+using PIDE_DISK_EXTENSION = IDE_DISK_EXTENSION *;

@@ -6,6 +6,7 @@
 #include "..\kernel.hpp"
 
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(106) VOID XBOXAPI KeInitializeDeviceQueue
 (
 	PKDEVICE_QUEUE DeviceQueue
