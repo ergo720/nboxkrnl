@@ -22,6 +22,28 @@ OBJECT_TYPE HddDirectoryObjectType = {
 	'0ddH'
 };
 
+static DRIVER_OBJECT HddDriverObject = {
+	nullptr,                            // DriverStartIo
+	nullptr,                            // DriverDeleteDevice
+	nullptr,                            // DriverDismountVolume
+	{
+		IoInvalidDeviceRequest,         // IRP_MJ_CREATE
+		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
+		IoInvalidDeviceRequest,         // IRP_MJ_READ
+		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
+		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
+		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
+		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
+		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
+		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
+		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
+		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
+		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
+		IoInvalidDeviceRequest,         // IRP_MJ_CLEANUP
+	}
+};
+
 BOOLEAN HddInitDriver()
 {
 	// Note that, for ObCreateObject to work, an object with a name "\\Device" must have already been created previously. This is done with the object ObpIoDevicesDirectoryObject

@@ -274,6 +274,14 @@ struct KEVENT {
 };
 using PKEVENT = KEVENT *;
 
+struct KDEVICE_QUEUE {
+	CSHORT Type;
+	UCHAR Size;
+	BOOLEAN Busy;
+	LIST_ENTRY DeviceListHead;
+};
+using PKDEVICE_QUEUE = KDEVICE_QUEUE *;
+
 struct KSTART_FRAME {
 	PKSYSTEM_ROUTINE SystemRoutine;
 	PKSTART_ROUTINE StartRoutine;
@@ -415,6 +423,11 @@ EXPORTNUM(105) DLLEXPORT VOID XBOXAPI KeInitializeApc
 	PKNORMAL_ROUTINE NormalRoutine,
 	KPROCESSOR_MODE ApcMode,
 	PVOID NormalContext
+);
+
+EXPORTNUM(106) DLLEXPORT VOID XBOXAPI KeInitializeDeviceQueue
+(
+	PKDEVICE_QUEUE DeviceQueue
 );
 
 EXPORTNUM(107) DLLEXPORT VOID XBOXAPI KeInitializeDpc

@@ -24,6 +24,7 @@ using PVOID = void *;
 using BYTE = uint8_t;
 using UCHAR = unsigned char;
 using CHAR = char;
+using WCHAR = wchar_t;
 using SCHAR = CHAR;
 using CCHAR = CHAR;
 using BOOLEAN = uint8_t;
@@ -38,6 +39,7 @@ using LONGLONG = int64_t;
 using ULONGLONG = uint64_t;
 using QUAD = ULONGLONG;
 using PCHAR = CHAR *;
+using PWCHAR = WCHAR *;
 using PUSHORT = USHORT *;
 using PULONG = ULONG *;
 using PUCHAR = UCHAR *;
@@ -97,6 +99,13 @@ struct STRING {
 using ANSI_STRING = STRING;
 using PSTRING = STRING *;
 using PANSI_STRING = PSTRING;
+
+struct UNICODE_STRING {
+	USHORT Length;
+	USHORT MaximumLength;
+	PWCHAR Buffer;
+};
+using PUNICODE_STRING = UNICODE_STRING *;
 
 struct DISPATCHER_HEADER {
 	UCHAR Type;

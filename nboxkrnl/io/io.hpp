@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "iop.hpp"
 #include "..\ob\ob.hpp"
 
 
@@ -63,19 +64,19 @@
 #define FILE_OVERWRITE_IF  0x00000005
 
 
-struct IO_STATUS_BLOCK {
-	union {
-		NTSTATUS Status;
-		PVOID Pointer;
-	};
-	ULONG_PTR Information;
-};
-using PIO_STATUS_BLOCK = IO_STATUS_BLOCK *;
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+EXPORTNUM(65) DLLEXPORT NTSTATUS XBOXAPI IoCreateDevice
+(
+	PDRIVER_OBJECT DriverObject,
+	ULONG DeviceExtensionSize,
+	PSTRING DeviceName,
+	ULONG DeviceType,
+	BOOLEAN Exclusive,
+	PDEVICE_OBJECT *DeviceObject
+);
 
 EXPORTNUM(66) DLLEXPORT NTSTATUS XBOXAPI IoCreateFile
 (
@@ -89,6 +90,14 @@ EXPORTNUM(66) DLLEXPORT NTSTATUS XBOXAPI IoCreateFile
 	ULONG Disposition,
 	ULONG CreateOptions,
 	ULONG Options
+);
+
+EXPORTNUM(70) DLLEXPORT extern OBJECT_TYPE IoDeviceObjectType;
+
+EXPORTNUM(74) DLLEXPORT NTSTATUS XBOXAPI IoInvalidDeviceRequest
+(
+	PDEVICE_OBJECT DeviceObject,
+	PIRP Irp
 );
 
 #ifdef __cplusplus

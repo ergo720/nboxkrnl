@@ -95,6 +95,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/seh.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/apc.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/bug.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/device_queue.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/dpc.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/event.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/irql.cpp"

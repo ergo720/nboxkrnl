@@ -9,6 +9,7 @@
 
 // Object attributes specified in OBJECT_ATTRIBUTES
 #define OBJ_PERMANENT         0x00000010L
+#define OBJ_EXCLUSIVE         0x00000020L
 #define OBJ_CASE_INSENSITIVE  0x00000040L
 #define OBJ_OPENIF            0x00000080L
 

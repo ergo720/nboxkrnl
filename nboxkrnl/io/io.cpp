@@ -2,12 +2,26 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "io.hpp"
-#include "iop.hpp"
 #include "..\ex\ex.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\ob\obp.hpp"
+#include "..\nt\nt.hpp"
 #include "hdd\hdd.hpp"
+#include <string.h>
 
+
+NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+	PVOID Context, PVOID *Object);
+
+EXPORTNUM(70) OBJECT_TYPE IoDeviceObjectType = {
+	ExAllocatePoolWithTag,
+	ExFreePool,
+	nullptr,
+	nullptr,
+	IoParseDevice,
+	&ObpDefaultObject,
+	'iveD'
+};
 
 BOOLEAN IoInitSystem()
 {
@@ -33,6 +47,72 @@ BOOLEAN IoInitSystem()
 	}
 
 	return TRUE;
+}
+
+EXPORTNUM(65) NTSTATUS XBOXAPI IoCreateDevice
+(
+	PDRIVER_OBJECT DriverObject,
+	ULONG DeviceExtensionSize,
+	PSTRING DeviceName,
+	ULONG DeviceType,
+	BOOLEAN Exclusive,
+	PDEVICE_OBJECT *DeviceObject
+)
+{
+	*DeviceObject = nullptr;
+
+	ULONG Attributes = 0;
+	if (DeviceName) {
+		Attributes |= OBJ_PERMANENT;
+	}
+	if (Exclusive) {
+		Attributes |= OBJ_EXCLUSIVE;
+	}
+
+	OBJECT_ATTRIBUTES ObjectAttributes;
+	InitializeObjectAttributes(&ObjectAttributes, DeviceName, Attributes, nullptr);
+	ULONG ObjectSize = sizeof(DEVICE_OBJECT) + DeviceExtensionSize;
+	PDEVICE_OBJECT CreatedDeviceObject;
+	NTSTATUS Status = ObCreateObject(&IoDeviceObjectType, &ObjectAttributes, ObjectSize, (PVOID *)&CreatedDeviceObject);
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	memset(CreatedDeviceObject, 0, ObjectSize);
+	CreatedDeviceObject->Type = IO_TYPE_DEVICE;
+	CreatedDeviceObject->Size = (USHORT)ObjectSize;
+	CreatedDeviceObject->DeviceType = (UCHAR)DeviceType;
+
+	if ((DeviceType == FILE_DEVICE_DISK) || (DeviceType == FILE_DEVICE_MEMORY_UNIT) || (DeviceType == FILE_DEVICE_CD_ROM) || (DeviceType == FILE_DEVICE_MEDIA_BOARD)) {
+		KeInitializeEvent(&CreatedDeviceObject->DeviceLock, SynchronizationEvent, TRUE);
+		CreatedDeviceObject->MountedOrSelfDevice = nullptr;
+	}
+	else {
+		CreatedDeviceObject->MountedOrSelfDevice = CreatedDeviceObject;
+	}
+
+	CreatedDeviceObject->AlignmentRequirement = 0;
+	CreatedDeviceObject->Flags = DO_DEVICE_INITIALIZING;
+	if (DeviceName) {
+		CreatedDeviceObject->Flags |= DO_DEVICE_HAS_NAME;
+	}
+	if (Exclusive) {
+		CreatedDeviceObject->Flags |= DO_EXCLUSIVE;
+	}
+	CreatedDeviceObject->DeviceExtension = DeviceExtensionSize ? CreatedDeviceObject + 1 : nullptr;
+	CreatedDeviceObject->StackSize = 1;
+	KeInitializeDeviceQueue(&CreatedDeviceObject->DeviceQueue);
+
+	HANDLE Handle;
+	Status = ObInsertObject(CreatedDeviceObject, &ObjectAttributes, 1, &Handle);
+	if (NT_SUCCESS(Status)) {
+		*DeviceObject = CreatedDeviceObject;
+		CreatedDeviceObject->DriverObject = DriverObject;
+		NtClose(Handle);
+	}
+
+	return Status;
 }
 
 EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
@@ -130,4 +210,19 @@ EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
 	NTSTATUS Status = ObOpenObjectByName(ObjectAttributes, nullptr, &OpenPacket, &Handle);
 
 	RIP_API_MSG("incomplete");
+}
+
+EXPORTNUM(74) NTSTATUS XBOXAPI IoInvalidDeviceRequest
+(
+	PDEVICE_OBJECT DeviceObject,
+	PIRP Irp
+)
+{
+	RIP_UNIMPLEMENTED();
+}
+
+NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+	PVOID Context, PVOID *Object)
+{
+	RIP_UNIMPLEMENTED();
 }
