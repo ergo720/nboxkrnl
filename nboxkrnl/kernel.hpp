@@ -61,8 +61,7 @@ enum IoDevice : ULONG {
 	Hdd = 1 << 12
 };
 
-// Renamed to avoid a name conflict with the IoStatus member of IRP
-enum IoStatus2 : ULONG {
+enum IoStatus : ULONG {
 	Success = 0,
 	Pending,
 	Error
@@ -80,7 +79,7 @@ struct IoRequest {
 #pragma pack()
 
 struct IoInfoBlock {
-	IoStatus2 Status;
+	IoStatus Status;
 	ULONG Info;
 };
 

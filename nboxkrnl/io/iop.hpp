@@ -98,7 +98,7 @@ struct IRP {
 	WORD Size;
 	ULONG Flags;
 	LIST_ENTRY ThreadListEntry;
-	IO_STATUS_BLOCK IoStatus;
+	IO_STATUS_BLOCK IoStatusBlock;
 	CHAR StackCount;
 	CHAR CurrentLocation;
 	UCHAR PendingReturned;
