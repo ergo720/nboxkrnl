@@ -25,10 +25,10 @@ ULONG ObpGetObjectHashIndex(POBJECT_STRING Name)
 
 BOOLEAN ObpCreatePermanentObjects()
 {
-	POBJECT_DIRECTORY *Objects[] = { &ObpRootDirectoryObject, &ObpDosDevicesDirectoryObject, &ObpWin32NamedObjectsDirectoryObject };
-	POBJECT_STRING ObjectStrings[] = { nullptr, &ObpDosDevicesString, &ObpWin32NamedObjectsString };
+	POBJECT_DIRECTORY *Objects[] = { &ObpRootDirectoryObject, &ObpDosDevicesDirectoryObject, &ObpWin32NamedObjectsDirectoryObject, &ObpIoDevicesDirectoryObject };
+	POBJECT_STRING ObjectStrings[] = { nullptr, &ObpDosDevicesString, &ObpWin32NamedObjectsString, &ObpIoDevicesString };
 
-	for (unsigned i = 0; i < 3; ++i) {
+	for (unsigned i = 0; i < 4; ++i) {
 		OBJECT_ATTRIBUTES ObjectAttributes;
 		InitializeObjectAttributes(&ObjectAttributes, ObjectStrings[i], OBJ_PERMANENT, nullptr);
 
@@ -162,21 +162,21 @@ VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING 
 	*/
 
 	ULONG FirstDelimiterIdx = -1, StartIdx = 0;
-	if (Name->Buffer[0] == '\\') {
+	if (Name->Buffer[0] == OB_PATH_DELIMITER) {
 		StartIdx = 1;
 	}
 
 	for (ULONG i = StartIdx; i < Name->Length; ++i) {
-		if (Name->Buffer[i] == '\\') {
+		if (Name->Buffer[i] == OB_PATH_DELIMITER) {
 			FirstDelimiterIdx = i;
 			break;
 		}
 	}
 
 	if (FirstDelimiterIdx == -1) {
-		FirstName->Buffer = Name->Buffer;
-		FirstName->Length = Name->Length;
-		FirstName->MaximumLength = Name->MaximumLength;
+		FirstName->Buffer = &Name->Buffer[StartIdx];
+		FirstName->Length = Name->Length - StartIdx;
+		FirstName->MaximumLength = FirstName->Length + 1;
 		RemainderName->Buffer = nullptr;
 		RemainderName->Length = 0;
 		RemainderName->MaximumLength = 0;
@@ -366,6 +366,9 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 			return Status;
 		}
 
+		// Reset Directory to the FoundObject, which we know it's a directory object if we reach here. Otherwise, the code will keep looking for the objects specified
+		// in RemainderName in the root directory that was set when this loop first started
+		Directory = (POBJECT_DIRECTORY)FoundObject;
 		OriName = RemainderName;
 	}
 

@@ -76,6 +76,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.hpp"
 )
 
 file (GLOB SOURCES
@@ -119,6 +120,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/strings.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.cpp"
 )
 
 source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})

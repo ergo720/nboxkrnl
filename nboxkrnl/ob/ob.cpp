@@ -10,8 +10,6 @@
 #include <string.h>
 
 
-static INITIALIZE_GLOBAL_KEVENT(ObpDefaultObject, SynchronizationEvent, TRUE);
-
 EXPORTNUM(240) OBJECT_TYPE ObDirectoryObjectType = {
 	ExAllocatePoolWithTag,
 	ExFreePool,

@@ -5,10 +5,12 @@
 #pragma once
 
 #include "ob.hpp"
+#include "..\ke\ke.hpp"
 
 // Object attributes specified in OBJECT_ATTRIBUTES
-#define OBJ_PERMANENT  0x00000010L
-#define OBJ_OPENIF     0x00000080L
+#define OBJ_PERMANENT         0x00000010L
+#define OBJ_CASE_INSENSITIVE  0x00000040L
+#define OBJ_OPENIF            0x00000080L
 
 // Object flags specified in OBJECT_HEADER
 #define OB_FLAG_NAMED_OBJECT      0x01
@@ -50,9 +52,12 @@
 inline POBJECT_DIRECTORY ObpRootDirectoryObject;
 inline POBJECT_DIRECTORY ObpDosDevicesDirectoryObject;
 inline POBJECT_DIRECTORY ObpWin32NamedObjectsDirectoryObject;
+inline POBJECT_DIRECTORY ObpIoDevicesDirectoryObject;
 inline INITIALIZE_GLOBAL_OBJECT_STRING(ObpDosDevicesString, "\\??", inline);
 inline INITIALIZE_GLOBAL_OBJECT_STRING(ObpWin32NamedObjectsString, "\\Win32NamedObjects", inline);
+inline INITIALIZE_GLOBAL_OBJECT_STRING(ObpIoDevicesString, "\\Device", inline);
 inline PVOID ObpDosDevicesDriveLetterArray['Z' - 'A' + 1] = { 0 };
+inline INITIALIZE_GLOBAL_KEVENT(ObpDefaultObject, SynchronizationEvent, TRUE);
 
 BOOLEAN ObpAllocateNewHandleTable();
 HANDLE ObpCreateHandleForObject(PVOID Object);

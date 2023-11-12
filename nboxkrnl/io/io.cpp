@@ -6,6 +6,7 @@
 #include "iop.hpp"
 #include "..\ex\ex.hpp"
 #include "..\rtl\rtl.hpp"
+#include "hdd\hdd.hpp"
 
 
 BOOLEAN IoInitSystem()
@@ -26,6 +27,10 @@ BOOLEAN IoInitSystem()
 	}
 
 	XboxFactoryGameRegion = CachedEeprom.EncryptedSettings.GameRegion;
+
+	if (!HddInitDriver()) {
+		return FALSE;
+	}
 
 	return TRUE;
 }
