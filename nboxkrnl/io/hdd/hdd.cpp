@@ -76,6 +76,7 @@ static DRIVER_OBJECT HddDriverObject = {
 };
 
 static PDEVICE_OBJECT HddPartitionObjectsArray[XBOX_MAX_NUM_OF_PARTITIONS];
+INITIALIZE_GLOBAL_OBJECT_STRING(HddPartitionString, "Partition");
 
 
 BOOLEAN HddInitDriver()
@@ -143,5 +144,48 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 {
 	// This is the parse routine that is invoked by OB when it needs to reference path/files on the HDD, in particular, those that start with "\\Device\\Harddisk0"
 	
-	RIP_UNIMPLEMENTED();
+	*Object = NULL_HANDLE;
+
+	if (RemainderName->Length == 0) {
+		return STATUS_ACCESS_DENIED;
+	}
+
+	// Extract the partition name
+	OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainderName;
+	ObpParseName(&OriName, &FirstName, &LocalRemainderName);
+
+	if (LocalRemainderName.Length && (LocalRemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+		// Another delimiter in the name is invalid
+		return STATUS_OBJECT_NAME_INVALID;
+	}
+
+	// FirstName must be "Partition" since we are here when we access the HDD
+	if (FirstName.Length >= HddPartitionString.Length) {
+		ULONG OriFirstNameLength = FirstName.Length;
+		FirstName.Length = HddPartitionString.Length;
+		if (RtlEqualString(&FirstName, &HddPartitionString, TRUE)) {
+			// Sanity check: ensure that the partition number is valid
+
+			FirstName.Length = OriFirstNameLength;
+			PCHAR PartitionNumberStart = FirstName.Buffer + HddPartitionString.Length;
+			PCHAR PartitionNumberEnd = FirstName.Buffer + FirstName.Length;
+			ULONG PartitionNumber = 0;
+
+			while (PartitionNumberStart < PartitionNumberEnd) {
+				CHAR CurrChar = *PartitionNumberStart;
+				if ((CurrChar >= '0') && (CurrChar <= '9')) {
+					PartitionNumber = PartitionNumber * 10 + (CurrChar - '0');
+					++PartitionNumberStart;
+					continue;
+				}
+				break;
+			}
+
+			if ((PartitionNumberStart == PartitionNumberEnd) && (PartitionNumber < XBOX_MAX_NUM_OF_PARTITIONS)) {
+				return IoParseDevice(HddPartitionObjectsArray[PartitionNumber], ObjectType, Attributes, Name, &LocalRemainderName, Context, Object);
+			}
+		}
+	}
+
+	return LocalRemainderName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
 }

@@ -10,9 +10,6 @@
 #include <string.h>
 
 
-NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
-	PVOID Context, PVOID *Object);
-
 EXPORTNUM(70) OBJECT_TYPE IoDeviceObjectType = {
 	ExAllocatePoolWithTag,
 	ExFreePool,

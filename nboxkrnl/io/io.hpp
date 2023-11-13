@@ -105,3 +105,5 @@ EXPORTNUM(74) DLLEXPORT NTSTATUS XBOXAPI IoInvalidDeviceRequest
 #endif
 
 BOOLEAN IoInitSystem();
+NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+	PVOID Context, PVOID *Object);
