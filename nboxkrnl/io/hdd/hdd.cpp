@@ -185,6 +185,7 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 				return IoParseDevice(HddPartitionObjectsArray[PartitionNumber], ObjectType, Attributes, Name, &LocalRemainderName, Context, Object);
 			}
 		}
+		FirstName.Length = OriFirstNameLength;
 	}
 
 	return LocalRemainderName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
