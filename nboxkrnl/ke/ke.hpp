@@ -9,7 +9,9 @@
 #define XBOX_KEY_LENGTH 16
 
 #define THREAD_QUANTUM 20 // ms that a thread is allowed to run before being preempted
+#define WAIT_QUANTUM_DECREMENT 3 // subtructs 3 ms after a wait completes
 #define NORMAL_BASE_PRIORITY 8
+#define TIME_CRITICAL_BASE_PRIORITY 14
 #define LOW_PRIORITY 0
 #define LOW_REALTIME_PRIORITY 16
 #define HIGH_PRIORITY 31
@@ -25,6 +27,8 @@
 
 #define IDT_SERVICE_VECTOR_BASE 0x20
 #define IDT_INT_VECTOR_BASE 0x30
+
+#define SYNCHRONIZATION_OBJECT_TYPE_MASK 7
 
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
 // the accesses are atomic and thus thread-safe
@@ -281,6 +285,14 @@ struct KDEVICE_QUEUE {
 	LIST_ENTRY DeviceListHead;
 };
 using PKDEVICE_QUEUE = KDEVICE_QUEUE *;
+
+struct KMUTANT {
+	DISPATCHER_HEADER Header;
+	LIST_ENTRY MutantListEntry;
+	struct KTHREAD *OwnerThread;
+	BOOLEAN Abandoned;
+};
+using PKMUTANT = KMUTANT *;
 
 struct KSTART_FRAME {
 	PKSYSTEM_ROUTINE SystemRoutine;
@@ -567,4 +579,5 @@ VOID KeInitializeThread(PKTHREAD Thread, PVOID KernelStack, ULONG KernelStackSiz
 VOID XBOXAPI KeInitializeTimer(PKTIMER Timer);
 VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount);
 VOID KeScheduleThread(PKTHREAD Thread);
+VOID KiScheduleThread(PKTHREAD Thread);
 VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread);

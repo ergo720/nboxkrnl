@@ -1,5 +1,6 @@
 /*
  * ergo720                Copyright (c) 2023
+ * LukeUsher              Copyright (c) 2018
  */
 
 #include "ke.hpp"
@@ -19,6 +20,7 @@ EXPORTNUM(108) VOID XBOXAPI KeInitializeEvent
 	InitializeListHead(&(Event->Header.WaitListHead));
 }
 
+// Source: Cxbx-Reloaded
 EXPORTNUM(145) LONG XBOXAPI KeSetEvent
 (
 	PKEVENT Event,
@@ -26,7 +28,33 @@ EXPORTNUM(145) LONG XBOXAPI KeSetEvent
 	BOOLEAN	Wait
 )
 {
-	RIP_UNIMPLEMENTED();
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	LONG OldState = Event->Header.SignalState;
 
-	return 0;
+	if (IsListEmpty(&Event->Header.WaitListHead)) {
+		Event->Header.SignalState = 1;
+	}
+	else {
+		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(&Event->Header.WaitListHead.Flink, KWAIT_BLOCK, WaitListEntry);
+		if ((Event->Header.Type == NotificationEvent) || (WaitBlock->WaitType == WaitAll)) {
+			if (OldState == 0) {
+				Event->Header.SignalState = 1;
+				KiWaitTest(Event, Increment);
+			}
+		}
+		else {
+			KiUnwaitThread(WaitBlock->Thread, WaitBlock->WaitKey, Increment);
+		}
+	}
+
+	if (Wait) {
+		PKTHREAD Thread = KeGetCurrentThread();
+		Thread->WaitNext = Wait;
+		Thread->WaitIrql = OldIrql;
+	}
+	else {
+		KiUnlockDispatcherDatabase(OldIrql);
+	}
+
+	return OldState;
 }

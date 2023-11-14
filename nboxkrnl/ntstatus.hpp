@@ -5,6 +5,8 @@
 #pragma once
 
 #define STATUS_SUCCESS                          ((NTSTATUS)0x00000000L)
+#define STATUS_USER_APC                         ((NTSTATUS)0x000000C0L)
+#define STATUS_KERNEL_APC                       ((NTSTATUS)0x00000100L)
 #define STATUS_TIMEOUT                          ((NTSTATUS)0x00000102L)
 #define STATUS_OBJECT_NAME_EXISTS               ((NTSTATUS)0x40000000L)
 #define STATUS_GUARD_PAGE_VIOLATION             ((NTSTATUS)0x80000001L)
@@ -12,6 +14,7 @@
 #define STATUS_SINGLE_STEP                      ((NTSTATUS)0x80000004L)
 #define STATUS_INVALID_HANDLE                   ((NTSTATUS)0xC0000008L)
 #define STATUS_INVALID_PARAMETER                ((NTSTATUS)0xC000000DL)
+#define STATUS_NO_SUCH_DEVICE                   ((NTSTATUS)0xC000000EL)
 #define STATUS_NO_MEMORY                        ((NTSTATUS)0xC0000017L)
 #define STATUS_CONFLICTING_ADDRESSES            ((NTSTATUS)0xC0000018L)
 #define STATUS_ACCESS_DENIED                    ((NTSTATUS)0xC0000022L)
@@ -40,6 +43,7 @@
 #define STATUS_INTEGER_DIVIDE_BY_ZERO           ((NTSTATUS)0xC0000094L)
 #define STATUS_PRIVILEGED_INSTRUCTION           ((NTSTATUS)0xC0000096L)
 #define STATUS_INSUFFICIENT_RESOURCES           ((NTSTATUS)0xC000009AL)
+#define STATUS_UNRECOGNIZED_VOLUME              ((NTSTATUS)0xC000014FL)
 #define STATUS_IO_DEVICE_ERROR                  ((NTSTATUS)0xC0000185L)
 
 #define NT_SUCCESS(Status)                      ((NTSTATUS)(Status) >= 0)

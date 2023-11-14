@@ -54,7 +54,7 @@ VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount)
 	}
 }
 
-static VOID KiRemoveTimer(PKTIMER Timer)
+VOID KiRemoveTimer(PKTIMER Timer)
 {
 	Timer->Header.Inserted = FALSE;
 	RemoveEntryList(&Timer->TimerListEntry);
@@ -100,7 +100,18 @@ static BOOLEAN KiInsertTimerInTimerTable(LARGE_INTEGER RelativeTime, LARGE_INTEG
 	return Timer->Header.Inserted;
 }
 
-static BOOLEAN KiInsertTimer(PKTIMER Timer, LARGE_INTEGER DueTime)
+PLARGE_INTEGER KiRecalculateTimerDueTime(PLARGE_INTEGER OriginalTime, PLARGE_INTEGER DueTime, PLARGE_INTEGER NewTime)
+{
+	if (OriginalTime->QuadPart >= 0) {
+		return OriginalTime;
+	}
+
+	NewTime->QuadPart = KeQueryInterruptTime();
+	NewTime->QuadPart -= DueTime->QuadPart;
+	return NewTime;
+}
+
+BOOLEAN KiInsertTimer(PKTIMER Timer, LARGE_INTEGER DueTime)
 {
 	LARGE_INTEGER RelativeTime = DueTime;
 	Timer->Header.Inserted = TRUE;

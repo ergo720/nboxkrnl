@@ -160,8 +160,15 @@ VOID KiInitSystem();
 DWORD KiSwapThreadContext();
 VOID XBOXAPI KiExecuteDpcQueue();
 PKTHREAD XBOXAPI KiQuantumEnd();
+VOID KiAdjustQuantumThread();
 NTSTATUS XBOXAPI KiSwapThread();
 
 VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQuantum);
 
 VOID XBOXAPI KiTimerExpiration(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
+BOOLEAN KiInsertTimer(PKTIMER Timer, LARGE_INTEGER DueTime);
+VOID KiRemoveTimer(PKTIMER Timer);
+PLARGE_INTEGER KiRecalculateTimerDueTime(PLARGE_INTEGER OriginalTime, PLARGE_INTEGER DueTime, PLARGE_INTEGER NewTime);
+
+VOID KiWaitTest(PVOID Object, KPRIORITY Increment);
+VOID KiUnwaitThread(PKTHREAD Thread, LONG_PTR WaitStatus, KPRIORITY Increment);

@@ -167,7 +167,7 @@ VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread)
 	KiAddThreadToReadyList<true>(Thread);
 }
 
-static VOID KiScheduleThread(PKTHREAD Thread)
+VOID KiScheduleThread(PKTHREAD Thread)
 {
 	if (KiPcr.PrcbData.NextThread) {
 		// If another thread was selected and this one has higher priority, preempt it
@@ -386,6 +386,18 @@ PKTHREAD XBOXAPI KiQuantumEnd()
 	return KiPcr.PrcbData.NextThread;
 }
 
+VOID KiAdjustQuantumThread()
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PKTHREAD Thread = KeGetCurrentThread();
+
+	if ((Thread->Priority < LOW_REALTIME_PRIORITY) && (Thread->BasePriority < TIME_CRITICAL_BASE_PRIORITY)) {
+		Thread->Quantum -= WAIT_QUANTUM_DECREMENT;
+		KiQuantumEnd();
+	}
+}
+
 NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 {
 	// On entry, IRQL must be at DISPATCH_LEVEL
@@ -430,6 +442,7 @@ NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 		xor ecx, ecx // if KiSwapThreadContext signals an APC, then WaitIrql of the previous thread must have been zero
 		jmp restore_regs
 	end_func:
+		ret
 	}
 }
 
