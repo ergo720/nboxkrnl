@@ -48,5 +48,6 @@
 #define STATUS_UNRECOGNIZED_VOLUME              ((NTSTATUS)0xC000014FL)
 #define STATUS_IO_DEVICE_ERROR                  ((NTSTATUS)0xC0000185L)
 #define STATUS_MUTANT_LIMIT_EXCEEDED            ((NTSTATUS)0xC0000191L)
+#define STATUS_VOLUME_DISMOUNTED                ((NTSTATUS)0xC000026EL)
 
 #define NT_SUCCESS(Status)                      ((NTSTATUS)(Status) >= 0)

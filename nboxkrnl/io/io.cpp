@@ -20,6 +20,16 @@ EXPORTNUM(70) OBJECT_TYPE IoDeviceObjectType = {
 	'iveD'
 };
 
+EXPORTNUM(71) OBJECT_TYPE IoFileObjectType = {
+	ExAllocatePoolWithTag,
+	ExFreePool,
+	IopCloseFile,
+	IopDeleteFile,
+	IopParseFile,
+	(PVOID)offsetof(FILE_OBJECT, Event.Header),
+	'eliF'
+};
+
 BOOLEAN IoInitSystem()
 {
 	IoInfoBlock InfoBlock;
@@ -44,6 +54,22 @@ BOOLEAN IoInitSystem()
 	}
 
 	return TRUE;
+}
+
+EXPORTNUM(59) PVOID XBOXAPI IoAllocateIrp
+(
+	CCHAR StackSize
+)
+{
+	USHORT PacketSize = USHORT(sizeof(IRP) + StackSize * sizeof(IO_STACK_LOCATION));
+	PIRP Irp = (PIRP)ExAllocatePoolWithTag(PacketSize, ' prI');
+	if (Irp == nullptr) {
+		return Irp;
+	}
+
+	IoInitializeIrp(Irp, PacketSize, StackSize);
+
+	return Irp;
 }
 
 EXPORTNUM(65) NTSTATUS XBOXAPI IoCreateDevice
@@ -209,6 +235,30 @@ EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
 	RIP_API_MSG("incomplete");
 }
 
+EXPORTNUM(72) VOID XBOXAPI IoFreeIrp
+(
+	PIRP Irp
+)
+{
+	ExFreePool(Irp);
+}
+
+EXPORTNUM(73) VOID XBOXAPI IoInitializeIrp
+(
+	PIRP Irp,
+	USHORT PacketSize,
+	CCHAR StackSize
+)
+{
+	memset(Irp, 0, PacketSize);
+	Irp->Type = (CSHORT)IO_TYPE_IRP;
+	Irp->Size = PacketSize;
+	Irp->StackCount = StackSize;
+	Irp->CurrentLocation = StackSize + 1;
+	InitializeListHead(&Irp->ThreadListEntry);
+	Irp->Tail.Overlay.CurrentStackLocation = (PIO_STACK_LOCATION)((UCHAR *)Irp + sizeof(IRP) + (StackSize * sizeof(IO_STACK_LOCATION)));
+}
+
 EXPORTNUM(74) NTSTATUS XBOXAPI IoInvalidDeviceRequest
 (
 	PDEVICE_OBJECT DeviceObject,
@@ -218,8 +268,147 @@ EXPORTNUM(74) NTSTATUS XBOXAPI IoInvalidDeviceRequest
 	RIP_UNIMPLEMENTED();
 }
 
+EXPORTNUM(86) NTSTATUS FASTCALL IofCallDriver
+(
+	PDEVICE_OBJECT DeviceObject,
+	PIRP Irp
+)
+{
+	// This passes the Irp to the next lower lever driver in the chain and calls it
+
+	--Irp->CurrentLocation;
+	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
+	Irp->Tail.Overlay.CurrentStackLocation = IrpStackPointer;
+	IrpStackPointer->DeviceObject = DeviceObject;
+
+	return DeviceObject->DriverObject->MajorFunction[IrpStackPointer->MajorFunction](DeviceObject, Irp);
+}
+
 NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
 	PVOID Context, PVOID *Object)
 {
-	RIP_UNIMPLEMENTED();
+	*Object = NULL_HANDLE;
+
+	// This function is supposed to be called for create/open request from NtCreate/OpenFile, so the context is an OPEN_PACKET
+	POPEN_PACKET OpenPacket = (POPEN_PACKET)Context;
+
+	if ((OpenPacket == nullptr) && (RemainderName->Length == 0)) {
+		ObfDereferenceObject(ParseObject);
+		*Object = ParseObject;
+		return STATUS_SUCCESS;
+	}
+
+	// Sanity check: ensure that the request is really open/create
+	if ((OpenPacket == nullptr) || ((OpenPacket->Type != IO_TYPE_OPEN_PACKET) || (OpenPacket->Size != sizeof(OPEN_PACKET)))) {
+		NTSTATUS Status = STATUS_OBJECT_TYPE_MISMATCH;
+		if (OpenPacket) {
+			OpenPacket->FinalStatus = Status;
+		}
+		return Status;
+	}
+
+	PDEVICE_OBJECT ParsedDeviceObject = (PDEVICE_OBJECT)ParseObject;
+
+	if (OpenPacket->RelatedFileObject) {
+		RIP_API_MSG("RelatedFileObject in OpenPacket is not supported");
+	}
+
+	KIRQL OldIrql = IoLock();
+	if (ParsedDeviceObject->DeletePending || (ParsedDeviceObject->Flags & DO_DEVICE_INITIALIZING)) {
+		// Device is going away or being initialized, fail the request
+		IoUnlock(OldIrql);
+		OpenPacket->FinalStatus = STATUS_NO_SUCH_DEVICE;
+		return OpenPacket->FinalStatus;
+	}
+	else if ((ParsedDeviceObject->Flags & DO_EXCLUSIVE) && ParsedDeviceObject->ReferenceCount) {
+		// Device has exclusive access and somebody else already opened it, fail the request
+		IoUnlock(OldIrql);
+		OpenPacket->FinalStatus = STATUS_ACCESS_DENIED;
+		return OpenPacket->FinalStatus;
+	}
+
+	PDEVICE_OBJECT MountedDeviceObject = ParsedDeviceObject->MountedOrSelfDevice;
+	if (MountedDeviceObject == nullptr) {
+		IoUnlock(OldIrql);
+		if (NTSTATUS Status = IopMountDevice(ParsedDeviceObject); !NT_SUCCESS(Status)) {
+			OpenPacket->FinalStatus = Status;
+			return Status;
+		}
+		OldIrql = IoLock();
+		MountedDeviceObject = ParsedDeviceObject->MountedOrSelfDevice;
+	}
+
+	++MountedDeviceObject->ReferenceCount;
+	IoUnlock(OldIrql);
+
+	RtlMapGenericMask(&OpenPacket->DesiredAccess, &IoFileMapping);
+
+	// Create the IRP to submit the I/O request
+	PIRP Irp = (PIRP)IoAllocateIrp(MountedDeviceObject->StackSize);
+	if (Irp == nullptr) {
+		IopDereferenceDeviceObject(MountedDeviceObject);
+		return STATUS_INSUFFICIENT_RESOURCES;
+	}
+
+	IO_STATUS_BLOCK IoStatus;
+	Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
+	Irp->Flags = IRP_CREATE_OPERATION | IRP_SYNCHRONOUS_API;
+	Irp->Overlay.AllocationSize = OpenPacket->AllocationSize;
+	Irp->UserIosb = &IoStatus;
+
+	PIO_STACK_LOCATION IrpStackPointer = Irp->Tail.Overlay.CurrentStackLocation - 1;
+	IrpStackPointer->MajorFunction = IRP_MJ_CREATE;
+	IrpStackPointer->Flags = (UCHAR)OpenPacket->Options;
+	if ((Attributes & OBJ_CASE_INSENSITIVE) == 0) {
+		IrpStackPointer->Flags |= IRP_SP_CASE_SENSITIVE;
+	}
+	
+	IrpStackPointer->Parameters.Create.Options = (OpenPacket->Disposition << 24) | (OpenPacket->CreateOptions & 0x00ffffff);
+	IrpStackPointer->Parameters.Create.FileAttributes = OpenPacket->FileAttributes;
+	IrpStackPointer->Parameters.Create.ShareAccess = OpenPacket->ShareAccess;
+	IrpStackPointer->Parameters.Create.DesiredAccess = OpenPacket->DesiredAccess;
+	IrpStackPointer->Parameters.Create.RemainingName = RemainderName;
+
+	OBJECT_ATTRIBUTES objectAttributes;
+	InitializeObjectAttributes(&objectAttributes, Name, Attributes, nullptr);
+	PFILE_OBJECT FileObject;
+	if (NTSTATUS Status = ObCreateObject(&IoFileObjectType, &objectAttributes, sizeof(FILE_OBJECT), (PVOID *)&FileObject); !NT_SUCCESS(Status)) {
+		IoFreeIrp(Irp);
+		IopDereferenceDeviceObject(MountedDeviceObject);
+		OpenPacket->FinalStatus = Status;
+		return Status;
+	}
+
+	memset(FileObject, 0, sizeof(FILE_OBJECT));
+	FileObject->Type = IO_TYPE_FILE;
+	FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
+	if (OpenPacket->CreateOptions & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)) {
+		FileObject->Flags = FO_SYNCHRONOUS_IO;
+		if (OpenPacket->CreateOptions & FILE_SYNCHRONOUS_IO_ALERT) {
+			FileObject->Flags |= FO_ALERTABLE_IO;
+		}
+	}
+	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+		FileObject->LockCount = -1;
+		KeInitializeEvent(&FileObject->Lock, SynchronizationEvent, FALSE);
+	}
+
+	FileObject->Type = IO_TYPE_FILE;
+	FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
+	FileObject->DeviceObject = MountedDeviceObject;
+
+	Irp->Tail.Overlay.OriginalFileObject = FileObject;
+	IrpStackPointer->FileObject = FileObject;
+
+	KeInitializeEvent(&FileObject->Event, NotificationEvent, FALSE);
+	OpenPacket->FileObject = FileObject;
+
+	IopQueueThreadIrp(Irp);
+
+	// Current irp setup:
+	// stack location 1 -> fs/raw driver (fatx/xdvdfs/udf or raw disk)
+	// stack location 0 -> device driver (hdd/mu/...) 
+	IofCallDriver(MountedDeviceObject, Irp);
+
+	RIP_API_MSG("incomplete");
 }

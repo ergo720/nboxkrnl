@@ -8,6 +8,9 @@
 #include "..\ke\ke.hpp"
 
 
+#define FO_SYNCHRONOUS_IO                0x00000002
+#define FO_ALERTABLE_IO                  0x00000004
+
 #define IO_TYPE_ADAPTER                  0x00000001
 #define IO_TYPE_CONTROLLER               0x00000002
 #define IO_TYPE_DEVICE                   0x00000003
@@ -24,6 +27,7 @@
 
 #define FILE_DEVICE_CD_ROM              0x00000002
 #define FILE_DEVICE_DISK                0x00000007
+#define FILE_DEVICE_DISK_FILE_SYSTEM    0x00000008
 #define FILE_DEVICE_MEMORY_UNIT         0x0000003a
 #define FILE_DEVICE_MEDIA_BOARD         0x0000003b
 
@@ -34,7 +38,51 @@
 #define DO_DEVICE_INITIALIZING          0x00000010
 #define DO_SCATTER_GATHER_IO            0x00000040
 
-#define IRP_MJ_MAXIMUM_FUNCTION 0x1b
+#define IRP_SP_CASE_SENSITIVE           0x00000080
+
+#define IRP_NOCACHE                     0x00000001
+#define IRP_PAGING_IO                   0x00000002
+#define IRP_MOUNT_COMPLETION            0x00000002
+#define IRP_SYNCHRONOUS_API             0x00000004
+#define IRP_ASSOCIATED_IRP              0x00000008
+#define IRP_BUFFERED_IO                 0x00000010
+#define IRP_DEALLOCATE_BUFFER           0x00000020
+#define IRP_INPUT_OPERATION             0x00000040
+#define IRP_SYNCHRONOUS_PAGING_IO       0x00000040
+#define IRP_CREATE_OPERATION            0x00000080
+#define IRP_READ_OPERATION              0x00000100
+#define IRP_WRITE_OPERATION             0x00000200
+#define IRP_CLOSE_OPERATION             0x00000400
+
+#define IRP_MJ_CREATE                    0x00
+#define IRP_MJ_CREATE_NAMED_PIPE         0x01
+#define IRP_MJ_CLOSE                     0x02
+#define IRP_MJ_READ                      0x03
+#define IRP_MJ_WRITE                     0x04
+#define IRP_MJ_QUERY_INFORMATION         0x05
+#define IRP_MJ_SET_INFORMATION           0x06
+#define IRP_MJ_QUERY_EA                  0x07
+#define IRP_MJ_SET_EA                    0x08
+#define IRP_MJ_FLUSH_BUFFERS             0x09
+#define IRP_MJ_QUERY_VOLUME_INFORMATION  0x0a
+#define IRP_MJ_SET_VOLUME_INFORMATION    0x0b
+#define IRP_MJ_DIRECTORY_CONTROL         0x0c
+#define IRP_MJ_FILE_SYSTEM_CONTROL       0x0d
+#define IRP_MJ_DEVICE_CONTROL            0x0e
+#define IRP_MJ_INTERNAL_DEVICE_CONTROL   0x0f
+#define IRP_MJ_SHUTDOWN                  0x10
+#define IRP_MJ_LOCK_CONTROL              0x11
+#define IRP_MJ_CLEANUP                   0x12
+#define IRP_MJ_CREATE_MAILSLOT           0x13
+#define IRP_MJ_QUERY_SECURITY            0x14
+#define IRP_MJ_SET_SECURITY              0x15
+#define IRP_MJ_POWER                     0x16
+#define IRP_MJ_SYSTEM_CONTROL            0x17
+#define IRP_MJ_DEVICE_CHANGE             0x18
+#define IRP_MJ_QUERY_QUOTA               0x19
+#define IRP_MJ_SET_QUOTA                 0x1a
+#define IRP_MJ_PNP                       0x1b
+#define IRP_MJ_MAXIMUM_FUNCTION          0x1b
 
 
 using PFILE_SEGMENT_ELEMENT = PVOID;
@@ -47,6 +95,31 @@ enum IO_ALLOCATION_ACTION {
 	DeallocateObject,
 	DeallocateObjectKeepRegisters
 };
+
+enum MEDIA_TYPE {
+	FixedMedia = 12
+};
+
+enum FILE_INFORMATION_CLASS {
+	FileBasicInformation = 4,
+	FileStandardInformation = 5,
+	FilePositionInformation = 14,
+	FileEndOfFileInformation = 20,
+};
+using PFILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS *;
+
+enum FS_INFORMATION_CLASS {
+	FileFsVolumeInformation = 1,
+	FileFsLabelInformation,
+	FileFsSizeInformation,
+	FileFsDeviceInformation,
+	FileFsAttributeInformation,
+	FileFsControlInformation,
+	FileFsFullSizeInformation,
+	FileFsObjectIdInformation,
+	FileFsMaximumInformation
+};
+using PFS_INFORMATION_CLASS = FS_INFORMATION_CLASS *;
 
 using PDRIVER_CONTROL = IO_ALLOCATION_ACTION(XBOXAPI *)(
 	struct DEVICE_OBJECT *DeviceObject,
@@ -78,6 +151,23 @@ using PDRIVER_DISMOUNTVOLUME = NTSTATUS(XBOXAPI *)(
 	struct DEVICE_OBJECT *DeviceObject
 	);
 
+using PIO_COMPLETION_ROUTINE = NTSTATUS(XBOXAPI *)(
+	struct DEVICE_OBJECT *DeviceObject,
+	struct IRP *Irp,
+	PVOID Context
+	);
+
+using PIO_APC_ROUTINE = VOID(XBOXAPI *)(
+	PVOID ApcContext,
+	struct IO_STATUS_BLOCK *IoStatusBlock,
+	ULONG Reserved
+	);
+
+using PDRIVER_CANCEL = VOID(XBOXAPI *)(
+	struct DEVICE_OBJECT *DeviceObject,
+	struct IRP *Irp
+	);
+
 struct IO_COMPLETION_CONTEXT {
 	PVOID Port;
 	PVOID Key;
@@ -93,25 +183,17 @@ struct IO_STATUS_BLOCK {
 };
 using PIO_STATUS_BLOCK = IO_STATUS_BLOCK *;
 
-struct IRP {
-	CSHORT Type;
-	WORD Size;
-	ULONG Flags;
-	LIST_ENTRY ThreadListEntry;
-	IO_STATUS_BLOCK IoStatusBlock;
-	CHAR StackCount;
-	CHAR CurrentLocation;
-	UCHAR PendingReturned;
-	UCHAR Cancel;
-	PIO_STATUS_BLOCK UserIosb;
-	PKEVENT UserEvent;
-	ULONGLONG Overlay;
-	PVOID UserBuffer;
-	PFILE_SEGMENT_ELEMENT SegmentArray;
-	ULONG LockedBufferLength;
-	ULONGLONG Tail;            
+struct MDL {
+	struct _MDL *Next;
+	CSHORT Size;
+	CSHORT MdlFlags;
+	struct _EPROCESS *Process;
+	PVOID MappedSystemVa;
+	PVOID StartVa;
+	ULONG ByteCount;
+	ULONG ByteOffset;
 };
-using PIRP = IRP *;
+using PMDL = MDL *;
 
 struct DEVICE_OBJECT {
 	CSHORT Type;
@@ -119,7 +201,7 @@ struct DEVICE_OBJECT {
 	LONG ReferenceCount;
 	struct DRIVER_OBJECT *DriverObject;
 	struct DEVICE_OBJECT *MountedOrSelfDevice;
-	PIRP CurrentIrp;
+	struct IRP *CurrentIrp;
 	ULONG Flags;
 	PVOID DeviceExtension;
 	UCHAR DeviceType;
@@ -150,7 +232,7 @@ struct FILE_OBJECT {
 	PVOID FsContext2;
 	NTSTATUS FinalStatus;
 	LARGE_INTEGER CurrentByteOffset;
-	struct _FILE_OBJECT *RelatedFileObject;
+	struct FILE_OBJECT *RelatedFileObject;
 	PIO_COMPLETION_CONTEXT CompletionContext;
 	LONG LockCount;
 	KEVENT Lock;
@@ -249,3 +331,180 @@ struct IDE_DISK_EXTENSION {
 	PARTITION_INFORMATION PartitionInformation;
 };
 using PIDE_DISK_EXTENSION = IDE_DISK_EXTENSION *;
+
+struct DISK_GEOMETRY {
+	LARGE_INTEGER Cylinders;
+	MEDIA_TYPE MediaType;
+	DWORD TracksPerCylinder;
+	DWORD SectorsPerTrack;
+	DWORD BytesPerSector;
+};
+using PDISK_GEOMETRY = DISK_GEOMETRY *;
+
+struct IO_STACK_LOCATION {
+	UCHAR MajorFunction;
+	UCHAR MinorFunction;
+	UCHAR Flags;
+	UCHAR Control;
+
+	union {
+		struct {
+			ACCESS_MASK DesiredAccess;
+			ULONG Options;
+			USHORT FileAttributes;
+			USHORT ShareAccess;
+			POBJECT_STRING RemainingName;
+		} Create;
+
+		struct {
+			ULONG Length;
+			union {
+				ULONG BufferOffset;
+				PVOID CacheBuffer;
+			};
+			LARGE_INTEGER ByteOffset;
+		} Read;
+
+		struct {
+			ULONG Length;
+			union {
+				ULONG BufferOffset;
+				PVOID CacheBuffer;
+			};
+			LARGE_INTEGER ByteOffset;
+		} Write;
+
+		struct {
+			ULONG Length;
+			POBJECT_STRING FileName;
+			FILE_INFORMATION_CLASS FileInformationClass;
+		} QueryDirectory;
+
+		struct {
+			ULONG Length;
+			FILE_INFORMATION_CLASS FileInformationClass;
+		} QueryFile;
+
+		struct {
+			ULONG Length;
+			FILE_INFORMATION_CLASS FileInformationClass;
+			PFILE_OBJECT FileObject;
+		} SetFile;
+
+		struct {
+			ULONG Length;
+			FS_INFORMATION_CLASS FsInformationClass;
+		} QueryVolume;
+
+		struct {
+			ULONG Length;
+			FS_INFORMATION_CLASS FsInformationClass;
+		} SetVolume;
+
+		struct {
+			ULONG OutputBufferLength;
+			PVOID InputBuffer;
+			ULONG InputBufferLength;
+			ULONG FsControlCode;
+		} FileSystemControl;
+
+		struct {
+			ULONG OutputBufferLength;
+			PVOID InputBuffer;
+			ULONG InputBufferLength;
+			ULONG IoControlCode;
+		} DeviceIoControl;
+
+		struct {
+			struct _SCSI_REQUEST_BLOCK *Srb;
+		} Scsi;
+
+		struct {
+			ULONG Length;
+			PUCHAR Buffer;
+			ULONG SectorNumber;
+			ULONG BufferOffset;
+		} IdexReadWrite;
+
+		struct {
+			PVOID Argument1;
+			PVOID Argument2;
+			PVOID Argument3;
+			PVOID Argument4;
+		} Others;
+
+	} Parameters;
+
+	PDEVICE_OBJECT DeviceObject;
+	PFILE_OBJECT FileObject;
+	PIO_COMPLETION_ROUTINE CompletionRoutine;
+	PVOID Context;
+};
+using PIO_STACK_LOCATION = IO_STACK_LOCATION *;
+
+struct IRP {
+	CSHORT Type;
+	USHORT Size;
+	PMDL MdlAddress;
+	ULONG Flags;
+	union {
+		struct _IRP *MasterIrp;
+		LONG IrpCount;
+		PVOID SystemBuffer;
+	} AssociatedIrp;
+	LIST_ENTRY ThreadListEntry;
+	IO_STATUS_BLOCK IoStatus;
+	KPROCESSOR_MODE RequestorMode;
+	BOOLEAN PendingReturned;
+	CHAR StackCount;
+	CHAR CurrentLocation;
+	BOOLEAN Cancel;
+	KIRQL CancelIrql;
+	CCHAR ApcEnvironment;
+	UCHAR AllocationFlags;
+	PIO_STATUS_BLOCK UserIosb;
+	PKEVENT UserEvent;
+	union {
+		struct {
+			PIO_APC_ROUTINE UserApcRoutine;
+			PVOID UserApcContext;
+		} AsynchronousParameters;
+		LARGE_INTEGER AllocationSize;
+	} Overlay;
+	PDRIVER_CANCEL CancelRoutine;
+	PVOID UserBuffer;
+	union {
+		struct {
+			union {
+				KDEVICE_QUEUE_ENTRY DeviceQueueEntry;
+				struct {
+					PVOID DriverContext[4];
+				};
+			};
+			PETHREAD Thread;
+			PCHAR AuxiliaryBuffer;
+			struct {
+				LIST_ENTRY ListEntry;
+				union {
+					struct IO_STACK_LOCATION *CurrentStackLocation;
+					ULONG PacketType;
+				};
+			};
+			PFILE_OBJECT OriginalFileObject;
+		} Overlay;
+		KAPC Apc;
+		PVOID CompletionKey;
+	} Tail;
+};
+using PIRP = IRP *;
+
+
+NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
+VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);
+VOID IopQueueThreadIrp(PIRP Irp);
+PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp);
+PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp);
+VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount);
+VOID XBOXAPI IopDeleteFile(PVOID Object);
+NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING CompleteName, POBJECT_STRING RemainingName,
+	PVOID Context, PVOID *Object);

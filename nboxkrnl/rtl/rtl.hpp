@@ -6,6 +6,7 @@
 
 #include "..\types.hpp"
 #include "..\ki\seh.hpp"
+#include "..\io\io.hpp"
 
 
 struct RTL_CRITICAL_SECTION {
@@ -84,6 +85,12 @@ EXPORTNUM(294) DLLEXPORT VOID XBOXAPI RtlLeaveCriticalSection
 EXPORTNUM(295) DLLEXPORT VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 (
 	PRTL_CRITICAL_SECTION CriticalSection
+);
+
+EXPORTNUM(297) DLLEXPORT VOID XBOXAPI RtlMapGenericMask
+(
+	PACCESS_MASK AccessMask,
+	PGENERIC_MAPPING GenericMapping
 );
 
 EXPORTNUM(301) DLLEXPORT ULONG XBOXAPI RtlNtStatusToDosError

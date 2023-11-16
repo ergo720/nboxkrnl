@@ -1,6 +1,7 @@
 /*
  * ergo720                Copyright (c) 2023
  * Fisherman166           Copyright (c) 2018
+ * PatrickvL              Copyright (c) 2018
  */
 
 #include "rtl.hpp"
@@ -189,6 +190,29 @@ EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 		dec [ecx]RTL_CRITICAL_SECTION.LockCount
 	end_func:
 	}
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(297) VOID XBOXAPI RtlMapGenericMask
+(
+	PACCESS_MASK AccessMask,
+	PGENERIC_MAPPING GenericMapping
+)
+{
+	if (*AccessMask & GENERIC_READ) {
+		*AccessMask |= GenericMapping->GenericRead;
+	}
+	if (*AccessMask & GENERIC_WRITE) {
+		*AccessMask |= GenericMapping->GenericWrite;
+	}
+	if (*AccessMask & GENERIC_EXECUTE) {
+		*AccessMask |= GenericMapping->GenericExecute;
+	}
+	if (*AccessMask & GENERIC_ALL) {
+		*AccessMask |= GenericMapping->GenericAll;
+	}
+
+	*AccessMask &= ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
 }
 
 EXPORTNUM(320) VOID XBOXAPI RtlZeroMemory

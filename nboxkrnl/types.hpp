@@ -11,6 +11,8 @@
 #define TRUE 1
 #define FALSE 0
 
+#define MAXLONG     0x7fffffff
+
 #define XBOXAPI  __stdcall
 #define FASTCALL __fastcall
 #define CDECL    __cdecl

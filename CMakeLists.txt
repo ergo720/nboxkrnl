@@ -58,6 +58,8 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/io.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/iop.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/fatx.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/bug_codes.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/ke.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.hpp"
@@ -77,7 +79,6 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/xc.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
- "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.hpp"
 )
 
 file (GLOB SOURCES
@@ -91,6 +92,9 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/io.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/iop.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/fatx.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/init.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/ki.cpp"
@@ -127,7 +131,6 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/crypto.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/sha.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
- "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.cpp"
 )
 
 source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})

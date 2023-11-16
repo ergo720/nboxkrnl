@@ -127,6 +127,16 @@ struct XBOX_EEPROM {
 	UCHAR Reserved1[2];
 };
 
+struct ERWLOCK {
+	LONG LockCount;
+	ULONG WritersWaitingCount;
+	ULONG ReadersWaitingCount;
+	ULONG ReadersEntryCount;
+	KEVENT WriterEvent;
+	KSEMAPHORE ReaderSemaphore;
+};
+using PERWLOCK = ERWLOCK *;
+
 static_assert(sizeof(XBOX_EEPROM) == 256);
 
 inline XBOX_EEPROM CachedEeprom;
