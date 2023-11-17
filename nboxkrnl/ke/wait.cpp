@@ -55,7 +55,8 @@ EXPORTNUM(159) DLLEXPORT NTSTATUS XBOXAPI KeWaitForSingleObject
 
 	NTSTATUS Status;
 	KWAIT_BLOCK LocalWaitBlock;
-	LARGE_INTEGER DueTime, DummyTime, CapturedTimeout = *Timeout;
+	LARGE_INTEGER DueTime, DummyTime;
+	PLARGE_INTEGER CapturedTimeout = Timeout;
 	PKWAIT_BLOCK WaitBlock = &LocalWaitBlock;
 	BOOLEAN HasWaited = FALSE;
 	while (true) {
@@ -138,7 +139,7 @@ EXPORTNUM(159) DLLEXPORT NTSTATUS XBOXAPI KeWaitForSingleObject
 		}
 
 		if (Timeout) {
-			Timeout = KiRecalculateTimerDueTime(&CapturedTimeout, &DueTime, &DummyTime);
+			Timeout = KiRecalculateTimerDueTime(CapturedTimeout, &DueTime, &DummyTime);
 		}
 
 		Thread->WaitIrql = KeRaiseIrqlToDpcLevel();
