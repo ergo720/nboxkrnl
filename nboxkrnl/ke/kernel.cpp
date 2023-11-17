@@ -8,6 +8,8 @@
 #include "..\ki\ki.hpp"
 #include "..\kernel.hpp"
 
+#define XBOX_ACPI_FREQUENCY 3375000 // 3.375 MHz
+
 
 XBOX_KEY_DATA XboxCERTKey;
 
@@ -45,6 +47,27 @@ EXPORTNUM(125) ULONGLONG XBOXAPI KeQueryInterruptTime()
 	}
 
 	return (ULONGLONG)InterruptTime.QuadPart;
+}
+
+EXPORTNUM(126) ULONGLONG XBOXAPI KeQueryPerformanceCounter()
+{
+	__asm {
+		pushfd
+		cli
+		mov edx, KE_ACPI_TIME_LOW
+		in eax, dx
+		mov ecx, eax
+		inc edx
+		in eax, dx
+		mov edx, eax
+		mov eax, ecx
+		popfd
+	}
+}
+
+EXPORTNUM(127) ULONGLONG XBOXAPI KeQueryPerformanceFrequency()
+{
+	return XBOX_ACPI_FREQUENCY;
 }
 
 // Source: Cxbx-Reloaded

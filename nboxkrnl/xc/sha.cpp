@@ -1,7 +1,7 @@
 /*
  * Nikos Mavroyanopoulos     Copyright (c) 2001
  * Hans Leidekker            Copyright (c) 2004
- * Filip Navara		         Copyright (c) 2004
+ * Filip Navara              Copyright (c) 2004
  */
 
 #include "xc.hpp"

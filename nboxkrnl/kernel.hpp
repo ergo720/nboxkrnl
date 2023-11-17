@@ -37,6 +37,9 @@
 #define XE_DVD_XBE_LENGTH 0x20C
 // Send the address where to put the name of the first XBE to launch from the DVD drive
 #define XE_DVD_XBE_ADDR 0x20D
+// Request the total ACPI time since booting
+#define KE_ACPI_TIME_LOW 0x20E
+#define KE_ACPI_TIME_HIGH 0x20F
 
 #define KERNEL_STACK_SIZE 12288
 #define KERNEL_BASE 0x80010000
