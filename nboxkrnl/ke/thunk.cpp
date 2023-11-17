@@ -11,6 +11,7 @@
 #include "..\ob\ob.hpp"
 #include "..\ps\ps.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\xc\xc.hpp"
 #include "..\xe\xe.hpp"
 
 #define FUNC(f) (f)
@@ -353,9 +354,9 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&WRITE_PORT_BUFFER_UCHAR),                 // 0x014C (332)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&WRITE_PORT_BUFFER_USHORT),                // 0x014D (333)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&WRITE_PORT_BUFFER_ULONG),                 // 0x014E (334)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcSHAInit),                               // 0x014F (335)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcSHAUpdate),                             // 0x0150 (336)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcSHAFinal),                              // 0x0151 (337)
+	(ULONG)FUNC(&XcSHAInit),                               // 0x014F (335)
+	(ULONG)FUNC(&XcSHAUpdate),                             // 0x0150 (336)
+	(ULONG)FUNC(&XcSHAFinal),                              // 0x0151 (337)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcRC4Key),                                // 0x0152 (338)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcRC4Crypt),                              // 0x0153 (339)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcHMAC),                                  // 0x0154 (340)
@@ -369,7 +370,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcBlockCrypt),                            // 0x015C (348)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcBlockCryptCBC),                         // 0x015D (349)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcCryptService),                          // 0x015E (350)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XcUpdateCrypto),                          // 0x015F (351)
+	(ULONG)FUNC(&XcUpdateCrypto),                          // 0x015F (351)
 	(ULONG)FUNC(&RtlRip),                                  // 0x0160 (352)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxLANKey),                          // 0x0161 (353)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxAlternateSignatureKeys),          // 0x0162 (354)

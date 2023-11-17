@@ -74,6 +74,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps/psp.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/xc.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.hpp"
@@ -123,6 +124,8 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/exp_sup.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/rtl.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl/strings.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/crypto.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/sha.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.cpp"
 )
