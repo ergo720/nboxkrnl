@@ -70,6 +70,16 @@ static const EepromInfo *ExpFindEepromInfo(XC_VALUE_INDEX Index)
 	return nullptr;
 }
 
+EXPORTNUM(22) OBJECT_TYPE ExMutantObjectType = {
+	ExAllocatePoolWithTag,
+	ExFreePool,
+	nullptr,
+	ExpDeleteMutant,
+	nullptr,
+	(PVOID)offsetof(KMUTANT, Header),
+	'atuM'
+};
+
 // Source: Cxbx-Reloaded
 EXPORTNUM(24) NTSTATUS XBOXAPI ExQueryNonVolatileSetting
 (

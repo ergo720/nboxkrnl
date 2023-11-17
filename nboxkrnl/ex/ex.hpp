@@ -5,6 +5,7 @@
 #pragma once
 
 #include "..\nt\zw.hpp"
+#include "..\ob\ob.hpp"
 
 #define TIME_ZONE_NAME_LENGTH 4
 
@@ -152,6 +153,8 @@ EXPORTNUM(17) DLLEXPORT VOID XBOXAPI ExFreePool
 	PVOID P
 );
 
+EXPORTNUM(22) DLLEXPORT extern OBJECT_TYPE ExMutantObjectType;
+
 EXPORTNUM(23) DLLEXPORT ULONG XBOXAPI ExQueryPoolBlockSize
 (
 	PVOID PoolBlock
@@ -202,3 +205,6 @@ EXPORTNUM(54) DLLEXPORT LONG FASTCALL InterlockedExchange
 #ifdef __cplusplus
 }
 #endif
+
+
+VOID XBOXAPI ExpDeleteMutant(PVOID Object);
