@@ -3,6 +3,7 @@
  */
 
 #include "..\ki\ki.hpp"
+#include "..\ex\ex.hpp"
 
 
 EXPORTNUM(110) VOID XBOXAPI KeInitializeMutant
@@ -30,4 +31,52 @@ EXPORTNUM(110) VOID XBOXAPI KeInitializeMutant
 		Mutant->Header.SignalState = 1;
 		Mutant->OwnerThread = nullptr;
 	}
+}
+
+EXPORTNUM(131) LONG XBOXAPI KeReleaseMutant
+(
+	PKMUTANT Mutant,
+	KPRIORITY Increment,
+	BOOLEAN Abandoned,
+	BOOLEAN Wait
+)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+
+	PKTHREAD Thread = KeGetCurrentThread();
+	LONG OldState = Mutant->Header.SignalState;
+
+	if (Abandoned) {
+		Mutant->Header.SignalState = 1;
+		Mutant->Abandoned = TRUE;
+	}
+	else {
+		if (Mutant->OwnerThread != Thread) {
+			KiUnlockDispatcherDatabase(OldIrql);
+			ExRaiseStatus(Mutant->Abandoned ? STATUS_ABANDONED : STATUS_MUTANT_NOT_OWNED); // won't return
+		}
+
+		Mutant->Header.SignalState += 1;
+	}
+
+	if (Mutant->Header.SignalState == 1) {
+		if (OldState <= 0) {
+			RemoveEntryList(&Mutant->MutantListEntry);
+		}
+
+		Mutant->OwnerThread = nullptr;
+		if (IsListEmpty(&Mutant->Header.WaitListHead) == FALSE) {
+			KiWaitTest(Mutant, Increment);
+		}
+	}
+
+	if (Wait) {
+		Thread->WaitNext = TRUE;
+		Thread->WaitIrql = OldIrql;
+	}
+	else {
+		KiUnlockDispatcherDatabase(OldIrql);
+	}
+
+	return OldState;
 }

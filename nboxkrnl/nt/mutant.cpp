@@ -23,3 +23,30 @@ EXPORTNUM(192) DLLEXPORT NTSTATUS XBOXAPI NtCreateMutant
 
 	return Status;
 }
+
+EXPORTNUM(221) NTSTATUS XBOXAPI NtReleaseMutant
+(
+	HANDLE MutantHandle,
+	PLONG PreviousCount
+)
+{
+	PVOID MutantObject;
+	NTSTATUS Status = ObReferenceObjectByHandle(MutantHandle, &ExMutantObjectType, &MutantObject);
+
+	if (NT_SUCCESS(Status)) {
+		// KeReleaseMutant will raise an exception if this thread doesn't own the mutex
+		__try {
+			LONG Count = KeReleaseMutant((PKMUTANT)MutantObject, PRIORITY_BOOST_MUTANT, FALSE, FALSE);
+			if (PreviousCount) {
+				*PreviousCount = Count;
+			}
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) {
+			Status = GetExceptionCode();
+		}
+
+		ObfDereferenceObject(MutantObject);
+	}
+
+	return Status;
+}
