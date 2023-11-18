@@ -5,6 +5,7 @@
 #pragma once
 
 #define STATUS_SUCCESS                          ((NTSTATUS)0x00000000L)
+#define STATUS_ABANDONED                        ((NTSTATUS)0x00000080L)
 #define STATUS_USER_APC                         ((NTSTATUS)0x000000C0L)
 #define STATUS_KERNEL_APC                       ((NTSTATUS)0x00000100L)
 #define STATUS_TIMEOUT                          ((NTSTATUS)0x00000102L)
@@ -45,5 +46,6 @@
 #define STATUS_INSUFFICIENT_RESOURCES           ((NTSTATUS)0xC000009AL)
 #define STATUS_UNRECOGNIZED_VOLUME              ((NTSTATUS)0xC000014FL)
 #define STATUS_IO_DEVICE_ERROR                  ((NTSTATUS)0xC0000185L)
+#define STATUS_MUTANT_LIMIT_EXCEEDED            ((NTSTATUS)0xC0000191L)
 
 #define NT_SUCCESS(Status)                      ((NTSTATUS)(Status) >= 0)

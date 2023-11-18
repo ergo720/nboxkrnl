@@ -94,7 +94,7 @@ EXPORTNUM(234) NTSTATUS XBOXAPI NtWaitForSingleObjectEx
 			ObjectToWaitOn = (PCHAR)Object + (ULONG_PTR)ObjectToWaitOn; // DefaultObject is the offset of DISPATCHER_HEADER::Header
 		}
 
-		// KeWaitForSingleObject will raise an exception if the Handle is a mutant/semaphore and its limit is exceeded
+		// KeWaitForSingleObject will raise an exception if the Handle is a mutant and its limit is exceeded
 		__try {
 			Status = KeWaitForSingleObject(ObjectToWaitOn, UserRequest, WaitMode, Alertable, Timeout);
 		}

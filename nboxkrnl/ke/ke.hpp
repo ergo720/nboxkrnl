@@ -30,6 +30,8 @@
 
 #define SYNCHRONIZATION_OBJECT_TYPE_MASK 7
 
+#define MUTANT_LIMIT 0x80000000
+
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
 // the accesses are atomic and thus thread-safe
 #define KeGetStackBase(var) \

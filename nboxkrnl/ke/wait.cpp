@@ -5,7 +5,23 @@
 
 #include "..\ki\ki.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\ex\ex.hpp"
 
+
+// Source: Cxbx-Reloaded
+static VOID KiWaitSatisfyMutant(PKMUTANT Mutant, PKTHREAD Thread)
+{
+	Mutant->Header.SignalState -= 1;
+	if (Mutant->Header.SignalState == 0) {
+		Mutant->OwnerThread = Thread;
+		if (Mutant->Abandoned == TRUE) {
+			Mutant->Abandoned = FALSE;
+			Thread->WaitStatus = STATUS_ABANDONED;
+		}
+
+		InsertHeadList(Thread->MutantListHead.Blink, &Mutant->MutantListEntry);
+	}
+}
 
 // Source: Cxbx-Reloaded
 static VOID KiWaitSatisfyAny(PVOID Object, PKTHREAD Thread)
@@ -18,7 +34,7 @@ static VOID KiWaitSatisfyAny(PVOID Object, PKTHREAD Thread)
 		Mutant->Header.SignalState -= 1;
 	}
 	else if (Mutant->Header.Type == MutantObject) {
-		RIP_API_MSG("Mutant objects are not supported");
+		KiWaitSatisfyMutant(Mutant, Thread);
 	}
 }
 
@@ -64,7 +80,17 @@ EXPORTNUM(159) DLLEXPORT NTSTATUS XBOXAPI KeWaitForSingleObject
 		Thread->WaitStatus = STATUS_SUCCESS;
 
 		if (Mutant->Header.Type == MutantObject) {
-			RIP_API_MSG("Mutant objects are not supported");
+			if ((Mutant->Header.SignalState > 0) || (Thread == Mutant->OwnerThread)) { // not owned or owned by current thread
+				if (Mutant->Header.SignalState != MUTANT_LIMIT) {
+					KiWaitSatisfyMutant(Mutant, Thread);
+					Status = Thread->WaitStatus;
+					break;
+				}
+				else {
+					KiUnlockDispatcherDatabase(Thread->WaitIrql);
+					ExRaiseStatus(STATUS_MUTANT_LIMIT_EXCEEDED); // won't return
+				}
+			}
 		}
 		else if (Mutant->Header.SignalState > 0) {
 			if ((Mutant->Header.Type & SYNCHRONIZATION_OBJECT_TYPE_MASK) == EventSynchronizationObject) {
