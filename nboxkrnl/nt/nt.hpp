@@ -64,6 +64,21 @@ EXPORTNUM(204) DLLEXPORT NTSTATUS XBOXAPI NtProtectVirtualMemory
 	PULONG OldProtect
 );
 
+EXPORTNUM(233) DLLEXPORT NTSTATUS XBOXAPI NtWaitForSingleObject
+(
+	HANDLE Handle,
+	BOOLEAN Alertable,
+	PLARGE_INTEGER Timeout
+);
+
+EXPORTNUM(234) DLLEXPORT NTSTATUS XBOXAPI NtWaitForSingleObjectEx
+(
+	HANDLE Handle,
+	KPROCESSOR_MODE WaitMode,
+	BOOLEAN Alertable,
+	PLARGE_INTEGER Timeout
+);
+
 #ifdef __cplusplus
 }
 #endif
