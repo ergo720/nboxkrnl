@@ -5,10 +5,10 @@
  */
 
 #include "xc.hpp"
+#include "..\rtl\rtl.hpp"
 #include <string.h>
 
 #define RtlCopyMemory(Destination,Source,Length) memcpy((Destination),(Source),(Length))
-#define RtlZeroMemory(Destination,Length) memset((Destination),0,(Length))
 
 
 /* SHA1 algorithm

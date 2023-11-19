@@ -7,6 +7,7 @@
 #include "..\hal\halp.hpp"
 #include "..\dbg\dbg.hpp"
 #include "..\ex\ex.hpp"
+#include <string.h>
 #include <assert.h>
 
 
@@ -188,6 +189,15 @@ EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 		dec [ecx]RTL_CRITICAL_SECTION.LockCount
 	end_func:
 	}
+}
+
+EXPORTNUM(320) VOID XBOXAPI RtlZeroMemory
+(
+	PVOID Destination,
+	SIZE_T Length
+)
+{
+	memset(Destination, 0, Length);
 }
 
 EXPORTNUM(352) VOID XBOXAPI RtlRip

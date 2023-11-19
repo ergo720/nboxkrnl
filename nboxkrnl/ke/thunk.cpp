@@ -339,7 +339,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlUpperString),                          // 0x013D (317)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlUshortByteSwap),                       // 0x013E (318)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlWalkFrameChain),                       // 0x013F (319)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlZeroMemory),                           // 0x0140 (320)
+	(ULONG)FUNC(&RtlZeroMemory),                           // 0x0140 (320)
 	(ULONG)VARIABLE(&XboxEEPROMKey),                       // 0x0141 (321)
 	(ULONG)VARIABLE(&XboxHardwareInfo),                    // 0x0142 (322)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxHDKey),                           // 0x0143 (323)
