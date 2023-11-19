@@ -424,6 +424,13 @@ extern "C" {
 	ULONG_PTR BugCheckParameter4
 );
 
+EXPORTNUM(99) DLLEXPORT NTSTATUS XBOXAPI KeDelayExecutionThread
+(
+	KPROCESSOR_MODE WaitMode,
+	BOOLEAN Alertable,
+	PLARGE_INTEGER Interval
+);
+
 EXPORTNUM(101) DLLEXPORT VOID XBOXAPI KeEnterCriticalRegion();
 
 EXPORTNUM(103) DLLEXPORT KIRQL XBOXAPI KeGetCurrentIrql();

@@ -51,6 +51,91 @@ static VOID KiWaitSatisfyAll(PKWAIT_BLOCK WaitBlock)
 	} while (CurrWaitBlock != WaitBlock);
 }
 
+EXPORTNUM(99) NTSTATUS XBOXAPI KeDelayExecutionThread
+(
+	KPROCESSOR_MODE WaitMode,
+	BOOLEAN Alertable,
+	PLARGE_INTEGER Interval
+)
+{
+	PKTHREAD Thread = KeGetCurrentThread();
+	if (Thread->WaitNext) {
+		Thread->WaitNext = FALSE;
+	}
+	else {
+		Thread->WaitIrql = KeRaiseIrqlToDpcLevel();
+	}
+
+	NTSTATUS Status;
+	LARGE_INTEGER DueTime, DummyTime;
+	PLARGE_INTEGER CapturedTimeout = Interval;
+	BOOLEAN HasWaited = FALSE;
+	while (true) {
+		Thread->WaitStatus = STATUS_SUCCESS;
+
+		if (Alertable) {
+			RIP_API_MSG("Thread alerts are not supported");
+		}
+		else if ((WaitMode == UserMode) && Thread->ApcState.UserApcPending) {
+			Status = STATUS_USER_APC;
+			break;
+		}
+
+		PKTIMER Timer = &Thread->Timer;
+		PKWAIT_BLOCK WaitTimer = &Thread->TimerWaitBlock;
+		Timer->Header.WaitListHead.Flink = &WaitTimer->WaitListEntry;
+		Timer->Header.WaitListHead.Blink = &WaitTimer->WaitListEntry;
+		WaitTimer->NextWaitBlock = WaitTimer;
+		Thread->WaitBlockList = WaitTimer;
+		if (KiInsertTimer(Timer, *Interval) == FALSE) {
+			Status = STATUS_SUCCESS;
+			break;
+		}
+
+		DueTime.QuadPart = Timer->DueTime.QuadPart;
+
+		if (Thread->Queue) {
+			RIP_API_MSG("Thread queues are not supported");
+		}
+
+		Thread->Alertable = Alertable;
+		Thread->WaitMode = WaitMode;
+		Thread->WaitReason = DelayExecution;
+		Thread->WaitTime = KeTickCount;
+		Thread->State = Waiting;
+		InsertTailList(&KiWaitInListHead, &Thread->WaitListEntry);
+
+		Status = KiSwapThread(); // returns either with a kernel APC or when the wait is satisfied
+		HasWaited = TRUE;
+
+		if (Status == STATUS_USER_APC) {
+			RIP_API_MSG("User APCs are not supported");
+		}
+
+		if (Status != STATUS_KERNEL_APC) {
+			if (Status == STATUS_TIMEOUT) {
+				return STATUS_SUCCESS;
+			}
+			return Status;
+		}
+
+		Interval = KiRecalculateTimerDueTime(CapturedTimeout, &DueTime, &DummyTime);
+
+		Thread->WaitIrql = KeRaiseIrqlToDpcLevel();
+	}
+
+	if (HasWaited == FALSE) {
+		KiAdjustQuantumThread();
+	}
+
+	KiUnlockDispatcherDatabase(Thread->WaitIrql);
+	if (Status == STATUS_USER_APC) {
+		RIP_API_MSG("User APCs are not supported");
+	}
+
+	return Status;
+}
+
 // Source: partially from Cxbx-Reloaded
 EXPORTNUM(159) DLLEXPORT NTSTATUS XBOXAPI KeWaitForSingleObject
 (
