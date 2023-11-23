@@ -4,6 +4,7 @@
  */
 
 #include "rtl.hpp"
+#include <string.h>
 
 
 // Source: Cxbx-Reloaded
@@ -50,6 +51,23 @@ EXPORTNUM(279) BOOLEAN XBOXAPI RtlEqualString
 	}
 
 	return bRet;
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(289) VOID XBOXAPI RtlInitAnsiString
+(
+	PANSI_STRING DestinationString,
+	PCSZ SourceString
+)
+{
+	DestinationString->Buffer = const_cast<PCHAR>(SourceString);
+	if (SourceString) {
+		DestinationString->Length = (USHORT)strlen(DestinationString->Buffer);
+		DestinationString->MaximumLength = DestinationString->Length + 1;
+	}
+	else {
+		DestinationString->Length = DestinationString->MaximumLength = 0;
+	}
 }
 
 // Source: Cxbx-Reloaded

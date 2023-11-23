@@ -72,6 +72,12 @@ EXPORTNUM(285) DLLEXPORT VOID XBOXAPI RtlFillMemoryUlong
 	ULONG Pattern
 );
 
+EXPORTNUM(289) DLLEXPORT VOID XBOXAPI RtlInitAnsiString
+(
+	PANSI_STRING DestinationString,
+	PCSZ SourceString
+);
+
 EXPORTNUM(291) DLLEXPORT VOID XBOXAPI RtlInitializeCriticalSection
 (
 	PRTL_CRITICAL_SECTION CriticalSection

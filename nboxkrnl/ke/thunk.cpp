@@ -308,7 +308,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlFreeAnsiString),                       // 0x011E (286)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlFreeUnicodeString),                    // 0x011F (287)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlGetCallersAddress),                    // 0x0120 (288)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlInitAnsiString),                       // 0x0121 (289)
+	(ULONG)FUNC(&RtlInitAnsiString),                       // 0x0121 (289)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlInitUnicodeString),                    // 0x0122 (290)
 	(ULONG)FUNC(&RtlInitializeCriticalSection),            // 0x0123 (291)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlIntegerToChar),                        // 0x0124 (292)
