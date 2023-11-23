@@ -372,9 +372,10 @@ static VOID MiReleasePtes(PPTEREGION PteRegion, PMMPTE StartPte, ULONG NumberOfP
 
 	if ((StartPte + NumberOfPtes) == Pte) {
 		// Following block is contiguous with the one we are freeing, merge the two
+		// NOTE: StartPte[1] must be updated after StartPte. Otherwise, if NumberOfPtes=1, then StartPte[1] == Pte and writing to StartPte[1] first will corrupt Pte!
 		StartPte->Free.OnePte = 0;
-		StartPte[1].Free.Flink = (Pte->Free.OnePte ? 1 : Pte[1].Free.Flink) + NumberOfPtes;
 		StartPte->Free.Flink = Pte->Free.Flink;
+		StartPte[1].Free.Flink = (Pte->Free.OnePte ? 1 : Pte[1].Free.Flink) + NumberOfPtes;
 		NumberOfPtes = StartPte[1].Free.Flink;
 	}
 
@@ -491,7 +492,7 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 		return nullptr;
 	}
 
-	PMMPTE StartPte = Pte, PteEnd = Pte + NumberOfPages - 1;
+	PMMPTE StartPte = Pte, PteEnd = Pte + NumberOfVirtualPages - 1;
 	if (AddGuardPage) {
 		WriteZeroPte(Pte); // the guard page of the stack is not backed by a physical page
 		StartPte = PteEnd + 1; // returns the top of the allocation
