@@ -38,7 +38,8 @@
 #define DO_DEVICE_INITIALIZING          0x00000010
 #define DO_SCATTER_GATHER_IO            0x00000040
 
-#define IRP_SP_CASE_SENSITIVE           0x00000080
+#define SL_CASE_SENSITIVE               0x00000080
+#define SL_OPEN_TARGET_DIRECTORY        0x00000004 // same as IO_OPEN_TARGET_DIRECTORY used by IoCreateFile
 
 #define IRP_NOCACHE                     0x00000001
 #define IRP_PAGING_IO                   0x00000002

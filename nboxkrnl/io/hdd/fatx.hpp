@@ -8,6 +8,7 @@
 #include "..\..\ex\ex.hpp"
 
 #define FATX_VOLUME_DISMOUNTED 2
+#define FATX_MAX_FILE_NAME_LENGTH 42
 
 
 struct FAT_VOLUME_EXTENSION {
@@ -18,4 +19,4 @@ struct FAT_VOLUME_EXTENSION {
 using PFAT_VOLUME_EXTENSION = FAT_VOLUME_EXTENSION *;
 
 
-NTSTATUS MountFatxVolume(PDEVICE_OBJECT DeviceObject);
+NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject);

@@ -112,45 +112,34 @@ VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
 		mov dx, IO_START
 		mov eax, ecx
 		out dx, eax
-		mov dx, IO_CHECK_ENQUEUE
-		in eax, dx
-		test eax, eax
-		jz ok
+		jmp first_try
 	retry:
 		mov dx, IO_RETRY
 		out dx, eax
+	first_try:
 		mov dx, IO_CHECK_ENQUEUE
 		in eax, dx
 		test eax, eax
 		jnz retry
-	ok:
 	}
 }
 
-VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, LONG Id)
+VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
 {
-	// NOTE: ebx is already saved by the compiler
 	// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
+
+	ULONG IdLow = Id & 0xFFFFFFFF;
+	ULONG IdHigh = (Id >> 32);
 
 	__asm {
 		pushfd
-		cli
-		mov ebx, edx
-		mov eax, edx
-		mov dx, IO_SET_ID
-		out dx, eax
-		mov dx, IO_QUERY_STATUS
-		in eax, dx
-		mov [ecx]IoInfoBlock.Status, eax
-		mov dx, IO_QUERY_INFO
-		in eax, dx
-		mov [ecx]IoInfoBlock.Info, eax
-		cmp dword ptr [ecx]IoInfoBlock.Status, Pending
-		jnz ok
 	retry:
 		cli
-		mov eax, ebx
-		mov dx, IO_SET_ID
+		mov eax, IdLow
+		mov dx, IO_SET_ID_LOW
+		out dx, eax
+		mov eax, IdHigh
+		mov dx, IO_SET_ID_HIGH
 		out dx, eax
 		mov dx, IO_QUERY_STATUS
 		in eax, dx
@@ -161,8 +150,21 @@ VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, LONG Id)
 		sti
 		cmp dword ptr [ecx]IoInfoBlock.Status, Pending
 		jz retry
-	ok:
-		dec IoRequestId
+		popfd
+	}
+}
+
+ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)
+{
+	__asm {
+		pushfd
+		cli
+		mov eax, [ecx]
+		mov edx, [ecx + 4]
+		add eax, 1
+		adc edx, 0
+		mov [ecx], eax
+		mov [ecx + 4], edx
 		popfd
 	}
 }

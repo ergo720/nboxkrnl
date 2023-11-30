@@ -14,8 +14,6 @@
 #define OB_HANDLES_PER_SEGMENT       (OB_TABLES_PER_SEGMENT * OB_HANDLES_PER_TABLE) // 512
 
 #define NULL_HANDLE ((HANDLE)(ULONG_PTR)0)
-#define XBE_HANDLE ((ULONG)-5)
-#define EEPROM_HANDLE ((ULONG)-6)
 #define NtCurrentThread() ((HANDLE)-2)
 #define ObDosDevicesDirectory() ((HANDLE)-3)
 #define ObWin32NamedObjectsDirectory() ((HANDLE)-4)

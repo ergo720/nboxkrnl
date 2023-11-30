@@ -106,7 +106,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoSynchronousDeviceIoControlRequest),     // 0x0054 (84)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoSynchronousFsdRequest),                 // 0x0055 (85)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IofCallDriver),                           // 0x0056 (86)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IofCompleteRequest),                      // 0x0057 (87)
+	(ULONG)FUNC(&IofCompleteRequest),                      // 0x0057 (87)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&KdDebuggerEnabled),                   // 0x0058 (88)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&KdDebuggerNotPresent),                // 0x0059 (89)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoDismountVolume),                        // 0x005A (90)

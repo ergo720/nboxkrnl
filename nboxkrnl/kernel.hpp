@@ -32,17 +32,23 @@
 // Check if a I/O request was submitted successfully
 #define IO_CHECK_ENQUEUE 0x20A
 // Set the id of the I/O request to query
-#define IO_SET_ID 0x20B
+#define IO_SET_ID_LOW 0x20B
+#define IO_SET_ID_HIGH 0x20C
 // Request the name's length of the first XBE to launch from the DVD drive
-#define XE_DVD_XBE_LENGTH 0x20C
+#define XE_DVD_XBE_LENGTH 0x20D
 // Send the address where to put the name of the first XBE to launch from the DVD drive
-#define XE_DVD_XBE_ADDR 0x20D
+#define XE_DVD_XBE_ADDR 0x20E
 // Request the total ACPI time since booting
-#define KE_ACPI_TIME_LOW 0x20E
-#define KE_ACPI_TIME_HIGH 0x20F
+#define KE_ACPI_TIME_LOW 0x20F
+#define KE_ACPI_TIME_HIGH 0x210
 
 #define KERNEL_STACK_SIZE 12288
 #define KERNEL_BASE 0x80010000
+
+// Special host handles
+#define XBE_HANDLE ((ULONGLONG)0)
+#define EEPROM_HANDLE ((ULONGLONG)1)
+#define LAST_NON_FREE_HANDLE EEPROM_HANDLE
 
 enum SystemType {
 	SYSTEM_XBOX,
@@ -51,39 +57,57 @@ enum SystemType {
 };
 
 enum IoRequestType : ULONG {
-	Open =   1 << 16,
-	Create = 2 << 16,
-	Remove = 3 << 16,
-	Close =  4 << 16,
-	Read =   5 << 16,
-	Write =  6 << 16
+	Open =   1 << 28,
+	Remove = 2 << 28,
+	Close =  3 << 28,
+	Read =   4 << 28,
+	Write =  5 << 28
 };
 
-enum IoDevice : ULONG {
-	Dvd = 0 << 12,
-	Hdd = 1 << 12
+enum IoFlags : ULONG {
+	IsDirectory         = 1 << 3,
+	MustBeADirectory    = 1 << 4,
+	MustNotBeADirectory = 1 << 5
 };
 
-enum IoStatus : ULONG {
+enum IoStatus : NTSTATUS {
 	Success = 0,
 	Pending,
-	Error
+	Error,
+	Failed,
+	IsADirectory,
+	NotADirectory,
+	NotFound
 };
+
+// Same as FILE_ macros of IO
+enum IoInfo : ULONG {
+	Superseded = 0,
+	Opened,
+	Created,
+	Overwritten,
+	Exists,
+	NotExists
+};
+
+// Type layout of IoRequest
+// IoRequestType - IoFlags - Disposition
+// 31 - 28         27 - 3    2 - 0
 
 #pragma pack(1)
 struct IoRequest {
-	ULONG Id; // unique id to identify this request
-	IoRequestType Type; // type of request and flags
+	ULONGLONG Id; // unique id to identify this request
+	ULONG Type; // type of request and flags
 	LONGLONG Offset; // file offset from which to start the I/O
 	ULONG Size; // bytes to transfer or size of path for open/create requests
-	ULONG HandleOrAddress; // virtual address of the data to transfer or file handle for open/create requests
-	ULONG HandleOrPath; // file handle or file path for open/create requests
+	ULONGLONG HandleOrAddress; // virtual address of the data to transfer or file handle for open/create requests
+	ULONGLONG HandleOrPath; // file handle or file path for open/create requests
 };
 #pragma pack()
 
 struct IoInfoBlock {
 	IoStatus Status;
-	ULONG Info;
+	IoInfo Info;
 };
 
 struct XBOX_HARDWARE_INFO {
@@ -95,7 +119,8 @@ struct XBOX_HARDWARE_INFO {
 };
 
 inline SystemType XboxType;
-inline LONG IoRequestId = -1;
+inline ULONGLONG IoRequestId = 0;
+inline ULONGLONG IoHostFileHandle = LAST_NON_FREE_HANDLE;
 
 #ifdef __cplusplus
 extern "C" {
@@ -110,7 +135,8 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 VOID FASTCALL OutputToHost(ULONG Value, USHORT Port);
 ULONG FASTCALL InputFromHost(USHORT Port);
 VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request);
-VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, LONG Id);
+VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id);
+ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);
 BOOLEAN IsListEmpty(PLIST_ENTRY pListHead);

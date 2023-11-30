@@ -7,6 +7,7 @@
 #include "..\..\ex\ex.hpp"
 #include "..\..\nt\nt.hpp"
 #include "..\..\rtl\rtl.hpp"
+#include <assert.h>
 
 
 /*
@@ -150,6 +151,11 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 		return STATUS_ACCESS_DENIED;
 	}
 
+	BOOLEAN HasBackslashAtEnd = FALSE;
+	if (RemainderName->Buffer[RemainderName->Length - 1] == OB_PATH_DELIMITER) {
+		HasBackslashAtEnd = TRUE; // creating or opening a directory
+	}
+
 	// Extract the partition name
 	OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainderName;
 	ObpParseName(&OriName, &FirstName, &LocalRemainderName);
@@ -182,6 +188,14 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 			}
 
 			if ((PartitionNumberStart == PartitionNumberEnd) && (PartitionNumber < XBOX_MAX_NUM_OF_PARTITIONS)) {
+				if (LocalRemainderName.Length || HasBackslashAtEnd) {
+					// Always pass an absolute path to the fatx driver so that it can open directories
+					LocalRemainderName.Buffer -= 1;
+					LocalRemainderName.Length += 1;
+					LocalRemainderName.MaximumLength = LocalRemainderName.Length;
+					assert(*LocalRemainderName.Buffer == OB_PATH_DELIMITER);
+				}
+
 				return IoParseDevice(HddPartitionObjectsArray[PartitionNumber], ObjectType, Attributes, Name, &LocalRemainderName, Context, Object);
 			}
 		}

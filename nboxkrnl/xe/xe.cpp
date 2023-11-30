@@ -71,12 +71,12 @@ static NTSTATUS XeLoadXbe()
 
 		IoInfoBlock InfoBlock;
 		IoRequest Packet;
-		Packet.Id = InterlockedIncrement(&IoRequestId);
-		Packet.Type = IoRequestType::Open;
+		Packet.Id = InterlockedIncrement64(&IoRequestId);
+		Packet.Type = IoRequestType::Open | FILE_OPEN;
 		Packet.HandleOrAddress = XBE_HANDLE;
 		Packet.Offset = 0;
-		Packet.Size = PathSize - 7;
-		Packet.HandleOrPath = (ULONG_PTR)&PathBuffer[7];
+		Packet.Size = PathSize - 1;
+		Packet.HandleOrPath = (ULONG_PTR)PathBuffer;
 		SubmitIoRequestToHost(&Packet);
 		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
@@ -89,7 +89,7 @@ static NTSTATUS XeLoadXbe()
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		Packet.Id = InterlockedIncrement(&IoRequestId);
+		Packet.Id = InterlockedIncrement64(&IoRequestId);
 		Packet.Type = IoRequestType::Read;
 		Packet.HandleOrPath = XBE_HANDLE;
 		Packet.Offset = 0;
@@ -128,7 +128,7 @@ static NTSTATUS XeLoadXbe()
 		XbeHeader = nullptr;
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
-			Packet.Id = InterlockedIncrement(&IoRequestId);
+			Packet.Id = InterlockedIncrement64(&IoRequestId);
 			Packet.Type = IoRequestType::Read;
 			Packet.HandleOrPath = XBE_HANDLE;
 			Packet.Offset = PAGE_SIZE;
@@ -251,7 +251,7 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 		// Copy the section data
 		IoInfoBlock InfoBlock;
 		IoRequest Packet;
-		Packet.Id = InterlockedIncrement(&IoRequestId);
+		Packet.Id = InterlockedIncrement64(&IoRequestId);
 		Packet.Type = IoRequestType::Read;
 		Packet.HandleOrPath = XBE_HANDLE;
 		Packet.Offset = Section->FileAddress;

@@ -46,6 +46,7 @@ using PBYTE = BYTE *;
 using PWCHAR = WCHAR *;
 using PUSHORT = USHORT *;
 using PULONG = ULONG *;
+using PULONGLONG = ULONGLONG *;
 using LPDWORD = DWORD *;
 using PUCHAR = UCHAR *;
 using PLONG = LONG *;

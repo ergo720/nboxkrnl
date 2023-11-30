@@ -34,7 +34,7 @@ BOOLEAN IoInitSystem()
 {
 	IoInfoBlock InfoBlock;
 	IoRequest Packet;
-	Packet.Id = InterlockedIncrement(&IoRequestId);
+	Packet.Id = InterlockedIncrement64(&IoRequestId);
 	Packet.Type = IoRequestType::Read;
 	Packet.HandleOrPath = EEPROM_HANDLE;
 	Packet.Offset = 0;
@@ -274,7 +274,7 @@ EXPORTNUM(86) NTSTATUS FASTCALL IofCallDriver
 	PIRP Irp
 )
 {
-	// This passes the Irp to the next lower lever driver in the chain and calls it
+	// This passes the Irp to the next lower level driver in the chain and calls it
 
 	--Irp->CurrentLocation;
 	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
@@ -282,6 +282,15 @@ EXPORTNUM(86) NTSTATUS FASTCALL IofCallDriver
 	IrpStackPointer->DeviceObject = DeviceObject;
 
 	return DeviceObject->DriverObject->MajorFunction[IrpStackPointer->MajorFunction](DeviceObject, Irp);
+}
+
+EXPORTNUM(87) VOID FASTCALL IofCompleteRequest
+(
+	PIRP Irp,
+	CCHAR PriorityBoost
+)
+{
+	RIP_UNIMPLEMENTED();
 }
 
 NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
@@ -328,7 +337,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	}
 
 	PDEVICE_OBJECT MountedDeviceObject = ParsedDeviceObject->MountedOrSelfDevice;
-	if (MountedDeviceObject == nullptr) {
+	while (MountedDeviceObject == nullptr) {
 		IoUnlock(OldIrql);
 		if (NTSTATUS Status = IopMountDevice(ParsedDeviceObject); !NT_SUCCESS(Status)) {
 			OpenPacket->FinalStatus = Status;
@@ -360,7 +369,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	IrpStackPointer->MajorFunction = IRP_MJ_CREATE;
 	IrpStackPointer->Flags = (UCHAR)OpenPacket->Options;
 	if ((Attributes & OBJ_CASE_INSENSITIVE) == 0) {
-		IrpStackPointer->Flags |= IRP_SP_CASE_SENSITIVE;
+		IrpStackPointer->Flags |= SL_CASE_SENSITIVE;
 	}
 	
 	IrpStackPointer->Parameters.Create.Options = (OpenPacket->Disposition << 24) | (OpenPacket->CreateOptions & 0x00ffffff);
@@ -397,6 +406,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
 	FileObject->DeviceObject = MountedDeviceObject;
 
+	Irp->Tail.Overlay.DriverContext[0] = Name;
 	Irp->Tail.Overlay.OriginalFileObject = FileObject;
 	IrpStackPointer->FileObject = FileObject;
 
