@@ -132,8 +132,6 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 }
 #endif
 
-VOID FASTCALL OutputToHost(ULONG Value, USHORT Port);
-ULONG FASTCALL InputFromHost(USHORT Port);
 VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request);
 VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id);
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
@@ -145,3 +143,20 @@ VOID InsertHeadList(PLIST_ENTRY pListHead, PLIST_ENTRY pEntry);
 VOID RemoveEntryList(PLIST_ENTRY pEntry);
 PLIST_ENTRY RemoveTailList(PLIST_ENTRY pListHead);
 PLIST_ENTRY RemoveHeadList(PLIST_ENTRY pListHead);
+
+static inline VOID CDECL outl(USHORT Port, ULONG Value)
+{
+	__asm {
+		mov eax, Value
+		mov dx, Port
+		out dx, eax
+	}
+}
+
+static inline ULONG CDECL inl(USHORT Port)
+{
+	__asm {
+		mov dx, Port
+		in eax, dx
+	}
+}

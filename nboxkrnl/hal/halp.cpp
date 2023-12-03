@@ -58,7 +58,7 @@ VOID HalpInitPIT()
 
 VOID HalpShutdownSystem()
 {
-	OutputToHost(0, KE_ABORT);
+	outl(KE_ABORT, 0);
 
 	while (true) {
 		__asm {

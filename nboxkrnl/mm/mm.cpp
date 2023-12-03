@@ -26,7 +26,7 @@ BOOLEAN MmInitSystem()
 {
 	ULONG RequiredPt = 2;
 
-	XboxType = static_cast<SystemType>(InputFromHost(KE_SYSTEM_TYPE));
+	XboxType = static_cast<SystemType>(inl(KE_SYSTEM_TYPE));
 	MiLayoutRetail = (XboxType == SYSTEM_XBOX);
 	MiLayoutChihiro = (XboxType == SYSTEM_CHIHIRO);
 	MiLayoutDevkit = (XboxType == SYSTEM_DEVKIT);

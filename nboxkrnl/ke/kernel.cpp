@@ -90,37 +90,11 @@ EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
 	*CurrentTime = SystemTime;
 }
 
-VOID FASTCALL OutputToHost(ULONG Value, USHORT Port)
-{
-	__asm {
-		mov eax, ecx
-		out dx, eax
-	}
-}
-
-ULONG FASTCALL InputFromHost(USHORT Port)
-{
-	__asm {
-		mov edx, ecx
-		in eax, dx
-	}
-}
-
 VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
 {
-	__asm {
-		mov dx, IO_START
-		mov eax, ecx
-		out dx, eax
-		jmp first_try
-	retry:
-		mov dx, IO_RETRY
-		out dx, eax
-	first_try:
-		mov dx, IO_CHECK_ENQUEUE
-		in eax, dx
-		test eax, eax
-		jnz retry
+	outl(IO_START, (ULONG_PTR)Request);
+	while (inl(IO_CHECK_ENQUEUE)) {
+		outl(IO_RETRY, 0);
 	}
 }
 
@@ -131,27 +105,23 @@ VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
 	ULONG IdLow = Id & 0xFFFFFFFF;
 	ULONG IdHigh = (Id >> 32);
 
-	__asm {
-		pushfd
-	retry:
-		cli
-		mov eax, IdLow
-		mov dx, IO_SET_ID_LOW
-		out dx, eax
-		mov eax, IdHigh
-		mov dx, IO_SET_ID_HIGH
-		out dx, eax
-		mov dx, IO_QUERY_STATUS
-		in eax, dx
-		mov [ecx]IoInfoBlock.Status, eax
-		mov dx, IO_QUERY_INFO
-		in eax, dx
-		mov [ecx]IoInfoBlock.Info, eax
-		sti
-		cmp dword ptr [ecx]IoInfoBlock.Status, Pending
-		jz retry
-		popfd
-	}
+	__asm pushfd
+
+	do {
+		__asm cli
+		outl(IO_SET_ID_LOW, IdLow);
+		outl(IO_SET_ID_HIGH, IdHigh);
+
+		Info->Status = (IoStatus)inl(IO_QUERY_STATUS);
+		Info->Info = (IoInfo)inl(IO_QUERY_INFO);
+
+		__asm {
+			sti
+			nop
+		}
+	} while (Info->Status == Pending);
+
+	__asm popfd
 }
 
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)

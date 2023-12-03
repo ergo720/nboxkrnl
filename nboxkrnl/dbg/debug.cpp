@@ -23,7 +23,7 @@ EXPORTNUM(8) ULONG CDECL DbgPrint
 		vsnprintf(buff, sizeof(buff), Format, vlist);
 		va_end(vlist);
 
-		OutputToHost(reinterpret_cast<ULONG>(buff), DBG_OUTPUT_STR_PORT);
+		outl(DBG_OUTPUT_STR_PORT, reinterpret_cast<ULONG>(buff));
 	}
 
 	return STATUS_SUCCESS;
