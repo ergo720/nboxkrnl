@@ -82,17 +82,17 @@ EXPORTNUM(239) NTSTATUS XBOXAPI ObCreateObject
 		return STATUS_SUCCESS;
 	}
 
-	OBJECT_STRING RemainderName, OriName = *ObjectAttributes->ObjectName;
+	OBJECT_STRING RemainingName, OriName = *ObjectAttributes->ObjectName;
 	OBJECT_STRING FirstName = { 0, 0, nullptr };
 	while (OriName.Length) {
-		ObpParseName(&OriName, &FirstName, &RemainderName);
+		ObpParseName(&OriName, &FirstName, &RemainingName);
 
-		if (RemainderName.Length && (RemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+		if (RemainingName.Length && (RemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 			// Another delimiter in the name is invalid
 			return STATUS_OBJECT_NAME_INVALID;
 		}
 
-		OriName = RemainderName;
+		OriName = RemainingName;
 	}
 
 	if (FirstName.Length == 0) {
@@ -150,13 +150,13 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 			return Status;
 		}
 
-		OBJECT_STRING FirstName, RemainderName, OriName = *ObjectAttributes->ObjectName;
+		OBJECT_STRING FirstName, RemainingName, OriName = *ObjectAttributes->ObjectName;
 		while (true) {
-			ObpParseName(&OriName, &FirstName, &RemainderName);
+			ObpParseName(&OriName, &FirstName, &RemainingName);
 
 			// All names between the delimiters must be directory objects, and the object's name must not exist already
 			if (PVOID ObjectInDirectory = ObpFindObjectInDirectory(Directory, &FirstName, TRUE); ObjectInDirectory != NULL_HANDLE) {
-				if (RemainderName.Length == 0) {
+				if (RemainingName.Length == 0) {
 					if (ObjectAttributes->Attributes & OBJ_OPENIF) {
 						if (GetObjHeader(ObjectInDirectory)->Type == GetObjHeader(Object)->Type) {
 							// Special case: if OBJ_OPENIF is set, insert the found object instead
@@ -186,7 +186,7 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 				Directory = (POBJECT_DIRECTORY)ObjectInDirectory;
 			}
 			else {
-				if (RemainderName.Length) {
+				if (RemainingName.Length) {
 					ObUnlock(OldIrql);
 					ObfDereferenceObject(Object);
 					return STATUS_OBJECT_PATH_NOT_FOUND;
@@ -195,7 +195,7 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 				break;
 			}
 
-			OriName = RemainderName;
+			OriName = RemainingName;
 		}
 	}
 

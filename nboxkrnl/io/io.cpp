@@ -293,7 +293,7 @@ EXPORTNUM(87) VOID FASTCALL IofCompleteRequest
 	RIP_UNIMPLEMENTED();
 }
 
-NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object)
 {
 	*Object = NULL_HANDLE;
@@ -301,7 +301,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	// This function is supposed to be called for create/open request from NtCreate/OpenFile, so the context is an OPEN_PACKET
 	POPEN_PACKET OpenPacket = (POPEN_PACKET)Context;
 
-	if ((OpenPacket == nullptr) && (RemainderName->Length == 0)) {
+	if ((OpenPacket == nullptr) && (RemainingName->Length == 0)) {
 		ObfDereferenceObject(ParseObject);
 		*Object = ParseObject;
 		return STATUS_SUCCESS;
@@ -376,7 +376,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	IrpStackPointer->Parameters.Create.FileAttributes = OpenPacket->FileAttributes;
 	IrpStackPointer->Parameters.Create.ShareAccess = OpenPacket->ShareAccess;
 	IrpStackPointer->Parameters.Create.DesiredAccess = OpenPacket->DesiredAccess;
-	IrpStackPointer->Parameters.Create.RemainingName = RemainderName;
+	IrpStackPointer->Parameters.Create.RemainingName = RemainingName;
 
 	OBJECT_ATTRIBUTES objectAttributes;
 	InitializeObjectAttributes(&objectAttributes, Name, Attributes, nullptr);

@@ -134,7 +134,7 @@ NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject)
 NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
-	POBJECT_STRING RemainderName = IrpStackPointer->Parameters.Create.RemainingName;
+	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
 
 	// TODO: instead of using a global lock, try instead to use a lock specific for the volume being accessed
 	FatxLock();
@@ -154,7 +154,7 @@ NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 	}
 
-	if (RemainderName->Length == 0) {
+	if (RemainingName->Length == 0) {
 		// Special case: open the volume itself
 
 		if ((Disposition != FILE_OPEN) && (Disposition != FILE_OPEN_IF)) { // must be an open operation
@@ -179,7 +179,7 @@ NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else {
 		BOOLEAN HasBackslashAtEnd = FALSE;
-		if ((RemainderName->Length == 1) && (RemainderName->Buffer[0] == OB_PATH_DELIMITER)) {
+		if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
 			// Special case: open the root directory of the volume
 
 			if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename the root directory
@@ -189,11 +189,11 @@ NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			HasBackslashAtEnd = TRUE;
 		}
 		else {
-			if (RemainderName->Buffer[RemainderName->Length - 1] == OB_PATH_DELIMITER) {
+			if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
 				HasBackslashAtEnd = TRUE; // creating or opening a directory
 			}
 
-			OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainderName;
+			OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainingName;
 			while (true) {
 				// Iterate until we validate all path names
 				ObpParseName(&OriName, &FirstName, &LocalRemainderName);
@@ -217,7 +217,7 @@ NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 
 		if (HasBackslashAtEnd && (CreateOptions & FILE_NON_DIRECTORY_FILE)) { // file must not be a directory
-			return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
+			return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
 		}
 		else if (!HasBackslashAtEnd && (CreateOptions & FILE_DIRECTORY_FILE)) { // file must be a directory
 			return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);

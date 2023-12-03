@@ -41,7 +41,7 @@ static constexpr XBOX_PARTITION_TABLE HddPartitionTable = {
 	}
 };
 
-NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object);
 
 OBJECT_TYPE HddDirectoryObjectType = {
@@ -140,24 +140,24 @@ BOOLEAN HddInitDriver()
 	return TRUE;
 }
 
-NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainderName,
+NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object)
 {
 	// This is the parse routine that is invoked by OB when it needs to reference path/files on the HDD, in particular, those that start with "\\Device\\Harddisk0"
 	
 	*Object = NULL_HANDLE;
 
-	if (RemainderName->Length == 0) {
+	if (RemainingName->Length == 0) {
 		return STATUS_ACCESS_DENIED;
 	}
 
 	BOOLEAN HasBackslashAtEnd = FALSE;
-	if (RemainderName->Buffer[RemainderName->Length - 1] == OB_PATH_DELIMITER) {
+	if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
 		HasBackslashAtEnd = TRUE; // creating or opening a directory
 	}
 
 	// Extract the partition name
-	OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainderName;
+	OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainingName;
 	ObpParseName(&OriName, &FirstName, &LocalRemainderName);
 
 	if (LocalRemainderName.Length && (LocalRemainderName.Buffer[0] == OB_PATH_DELIMITER)) {

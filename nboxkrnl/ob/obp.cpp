@@ -143,14 +143,14 @@ PVOID ObpGetObjectFromHandle(HANDLE Handle)
 	return NULL_HANDLE;
 }
 
-VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING RemainderName)
+VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING RemainingName)
 {
 	// This function attempts to find the first delimiter character in the supplied name. If there is one, the characters preceding it are considered the FirstName,
-	// and the characters following it are the RemainderName. If the delimiter is the leading character, it is discarded and the search starts after it.
-	// If there is no delimiter, then all characters are the FirstName and no RemainderName is present. Note that, in all cases, the delimiter itself is not included
-	// in FirstName and RemainderName
+	// and the characters following it are the RemainingName. If the delimiter is the leading character, it is discarded and the search starts after it.
+	// If there is no delimiter, then all characters are the FirstName and no RemainingName is present. Note that, in all cases, the delimiter itself is not included
+	// in FirstName and RemainingName
 	/*
-	* Name -> FirstName -> RemainderName
+	* Name -> FirstName -> RemainingName
 	* empty -> empty -> empty
 	* D -> D -> empty
 	* \ -> empty -> empty
@@ -177,23 +177,23 @@ VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING 
 		FirstName->Buffer = &Name->Buffer[StartIdx];
 		FirstName->Length = Name->Length - StartIdx;
 		FirstName->MaximumLength = FirstName->Length + 1;
-		RemainderName->Buffer = nullptr;
-		RemainderName->Length = 0;
-		RemainderName->MaximumLength = 0;
+		RemainingName->Buffer = nullptr;
+		RemainingName->Length = 0;
+		RemainingName->MaximumLength = 0;
 	}
 	else {
 		FirstName->Buffer = &Name->Buffer[StartIdx];
 		FirstName->Length = FirstDelimiterIdx - StartIdx;
 		FirstName->MaximumLength = FirstName->Length + 1;
 		if (Name->Length > FirstDelimiterIdx) {
-			RemainderName->Buffer = &Name->Buffer[FirstDelimiterIdx + 1];
-			RemainderName->Length = Name->Length - (FirstName->Length + StartIdx + 1);
-			RemainderName->MaximumLength = RemainderName->Length + 1;
+			RemainingName->Buffer = &Name->Buffer[FirstDelimiterIdx + 1];
+			RemainingName->Length = Name->Length - (FirstName->Length + StartIdx + 1);
+			RemainingName->MaximumLength = RemainingName->Length + 1;
 		}
 		else {
-			RemainderName->Buffer = nullptr;
-			RemainderName->Length = 0;
-			RemainderName->MaximumLength = 0;
+			RemainingName->Buffer = nullptr;
+			RemainingName->Length = 0;
+			RemainingName->MaximumLength = 0;
 		}
 	}
 }
@@ -293,7 +293,7 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 
 	PVOID FoundObject = Directory;
 	BOOLEAN ShouldFollowSymbolicLinks = ObjectType == &ObSymbolicLinkObjectType ? FALSE : TRUE;
-	OBJECT_STRING FirstName, RemainderName;
+	OBJECT_STRING FirstName, RemainingName;
 	POBJECT_HEADER Obj = GetObjHeader(FoundObject);
 	if (OriName.Length == 0) {
 		// Special case: reference a directory with a relative path specified by the RootDirectory handle
@@ -301,22 +301,22 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 	}
 
 	while (true) {
-		ObpParseName(&OriName, &FirstName, &RemainderName);
+		ObpParseName(&OriName, &FirstName, &RemainingName);
 
-		if (RemainderName.Length && (RemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+		if (RemainingName.Length && (RemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 			// Another delimiter in the name is invalid
 			ObUnlock(OldIrql);
 			return STATUS_OBJECT_NAME_INVALID;
 		}
 
 		if (FoundObject = ObpFindObjectInDirectory(Directory, &FirstName, ShouldFollowSymbolicLinks); FoundObject == NULL_HANDLE) {
-			NTSTATUS Status = RemainderName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
+			NTSTATUS Status = RemainingName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
 			ObUnlock(OldIrql);
 			return Status;
 		}
 
 		Obj = GetObjHeader(FoundObject);
-		if (RemainderName.Length == 0) {
+		if (RemainingName.Length == 0) {
 		BypassFindObject:
 			if (Obj->Type->ParseProcedure) {
 				goto CallParseProcedure;
@@ -348,7 +348,7 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 
 			PVOID ParsedObject = nullptr;
 			NTSTATUS Status = Obj->Type->ParseProcedure(FoundObject, ObjectType,
-				ObjectAttributes->Attributes, ObjectAttributes->ObjectName, &RemainderName, ParseContext, &ParsedObject);
+				ObjectAttributes->Attributes, ObjectAttributes->ObjectName, &RemainingName, ParseContext, &ParsedObject);
 
 			ObfDereferenceObject(FoundObject);
 
@@ -367,9 +367,9 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 		}
 
 		// Reset Directory to the FoundObject, which we know it's a directory object if we reach here. Otherwise, the code will keep looking for the objects specified
-		// in RemainderName in the root directory that was set when this loop first started
+		// in RemainingName in the root directory that was set when this loop first started
 		Directory = (POBJECT_DIRECTORY)FoundObject;
-		OriName = RemainderName;
+		OriName = RemainingName;
 	}
 
 	__asm {

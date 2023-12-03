@@ -67,7 +67,7 @@ template<bool ShouldReference>
 PVOID ObpGetObjectFromHandle(HANDLE Handle);
 NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, PVOID ParseContext, PVOID *ReturnedObject);
 BOOLEAN ObpCreatePermanentObjects();
-VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING RemainderName);
+VOID ObpParseName(POBJECT_STRING Name, POBJECT_STRING FirstName, POBJECT_STRING RemainingName);
 NTSTATUS ObpResolveRootHandlePath(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_DIRECTORY *Directory);
 PVOID ObpFindObjectInDirectory(POBJECT_DIRECTORY Directory, POBJECT_STRING Name, BOOLEAN ShouldFollowSymbolicLinks);
 ULONG ObpGetObjectHashIndex(POBJECT_STRING Name);
