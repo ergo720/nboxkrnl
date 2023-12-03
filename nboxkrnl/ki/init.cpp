@@ -187,21 +187,21 @@ VOID KiInitializeKernel()
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
 
 	if (MmInitSystem() == FALSE) {
-		KeBugCheck(INIT_FAILURE);
+		KeBugCheckEx(INIT_FAILURE, MM_FAILURE, 0, 0, 0);
 	}
 
 	if (ObInitSystem() == FALSE) {
-		KeBugCheck(INIT_FAILURE);
+		KeBugCheckEx(INIT_FAILURE, OB_FAILURE, 0, 0, 0);
 	}
 
 	HalInitSystem();
 
 	if (IoInitSystem() == FALSE) {
-		KeBugCheck(INIT_FAILURE);
+		KeBugCheckEx(INIT_FAILURE, IO_FAILURE, 0, 0, 0);
 	}
 
 	if (PsInitSystem() == FALSE) {
-		KeBugCheck(INIT_FAILURE);
+		KeBugCheckEx(INIT_FAILURE, PS_FAILURE, 0, 0, 0);
 	}
 
 	KiIdleLoopThread(); // won't return
