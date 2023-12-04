@@ -7,18 +7,15 @@
 #include "..\..\ob\obp.hpp"
 #include "..\..\rtl\rtl.hpp"
 
-#define FatxLock() RtlEnterCriticalSectionAndRegion(&FatxCriticalRegion)
-#define FatxUnlock()RtlLeaveCriticalSectionAndRegion(&FatxCriticalRegion)
 
-
-NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT FatxDriverObject = {
 	nullptr,                            // DriverStartIo
 	nullptr,                            // DriverDeleteDevice
 	nullptr,                            // DriverDismountVolume
 	{
-		FatxCreate,                     // IRP_MJ_CREATE
+		FatxIrpCreate,                  // IRP_MJ_CREATE
 		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
 		IoInvalidDeviceRequest,         // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
@@ -35,12 +32,22 @@ static DRIVER_OBJECT FatxDriverObject = {
 	}
 };
 
-static INITIALIZE_GLOBAL_CRITICAL_SECTION(FatxCriticalRegion);
 
+static VOID FatxVolumeLockExclusive(PFAT_VOLUME_EXTENSION VolumeExtension)
+{
+	KeEnterCriticalRegion();
+	ExAcquireReadWriteLockExclusive(&VolumeExtension->VolumeMutex);
+}
+
+static VOID FatxVolumeUnlock(PFAT_VOLUME_EXTENSION VolumeExtension)
+{
+	ExReleaseReadWriteLock(&VolumeExtension->VolumeMutex);
+	KeLeaveCriticalRegion();
+}
 
 static NTSTATUS FatxCompleteRequest(PIRP Irp, NTSTATUS Status, PFAT_VOLUME_EXTENSION VolumeExtension)
 {
-	FatxUnlock();
+	FatxVolumeUnlock(VolumeExtension);
 	Irp->IoStatus.Status = Status;
 	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
 	return Status;
@@ -80,7 +87,7 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 	return TRUE;
 }
 
-NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject)
+NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 {
 	// NOTE: This is called while holding DeviceObject->DeviceLock
 
@@ -103,8 +110,6 @@ NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject)
 		break;
 	}
 
-	FatxLock();
-
 	PDEVICE_OBJECT FatxDeviceObject;
 	NTSTATUS Status = IoCreateDevice(&FatxDriverObject, sizeof(FAT_VOLUME_EXTENSION), nullptr, FILE_DEVICE_DISK_FILE_SYSTEM, FALSE, &FatxDeviceObject);
 	if (!NT_SUCCESS(Status)) {
@@ -122,24 +127,24 @@ NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject)
 		FatxDeviceObject->Flags |= DO_SCATTER_GATHER_IO;
 	}
 
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)FatxDeviceObject->DeviceExtension;
+	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
+
 	FatxDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
 	DeviceObject->MountedOrSelfDevice = FatxDeviceObject;
 
-	FatxUnlock();
-
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS XBOXAPI FatxCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
 
-	// TODO: instead of using a global lock, try instead to use a lock specific for the volume being accessed
-	FatxLock();
-
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FatxVolumeLockExclusive(VolumeExtension);
+
 	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
 		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}

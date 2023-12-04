@@ -24,7 +24,7 @@ NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject)
 				RIP_API_MSG("Mounting CD/DVDs is not supported");
 
 			case FILE_DEVICE_DISK:
-				Status = FatxMountVolume(DeviceObject);
+				Status = FatxCreateVolume(DeviceObject);
 				break;
 
 			case FILE_DEVICE_MEMORY_UNIT:

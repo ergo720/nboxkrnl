@@ -14,9 +14,11 @@
 struct FAT_VOLUME_EXTENSION {
 	UCHAR Unknown1[43];
 	UCHAR Flags;
-	UCHAR Unknown2[108];
+	UCHAR Unknown2[24];
+	ERWLOCK VolumeMutex;
+	UCHAR Unknown3[108];
 };
 using PFAT_VOLUME_EXTENSION = FAT_VOLUME_EXTENSION *;
 
 
-NTSTATUS FatxMountVolume(PDEVICE_OBJECT DeviceObject);
+NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject);
