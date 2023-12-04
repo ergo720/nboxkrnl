@@ -88,6 +88,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/exp_sup.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/mutant.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/pool.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/rwlock.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/interrupt.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.cpp"

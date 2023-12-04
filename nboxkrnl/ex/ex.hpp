@@ -147,6 +147,16 @@ inline ULONG XboxFactoryGameRegion;
 extern "C" {
 #endif
 
+EXPORTNUM(12) DLLEXPORT VOID XBOXAPI ExAcquireReadWriteLockExclusive
+(
+	PERWLOCK ReadWriteLock
+);
+
+EXPORTNUM(13) DLLEXPORT VOID XBOXAPI ExAcquireReadWriteLockShared
+(
+	PERWLOCK ReadWriteLock
+);
+
 EXPORTNUM(14) DLLEXPORT PVOID XBOXAPI ExAllocatePool
 (
 	SIZE_T NumberOfBytes
@@ -161,6 +171,11 @@ EXPORTNUM(15) DLLEXPORT PVOID XBOXAPI ExAllocatePoolWithTag
 EXPORTNUM(17) DLLEXPORT VOID XBOXAPI ExFreePool
 (
 	PVOID P
+);
+
+EXPORTNUM(18) DLLEXPORT VOID XBOXAPI ExInitializeReadWriteLock
+(
+	PERWLOCK ReadWriteLock
 );
 
 EXPORTNUM(22) DLLEXPORT extern OBJECT_TYPE ExMutantObjectType;
@@ -187,6 +202,11 @@ EXPORTNUM(26) DLLEXPORT VOID XBOXAPI ExRaiseException
 EXPORTNUM(27) DLLEXPORT VOID XBOXAPI ExRaiseStatus
 (
 	NTSTATUS Status
+);
+
+EXPORTNUM(28) DLLEXPORT VOID XBOXAPI ExReleaseReadWriteLock
+(
+	PERWLOCK ReadWriteLock
 );
 
 EXPORTNUM(51) DLLEXPORT LONG FASTCALL InterlockedCompareExchange
