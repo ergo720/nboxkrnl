@@ -61,12 +61,12 @@ VOID XBOXAPI KiExecuteDpcQueue()
 		Dpc->Inserted = FALSE;
 		// Set DpcRoutineActive to support KeIsExecutingDpc:
 		KiPcr.PrcbData.DpcRoutineActive = TRUE;
-		__asm sti
+		enable();
 
 		// Call the Deferred Procedure:
 		Dpc->DeferredRoutine(Dpc, Dpc->DeferredContext, Dpc->SystemArgument1, Dpc->SystemArgument2);
 
-		__asm cli
+		disable();
 		KiPcr.PrcbData.DpcRoutineActive = FALSE;
 	}
 

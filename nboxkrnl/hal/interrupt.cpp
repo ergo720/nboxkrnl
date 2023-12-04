@@ -406,7 +406,7 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 	KINTERRUPT_MODE InterruptMode
 )
 {
-	__asm cli
+	disable();
 
 	// NOTE: the bit in KINTERRUPT_MODE is the opposite of what needs to be set in elcr
 	ULONG ElcrPort, DataPort;

@@ -108,7 +108,7 @@ VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
 	__asm pushfd
 
 	do {
-		__asm cli
+		disable();
 		outl(IO_SET_ID_LOW, IdLow);
 		outl(IO_SET_ID_HIGH, IdHigh);
 

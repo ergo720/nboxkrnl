@@ -13,14 +13,14 @@ EXPORTNUM(12) VOID XBOXAPI ExAcquireReadWriteLockExclusive
 	PERWLOCK ReadWriteLock
 )
 {
-	__asm cli
+	disable();
 	if (InterlockedIncrement(reinterpret_cast<LONG *>(&ReadWriteLock->LockCount))) {
 		ReadWriteLock->WritersWaitingCount++;
-		__asm sti
+		enable();
 		KeWaitForSingleObject(&ReadWriteLock->WriterEvent, Executive, KernelMode, FALSE, nullptr);
 	}
 	else {
-		__asm sti
+		enable();
 	}
 }
 
@@ -30,18 +30,18 @@ EXPORTNUM(13) VOID XBOXAPI ExAcquireReadWriteLockShared
 	PERWLOCK ReadWriteLock
 )
 {
-	__asm cli
+	disable();
 	bool MustWaitOnActiveWrite = ReadWriteLock->ReadersEntryCount == 0;
 	bool MustWaitOnAQueuedWrite = (ReadWriteLock->ReadersEntryCount != 0) && (ReadWriteLock->WritersWaitingCount != 0);
 	bool MustWait = MustWaitOnActiveWrite || MustWaitOnAQueuedWrite;
 	if (InterlockedIncrement(reinterpret_cast<LONG *>(&ReadWriteLock->LockCount)) && MustWait) {
 		ReadWriteLock->ReadersWaitingCount++;
-		__asm sti
+		enable();
 		KeWaitForSingleObject(&ReadWriteLock->ReaderSemaphore, Executive, KernelMode, FALSE, nullptr);
 	}
 	else {
 		ReadWriteLock->ReadersEntryCount++;
-		__asm sti
+		enable();
 	}
 }
 
@@ -65,10 +65,10 @@ EXPORTNUM(28) VOID XBOXAPI ExReleaseReadWriteLock
 	PERWLOCK ReadWriteLock
 )
 {
-	__asm cli
+	disable();
 	if (InterlockedDecrement(reinterpret_cast<LONG *>(&ReadWriteLock->LockCount)) == -1) {
 		ReadWriteLock->ReadersEntryCount = 0;
-		__asm sti
+		enable();
 		return;
 	}
 
@@ -77,7 +77,7 @@ EXPORTNUM(28) VOID XBOXAPI ExReleaseReadWriteLock
 			ULONG OriReadersWaiting = ReadWriteLock->ReadersWaitingCount;
 			ReadWriteLock->ReadersEntryCount = ReadWriteLock->ReadersWaitingCount;
 			ReadWriteLock->ReadersWaitingCount = 0;
-			__asm sti
+			enable();
 			KeReleaseSemaphore(&ReadWriteLock->ReaderSemaphore, PRIORITY_BOOST_SEMAPHORE, OriReadersWaiting, FALSE);
 			return;
 		}
@@ -85,12 +85,12 @@ EXPORTNUM(28) VOID XBOXAPI ExReleaseReadWriteLock
 	else {
 		ReadWriteLock->ReadersEntryCount--;
 		if (ReadWriteLock->ReadersEntryCount != 0) {
-			__asm sti
+			enable();
 			return;
 		}
 	}
 
 	ReadWriteLock->WritersWaitingCount--;
-	__asm sti
+	enable();
 	KeSetEvent(&ReadWriteLock->WriterEvent, PRIORITY_BOOST_EVENT, FALSE);
 }

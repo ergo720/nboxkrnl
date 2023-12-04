@@ -160,3 +160,13 @@ static inline ULONG CDECL inl(USHORT Port)
 		in eax, dx
 	}
 }
+
+static inline VOID CDECL enable()
+{
+	__asm sti
+}
+
+static inline VOID CDECL disable()
+{
+	__asm cli
+}

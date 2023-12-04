@@ -36,7 +36,7 @@ VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount)
 			}
 
 			// Don't call KeInsertQueueDpc here because that raises the IRQL
-			__asm cli
+			disable();
 			if (!KiTimerExpireDpc.Inserted) {
 				KiTimerExpireDpc.Inserted = TRUE;
 				KiTimerExpireDpc.SystemArgument1 = (PVOID)(ULONG_PTR)OldKeTickCount;
@@ -48,7 +48,7 @@ VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount)
 					HalRequestSoftwareInterrupt(DISPATCH_LEVEL);
 				}
 			}
-			__asm sti
+			enable();
 			break;
 		}
 	}
