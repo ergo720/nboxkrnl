@@ -198,13 +198,13 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 				HasBackslashAtEnd = TRUE; // creating or opening a directory
 			}
 
-			OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainingName;
+			OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
 			while (true) {
 				// Iterate until we validate all path names
-				ObpParseName(&OriName, &FirstName, &LocalRemainderName);
+				ObpParseName(&OriName, &FirstName, &LocalRemainingName);
 
-				// NOTE: ObpParseName discards the backslash from a name, so LocalRemainderName must be checked separately
-				if (LocalRemainderName.Length && (LocalRemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+				// NOTE: ObpParseName discards the backslash from a name, so LocalRemainingName must be checked separately
+				if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 					// Another delimiter in the name is invalid
 					return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 				}
@@ -213,11 +213,11 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 					return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 				}
 
-				if (LocalRemainderName.Length == 0) {
+				if (LocalRemainingName.Length == 0) {
 					break;
 				}
 
-				OriName = LocalRemainderName;
+				OriName = LocalRemainingName;
 			}
 		}
 

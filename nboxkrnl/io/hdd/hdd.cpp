@@ -157,10 +157,10 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 	}
 
 	// Extract the partition name
-	OBJECT_STRING FirstName, LocalRemainderName, OriName = *RemainingName;
-	ObpParseName(&OriName, &FirstName, &LocalRemainderName);
+	OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
+	ObpParseName(&OriName, &FirstName, &LocalRemainingName);
 
-	if (LocalRemainderName.Length && (LocalRemainderName.Buffer[0] == OB_PATH_DELIMITER)) {
+	if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 		// Another delimiter in the name is invalid
 		return STATUS_OBJECT_NAME_INVALID;
 	}
@@ -188,19 +188,19 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 			}
 
 			if ((PartitionNumberStart == PartitionNumberEnd) && (PartitionNumber < XBOX_MAX_NUM_OF_PARTITIONS)) {
-				if (LocalRemainderName.Length || HasBackslashAtEnd) {
+				if (LocalRemainingName.Length || HasBackslashAtEnd) {
 					// Always pass an absolute path to the fatx driver so that it can open directories
-					LocalRemainderName.Buffer -= 1;
-					LocalRemainderName.Length += 1;
-					LocalRemainderName.MaximumLength = LocalRemainderName.Length;
-					assert(*LocalRemainderName.Buffer == OB_PATH_DELIMITER);
+					LocalRemainingName.Buffer -= 1;
+					LocalRemainingName.Length += 1;
+					LocalRemainingName.MaximumLength = LocalRemainingName.Length;
+					assert(*LocalRemainingName.Buffer == OB_PATH_DELIMITER);
 				}
 
-				return IoParseDevice(HddPartitionObjectsArray[PartitionNumber], ObjectType, Attributes, Name, &LocalRemainderName, Context, Object);
+				return IoParseDevice(HddPartitionObjectsArray[PartitionNumber], ObjectType, Attributes, Name, &LocalRemainingName, Context, Object);
 			}
 		}
 		FirstName.Length = OriFirstNameLength;
 	}
 
-	return LocalRemainderName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
+	return LocalRemainingName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
 }
