@@ -51,7 +51,7 @@ OBJECT_TYPE HddDirectoryObjectType = {
 	nullptr,
 	HddParseDirectory,
 	&ObpDefaultObject,
-	'0ddH'
+	'ksiD'
 };
 
 static DRIVER_OBJECT HddDriverObject = {
