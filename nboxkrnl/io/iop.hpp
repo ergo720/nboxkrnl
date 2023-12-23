@@ -8,6 +8,8 @@
 #include "..\ke\ke.hpp"
 
 
+#define OPEN_PACKET_PATTERN              0xbeaa0251
+
 #define FO_SYNCHRONOUS_IO                0x00000002
 #define FO_ALERTABLE_IO                  0x00000004
 
@@ -499,8 +501,9 @@ using PIRP = IRP *;
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
 VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);
 VOID IopQueueThreadIrp(PIRP Irp);
-void ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer);
-void IoMarkIrpPending(PIRP Irp);
+VOID IopDequeueThreadIrp(PIRP Irp);
+VOID ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer);
+VOID IoMarkIrpPending(PIRP Irp);
 PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp);
 PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp);
 VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount);

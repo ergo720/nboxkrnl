@@ -476,28 +476,36 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	IrpStackPointer->Parameters.Create.DesiredAccess = OpenPacket->DesiredAccess;
 	IrpStackPointer->Parameters.Create.RemainingName = RemainingName;
 
-	OBJECT_ATTRIBUTES objectAttributes;
-	InitializeObjectAttributes(&objectAttributes, Name, Attributes, nullptr);
+	BOOL FileObjectRequired = !(OpenPacket->QueryOnly || OpenPacket->DeleteOnly);
 	PFILE_OBJECT FileObject;
-	if (NTSTATUS Status = ObCreateObject(&IoFileObjectType, &objectAttributes, sizeof(FILE_OBJECT), (PVOID *)&FileObject); !NT_SUCCESS(Status)) {
-		IoFreeIrp(Irp);
-		IopDereferenceDeviceObject(MountedDeviceObject);
-		OpenPacket->FinalStatus = Status;
-		return Status;
-	}
 
-	memset(FileObject, 0, sizeof(FILE_OBJECT));
-	FileObject->Type = IO_TYPE_FILE;
-	FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
-	if (OpenPacket->CreateOptions & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)) {
-		FileObject->Flags = FO_SYNCHRONOUS_IO;
-		if (OpenPacket->CreateOptions & FILE_SYNCHRONOUS_IO_ALERT) {
-			FileObject->Flags |= FO_ALERTABLE_IO;
+	if (FileObjectRequired) {
+		OBJECT_ATTRIBUTES objectAttributes;
+		InitializeObjectAttributes(&objectAttributes, Name, Attributes, nullptr);
+
+		if (NTSTATUS Status = ObCreateObject(&IoFileObjectType, &objectAttributes, sizeof(FILE_OBJECT), (PVOID *)&FileObject); !NT_SUCCESS(Status)) {
+			IoFreeIrp(Irp);
+			IopDereferenceDeviceObject(MountedDeviceObject);
+			OpenPacket->FinalStatus = Status;
+			return Status;
+		}
+
+		memset(FileObject, 0, sizeof(FILE_OBJECT));
+		FileObject->Type = IO_TYPE_FILE;
+		FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
+		if (OpenPacket->CreateOptions & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)) {
+			FileObject->Flags = FO_SYNCHRONOUS_IO;
+			if (OpenPacket->CreateOptions & FILE_SYNCHRONOUS_IO_ALERT) {
+				FileObject->Flags |= FO_ALERTABLE_IO;
+			}
+		}
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			FileObject->LockCount = -1;
+			KeInitializeEvent(&FileObject->Lock, SynchronizationEvent, FALSE);
 		}
 	}
-	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
-		FileObject->LockCount = -1;
-		KeInitializeEvent(&FileObject->Lock, SynchronizationEvent, FALSE);
+	else {
+		RIP_API_MSG("QueryOnly and DeleteOnly flags in OpenPacket are not implemented");
 	}
 
 	FileObject->Type = IO_TYPE_FILE;
@@ -516,7 +524,45 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	// Current irp setup:
 	// stack location 1 -> fs/raw driver (fatx/xdvdfs/udf or raw disk)
 	// stack location 0 -> device driver (hdd/mu/...) 
-	IofCallDriver(MountedDeviceObject, Irp);
+	NTSTATUS Status = IofCallDriver(MountedDeviceObject, Irp);
 
-	RIP_API_MSG("incomplete");
+	if (Status == STATUS_PENDING) {
+		KeWaitForSingleObject(&FileObject->Event, Executive, KernelMode, FALSE, nullptr);
+		Status = IoStatus.Status;
+	}
+	else {
+		KIRQL OldIrql = KfRaiseIrql(APC_LEVEL);
+
+		IoStatus = Irp->IoStatus;
+		Status = IoStatus.Status;
+		FileObject->Event.Header.SignalState = 1;
+		IopDequeueThreadIrp(Irp);
+		IoFreeIrp(Irp);
+
+		KfLowerIrql(OldIrql);
+	}
+
+	OpenPacket->Information = IoStatus.Information;
+
+	if (!NT_SUCCESS(Status)) {
+		FileObject->DeviceObject = nullptr;
+		if (FileObjectRequired) {
+			ObfDereferenceObject(FileObject);
+		}
+		OpenPacket->FileObject = nullptr;
+		IopDereferenceDeviceObject(MountedDeviceObject);
+
+		return OpenPacket->FinalStatus = Status;
+	}
+
+	if (FileObjectRequired) {
+		*Object = FileObject;
+		OpenPacket->ParseCheck = OPEN_PACKET_PATTERN;
+		ObfReferenceObject(FileObject);
+
+		return OpenPacket->FinalStatus = IoStatus.Status;
+	}
+	else {
+		RIP_API_MSG("QueryOnly and DeleteOnly flags in OpenPacket are not implemented");
+	}
 }

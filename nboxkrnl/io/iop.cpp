@@ -71,7 +71,13 @@ VOID IopQueueThreadIrp(PIRP Irp)
 	KfLowerIrql(OldIrql);
 }
 
-void ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer)
+VOID IopDequeueThreadIrp(PIRP Irp)
+{
+	RemoveEntryList(&Irp->ThreadListEntry);
+	InitializeListHead(&Irp->ThreadListEntry);
+}
+
+VOID ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer)
 {
 	IrpStackPointer->MinorFunction = 0;
 	IrpStackPointer->Flags = 0;
@@ -83,7 +89,7 @@ void ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer)
 	IrpStackPointer->FileObject = nullptr;
 }
 
-void IoMarkIrpPending(PIRP Irp)
+VOID IoMarkIrpPending(PIRP Irp)
 {
 	IoGetCurrentIrpStackLocation(Irp)->Control |= SL_PENDING_RETURNED;
 }

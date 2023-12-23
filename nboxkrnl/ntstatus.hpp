@@ -9,6 +9,7 @@
 #define STATUS_USER_APC                         ((NTSTATUS)0x000000C0L)
 #define STATUS_KERNEL_APC                       ((NTSTATUS)0x00000100L)
 #define STATUS_TIMEOUT                          ((NTSTATUS)0x00000102L)
+#define STATUS_PENDING                          ((NTSTATUS)0x00000103L)
 #define STATUS_OBJECT_NAME_EXISTS               ((NTSTATUS)0x40000000L)
 #define STATUS_GUARD_PAGE_VIOLATION             ((NTSTATUS)0x80000001L)
 #define STATUS_BREAKPOINT                       ((NTSTATUS)0x80000003L)

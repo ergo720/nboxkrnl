@@ -27,6 +27,7 @@ using BYTE = uint8_t;
 using UCHAR = unsigned char;
 using CHAR = char;
 using WCHAR = wchar_t;
+using BOOL = bool;
 using SCHAR = CHAR;
 using CCHAR = CHAR;
 using BOOLEAN = uint8_t;
