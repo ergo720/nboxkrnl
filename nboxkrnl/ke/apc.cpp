@@ -5,7 +5,17 @@
 
 #include "ke.hpp"
 #include "..\hal\hal.hpp"
+#include "..\rtl\rtl.hpp"
 
+
+BOOLEAN KiInsertQueueApc
+(
+	PKAPC Apc,
+	KPRIORITY Increment
+)
+{
+	RIP_UNIMPLEMENTED();
+}
 
 EXPORTNUM(101) VOID XBOXAPI KeEnterCriticalRegion()
 {
@@ -36,6 +46,29 @@ EXPORTNUM(105) VOID XBOXAPI KeInitializeApc
 		Apc->ApcMode = KernelMode;
 		Apc->NormalContext = nullptr;
 	}
+}
+
+EXPORTNUM(118) BOOLEAN XBOXAPI KeInsertQueueApc
+(
+	PKAPC Apc,
+	PVOID SystemArgument1,
+	PVOID SystemArgument2,
+	KPRIORITY Increment
+)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+
+	PKTHREAD Thread = Apc->Thread;
+	BOOLEAN Inserted = FALSE;
+	if (Thread->ApcState.ApcQueueable == TRUE) {
+		Apc->SystemArgument1 = SystemArgument1;
+		Apc->SystemArgument2 = SystemArgument2;
+		Inserted = KiInsertQueueApc(Apc, Increment);
+	}
+
+	KiUnlockDispatcherDatabase(OldIrql);
+
+	return Inserted;
 }
 
 EXPORTNUM(122) VOID XBOXAPI KeLeaveCriticalRegion()

@@ -17,6 +17,7 @@
 #define NORETURN_FUNCTION_RETURNED        8
 #define XBE_LAUNCH_FAILED                 9
 #define UNREACHABLE_CODE_REACHED          10
+#define MULTIPLE_IRP_COMPLETE_REQUESTS    68
 
 // Optional bug codes used in following arguments in KeBugCheckEx
 #define MM_FAILURE 0

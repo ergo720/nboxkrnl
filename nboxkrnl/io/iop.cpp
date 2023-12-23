@@ -71,6 +71,23 @@ VOID IopQueueThreadIrp(PIRP Irp)
 	KfLowerIrql(OldIrql);
 }
 
+void ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer)
+{
+	IrpStackPointer->MinorFunction = 0;
+	IrpStackPointer->Flags = 0;
+	IrpStackPointer->Control = 0;
+	IrpStackPointer->Parameters.Others.Argument1 = 0;
+	IrpStackPointer->Parameters.Others.Argument2 = 0;
+	IrpStackPointer->Parameters.Others.Argument3 = 0;
+	IrpStackPointer->Parameters.Others.Argument4 = 0;
+	IrpStackPointer->FileObject = nullptr;
+}
+
+void IoMarkIrpPending(PIRP Irp)
+{
+	IoGetCurrentIrpStackLocation(Irp)->Control |= SL_PENDING_RETURNED;
+}
+
 PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp)
 {
 	return Irp->Tail.Overlay.CurrentStackLocation;
@@ -95,4 +112,22 @@ NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG 
 	PVOID Context, PVOID *Object)
 {
 	RIP_UNIMPLEMENTED();
+}
+
+VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2)
+{
+	RIP_UNIMPLEMENTED();
+}
+
+VOID IopDropIrp(PIRP Irp, PFILE_OBJECT FileObject)
+{
+	if (Irp->UserEvent && FileObject && !(Irp->Flags & IRP_SYNCHRONOUS_API)) {
+		ObfDereferenceObject(Irp->UserEvent);
+	}
+
+	if (FileObject && !(Irp->Flags & IRP_CREATE_OPERATION)) {
+		ObfDereferenceObject(FileObject);
+	}
+
+	IoFreeIrp(Irp);
 }

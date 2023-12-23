@@ -41,19 +41,25 @@
 #define SL_CASE_SENSITIVE               0x00000080
 #define SL_OPEN_TARGET_DIRECTORY        0x00000004 // same as IO_OPEN_TARGET_DIRECTORY used by IoCreateFile
 
+#define SL_PENDING_RETURNED              0x01
+#define SL_MUST_COMPLETE                 0x02
+#define SL_INVOKE_ON_CANCEL              0x20
+#define SL_INVOKE_ON_SUCCESS             0x40
+#define SL_INVOKE_ON_ERROR               0x80
+
 #define IRP_NOCACHE                     0x00000001
-#define IRP_PAGING_IO                   0x00000002
 #define IRP_MOUNT_COMPLETION            0x00000002
 #define IRP_SYNCHRONOUS_API             0x00000004
-#define IRP_ASSOCIATED_IRP              0x00000008
-#define IRP_BUFFERED_IO                 0x00000010
-#define IRP_DEALLOCATE_BUFFER           0x00000020
-#define IRP_INPUT_OPERATION             0x00000040
-#define IRP_SYNCHRONOUS_PAGING_IO       0x00000040
-#define IRP_CREATE_OPERATION            0x00000080
-#define IRP_READ_OPERATION              0x00000100
-#define IRP_WRITE_OPERATION             0x00000200
-#define IRP_CLOSE_OPERATION             0x00000400
+#define IRP_CREATE_OPERATION            0x00000008
+#define IRP_READ_OPERATION              0x00000010
+#define IRP_WRITE_OPERATION             0x00000020
+#define IRP_CLOSE_OPERATION             0x00000040
+#define IRP_DEFER_IO_COMPLETION         0x00000080
+#define IRP_OB_QUERY_NAME               0x00000100
+#define IRP_UNLOCK_USER_BUFFER          0x00000200
+#define IRP_SCATTER_GATHER_OPERATION    0x00000400
+#define IRP_UNMAP_SEGMENT_ARRAY         0x00000800
+#define IRP_NO_CANCELIO                 0x00001000
 
 #define IRP_MJ_CREATE                    0x00
 #define IRP_MJ_CREATE_NAMED_PIPE         0x01
@@ -446,23 +452,13 @@ using PIO_STACK_LOCATION = IO_STACK_LOCATION *;
 struct IRP {
 	CSHORT Type;
 	USHORT Size;
-	PMDL MdlAddress;
 	ULONG Flags;
-	union {
-		struct _IRP *MasterIrp;
-		LONG IrpCount;
-		PVOID SystemBuffer;
-	} AssociatedIrp;
 	LIST_ENTRY ThreadListEntry;
 	IO_STATUS_BLOCK IoStatus;
-	KPROCESSOR_MODE RequestorMode;
-	BOOLEAN PendingReturned;
 	CHAR StackCount;
 	CHAR CurrentLocation;
+	BOOLEAN PendingReturned;
 	BOOLEAN Cancel;
-	KIRQL CancelIrql;
-	CCHAR ApcEnvironment;
-	UCHAR AllocationFlags;
 	PIO_STATUS_BLOCK UserIosb;
 	PKEVENT UserEvent;
 	union {
@@ -472,22 +468,22 @@ struct IRP {
 		} AsynchronousParameters;
 		LARGE_INTEGER AllocationSize;
 	} Overlay;
-	PDRIVER_CANCEL CancelRoutine;
 	PVOID UserBuffer;
+	PFILE_SEGMENT_ELEMENT SegmentArray;
+	ULONG LockedBufferLength;
 	union {
 		struct {
 			union {
 				KDEVICE_QUEUE_ENTRY DeviceQueueEntry;
 				struct {
-					PVOID DriverContext[4];
+					PVOID DriverContext[5];
 				};
 			};
 			PETHREAD Thread;
-			PCHAR AuxiliaryBuffer;
 			struct {
 				LIST_ENTRY ListEntry;
 				union {
-					struct IO_STACK_LOCATION *CurrentStackLocation;
+					PIO_STACK_LOCATION CurrentStackLocation;
 					ULONG PacketType;
 				};
 			};
@@ -503,9 +499,13 @@ using PIRP = IRP *;
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
 VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);
 VOID IopQueueThreadIrp(PIRP Irp);
+void ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer);
+void IoMarkIrpPending(PIRP Irp);
 PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp);
 PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp);
 VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount);
 VOID XBOXAPI IopDeleteFile(PVOID Object);
 NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING CompleteName, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object);
+VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
+VOID IopDropIrp(PIRP Irp, PFILE_OBJECT FileObject);

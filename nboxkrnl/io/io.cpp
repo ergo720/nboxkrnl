@@ -290,7 +290,105 @@ EXPORTNUM(87) VOID FASTCALL IofCompleteRequest
 	CCHAR PriorityBoost
 )
 {
-	RIP_UNIMPLEMENTED();
+	if (Irp->CurrentLocation > (Irp->StackCount + 1) || // StackCount + 1 because IoInitializeIrp sets CurrentLocation as StackCount + 1
+		(Irp->Type != IO_TYPE_IRP)) {
+		KeBugCheckEx(MULTIPLE_IRP_COMPLETE_REQUESTS, (ULONG_PTR)Irp, __LINE__, 0, 0);
+	}
+
+	// This pops all PIO_STACK_LOCATIONs to see if a driver wants to be notified about the IO that just completed by calling its CompletionRoutine. Note that the CompletionRoutine
+	// of a driver is stored in the PIO_STACK_LOCATION of the next driver, not on its own PIO_STACK_LOCATION
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	for (++Irp->CurrentLocation, ++Irp->Tail.Overlay.CurrentStackLocation;
+		Irp->CurrentLocation <= (CCHAR)(Irp->StackCount + 1);
+		++IrpStackPointer, ++Irp->CurrentLocation, ++Irp->Tail.Overlay.CurrentStackLocation) {
+
+		if (IrpStackPointer->Control & SL_MUST_COMPLETE) {
+			RIP_API_MSG("SL_MUST_COMPLETE not implemented");
+		}
+
+		Irp->PendingReturned = (BOOLEAN)(IrpStackPointer->Control & SL_PENDING_RETURNED);
+
+		if ((NT_SUCCESS(Irp->IoStatus.Status) && (IrpStackPointer->Control & SL_INVOKE_ON_SUCCESS)) ||
+			(!NT_SUCCESS(Irp->IoStatus.Status) && (IrpStackPointer->Control & SL_INVOKE_ON_ERROR))) {
+
+			ZeroIrpStackLocation(IrpStackPointer);
+
+			NTSTATUS Status = IrpStackPointer->CompletionRoutine((PDEVICE_OBJECT)(Irp->CurrentLocation == (CCHAR)(Irp->StackCount + 1) ?
+				nullptr : IoGetCurrentIrpStackLocation(Irp)->DeviceObject),
+				Irp,
+				IrpStackPointer->Context);
+
+			if (Status == STATUS_MORE_PROCESSING_REQUIRED) {
+				return;
+			}
+		}
+		else {
+			if (Irp->PendingReturned && (Irp->CurrentLocation <= Irp->StackCount)) {
+				IoMarkIrpPending(Irp);
+			}
+			ZeroIrpStackLocation(IrpStackPointer);
+		}
+	}
+
+	if (Irp->Flags & (IRP_MOUNT_COMPLETION | IRP_CLOSE_OPERATION)) {
+		RIP_API_MSG("SL_MUST_COMPLETE not implemented");
+	}
+
+	if (Irp->Flags & IRP_UNLOCK_USER_BUFFER) {
+		RIP_API_MSG("IRP_UNLOCK_USER_BUFFER not implemented");
+	}
+	else if (Irp->SegmentArray) {
+		RIP_API_MSG("Irp->SegmentArray not implemented");
+	}
+
+	if (Irp->Flags & IRP_DEFER_IO_COMPLETION && !Irp->PendingReturned) {
+		return;
+	}
+
+	PETHREAD Thread = Irp->Tail.Overlay.Thread;
+	PFILE_OBJECT FileObject = Irp->Tail.Overlay.OriginalFileObject;
+
+	// Finally, inform the thread that originally requested this IO about its completion
+	if (!Irp->Cancel) {
+		KeInitializeApc(&Irp->Tail.Apc,
+			&Thread->Tcb,
+			IopCompleteRequest,
+			nullptr,
+			nullptr,
+			KernelMode,
+			nullptr);
+
+		KeInsertQueueApc(&Irp->Tail.Apc,
+			FileObject,
+			nullptr,
+			PriorityBoost);
+	}
+	else {
+		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+		Thread = Irp->Tail.Overlay.Thread;
+
+		if (Thread) {
+			KeInitializeApc(&Irp->Tail.Apc,
+				&Thread->Tcb,
+				IopCompleteRequest,
+				nullptr,
+				nullptr,
+				KernelMode,
+				nullptr);
+
+			KeInsertQueueApc(&Irp->Tail.Apc,
+				FileObject,
+				nullptr,
+				PriorityBoost);
+
+			KfLowerIrql(OldIrql);
+		}
+		else {
+			// The original thread is gone already, so just destroy this IRP
+			KfLowerIrql(OldIrql);
+			IopDropIrp(Irp, FileObject);
+		}
+	}
 }
 
 NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
@@ -361,11 +459,11 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 
 	IO_STATUS_BLOCK IoStatus;
 	Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
-	Irp->Flags = IRP_CREATE_OPERATION | IRP_SYNCHRONOUS_API;
+	Irp->Flags = IRP_CREATE_OPERATION | IRP_SYNCHRONOUS_API | IRP_DEFER_IO_COMPLETION;
 	Irp->Overlay.AllocationSize = OpenPacket->AllocationSize;
 	Irp->UserIosb = &IoStatus;
 
-	PIO_STACK_LOCATION IrpStackPointer = Irp->Tail.Overlay.CurrentStackLocation - 1;
+	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
 	IrpStackPointer->MajorFunction = IRP_MJ_CREATE;
 	IrpStackPointer->Flags = (UCHAR)OpenPacket->Options;
 	if ((Attributes & OBJ_CASE_INSENSITIVE) == 0) {

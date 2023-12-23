@@ -137,7 +137,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeInsertDeviceQueue),                     // 0x0073 (115)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeInsertHeadQueue),                       // 0x0074 (116)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeInsertQueue),                           // 0x0075 (117)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeInsertQueueApc),                        // 0x0076 (118)
+	(ULONG)FUNC(&KeInsertQueueApc),                        // 0x0076 (118)
 	(ULONG)FUNC(&KeInsertQueueDpc),                        // 0x0077 (119)
 	(ULONG)VARIABLE(&KeInterruptTime),                     // 0x0078 (120) KeInterruptTime
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeIsExecutingDpc),                        // 0x0079 (121)
