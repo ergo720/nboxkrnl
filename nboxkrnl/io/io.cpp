@@ -56,7 +56,7 @@ BOOLEAN IoInitSystem()
 	return TRUE;
 }
 
-EXPORTNUM(59) PVOID XBOXAPI IoAllocateIrp
+EXPORTNUM(59) PIRP XBOXAPI IoAllocateIrp
 (
 	CCHAR StackSize
 )
@@ -483,7 +483,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	RtlMapGenericMask(&OpenPacket->DesiredAccess, &IoFileMapping);
 
 	// Create the IRP to submit the I/O request
-	PIRP Irp = (PIRP)IoAllocateIrp(MountedDeviceObject->StackSize);
+	PIRP Irp = IoAllocateIrp(MountedDeviceObject->StackSize);
 	if (Irp == nullptr) {
 		IopDereferenceDeviceObject(MountedDeviceObject);
 		return STATUS_INSUFFICIENT_RESOURCES;

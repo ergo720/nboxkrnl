@@ -7,6 +7,32 @@
 #include "..\rtl\rtl.hpp"
 
 
+const UCHAR IopValidFsInformationQueries[] = {
+  0,
+  sizeof(FILE_FS_VOLUME_INFORMATION),    // 1 FileFsVolumeInformation
+  0,                                     // 2 FileFsLabelInformation
+  sizeof(FILE_FS_SIZE_INFORMATION),      // 3 FileFsSizeInformation
+  sizeof(FILE_FS_DEVICE_INFORMATION),    // 4 FileFsDeviceInformation
+  sizeof(FILE_FS_ATTRIBUTE_INFORMATION), // 5 FileFsAttributeInformation
+  sizeof(FILE_FS_CONTROL_INFORMATION),   // 6 FileFsControlInformation
+  sizeof(FILE_FS_FULL_SIZE_INFORMATION), // 7 FileFsFullSizeInformation
+  sizeof(FILE_FS_OBJECTID_INFORMATION),  // 8 FileFsObjectIdInformation
+  0xff                                   // 9 FileFsMaximumInformation
+};
+
+const ULONG IopQueryFsOperationAccess[] = {
+   0,
+   0,              // 1 FileFsVolumeInformation [any access to file or volume]
+   0,              // 2 FileFsLabelInformation [query is invalid]
+   0,              // 3 FileFsSizeInformation [any access to file or volume]
+   0,              // 4 FileFsDeviceInformation [any access to file or volume]
+   0,              // 5 FileFsAttributeInformation [any access to file or vol]
+   FILE_READ_DATA, // 6 FileFsControlInformation [vol read access]
+   0,              // 7 FileFsFullSizeInformation [any access to file or volume]
+   0,              // 8 FileFsObjectIdInformation [any access to file or volume]
+   0xffffffff      // 9 FileFsMaximumInformation
+};
+
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject)
 {
 	// Thread safety: acquire a device-specific lock
@@ -136,4 +162,62 @@ VOID IopDropIrp(PIRP Irp, PFILE_OBJECT FileObject)
 	}
 
 	IoFreeIrp(Irp);
+}
+
+NTSTATUS IopSynchronousService(PDEVICE_OBJECT DeviceObject, PIRP Irp, PFILE_OBJECT FileObject, BOOLEAN DeferredIoCompletion, BOOLEAN SynchronousIo)
+{
+	IopQueueThreadIrp(Irp);
+
+	NTSTATUS Status = IofCallDriver(DeviceObject, Irp);
+
+	if (DeferredIoCompletion) {
+		if (Status != STATUS_PENDING) {
+			PKNORMAL_ROUTINE NormalRoutine;
+			PVOID NormalContext;
+
+			KIRQL OldIrql = KfRaiseIrql(APC_LEVEL);
+			IopCompleteRequest(&Irp->Tail.Apc, &NormalRoutine, &NormalContext, (PVOID *)&FileObject, &NormalContext);
+			KfLowerIrql(OldIrql);
+		}
+	}
+
+	if (SynchronousIo) {
+		if (Status == STATUS_PENDING) {
+			KeWaitForSingleObject(&FileObject->Event, Executive, KernelMode, FALSE, nullptr);
+			Status = FileObject->FinalStatus;
+		}
+
+		IopReleaseSynchronousFileLock(FileObject);
+	}
+
+	return Status;
+}
+
+VOID IopAcquireSynchronousFileLock(PFILE_OBJECT FileObject)
+{
+	if (InterlockedIncrement(&FileObject->LockCount)) {
+		KeWaitForSingleObject(&FileObject->Lock, Executive, KernelMode, FALSE, nullptr);
+	}
+}
+
+VOID IopReleaseSynchronousFileLock(PFILE_OBJECT FileObject)
+{
+	if (InterlockedDecrement(&FileObject->LockCount) >= 0) {
+		KeSetEvent(&FileObject->Lock, 0, FALSE);
+	}
+}
+
+NTSTATUS IopCleanupFailedIrpAllocation(PFILE_OBJECT FileObject, PKEVENT EventObject)
+{
+	if (EventObject) {
+		ObfDereferenceObject(EventObject);
+	}
+
+	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+		IopReleaseSynchronousFileLock(FileObject);
+	}
+
+	ObfDereferenceObject(FileObject);
+
+	return STATUS_INSUFFICIENT_RESOURCES;
 }

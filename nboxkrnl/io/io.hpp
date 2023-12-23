@@ -110,7 +110,7 @@ inline GENERIC_MAPPING IoFileMapping = {
 extern "C" {
 #endif
 
-EXPORTNUM(59) DLLEXPORT PVOID XBOXAPI IoAllocateIrp
+EXPORTNUM(59) DLLEXPORT PIRP XBOXAPI IoAllocateIrp
 (
 	CCHAR StackSize
 );

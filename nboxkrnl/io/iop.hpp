@@ -193,17 +193,61 @@ struct IO_STATUS_BLOCK {
 };
 using PIO_STATUS_BLOCK = IO_STATUS_BLOCK *;
 
-struct MDL {
-	struct _MDL *Next;
-	CSHORT Size;
-	CSHORT MdlFlags;
-	struct _EPROCESS *Process;
-	PVOID MappedSystemVa;
-	PVOID StartVa;
-	ULONG ByteCount;
-	ULONG ByteOffset;
+struct FILE_FS_VOLUME_INFORMATION {
+	LARGE_INTEGER VolumeCreationTime;
+	ULONG VolumeSerialNumber;
+	ULONG VolumeLabelLength;
+	BOOLEAN SupportsObjects;
+	CHAR VolumeLabel[1];
 };
-using PMDL = MDL *;
+using PFILE_FS_VOLUME_INFORMATION = FILE_FS_VOLUME_INFORMATION *;
+
+struct FILE_FS_SIZE_INFORMATION {
+	LARGE_INTEGER TotalAllocationUnits;
+	LARGE_INTEGER AvailableAllocationUnits;
+	ULONG SectorsPerAllocationUnit;
+	ULONG BytesPerSector;
+};
+using PFILE_FS_SIZE_INFORMATION = FILE_FS_SIZE_INFORMATION *;
+
+struct FILE_FS_DEVICE_INFORMATION {
+	DEVICE_TYPE DeviceType;
+	ULONG Characteristics;
+};
+using PFILE_FS_DEVICE_INFORMATION = FILE_FS_DEVICE_INFORMATION *;
+
+struct FILE_FS_ATTRIBUTE_INFORMATION {
+	ULONG FileSystemAttributes;
+	LONG MaximumComponentNameLength;
+	ULONG FileSystemNameLength;
+	WCHAR FileSystemName[1];
+};
+using PFILE_FS_ATTRIBUTE_INFORMATION = FILE_FS_ATTRIBUTE_INFORMATION *;
+
+struct FILE_FS_CONTROL_INFORMATION {
+	LARGE_INTEGER FreeSpaceStartFiltering;
+	LARGE_INTEGER FreeSpaceThreshold;
+	LARGE_INTEGER FreeSpaceStopFiltering;
+	LARGE_INTEGER DefaultQuotaThreshold;
+	LARGE_INTEGER DefaultQuotaLimit;
+	ULONG FileSystemControlFlags;
+};
+using PFILE_FS_CONTROL_INFORMATION = FILE_FS_CONTROL_INFORMATION *;
+
+struct FILE_FS_FULL_SIZE_INFORMATION {
+	LARGE_INTEGER TotalAllocationUnits;
+	LARGE_INTEGER CallerAvailableAllocationUnits;
+	LARGE_INTEGER ActualAvailableAllocationUnits;
+	ULONG SectorsPerAllocationUnit;
+	ULONG BytesPerSector;
+};
+using PFILE_FS_FULL_SIZE_INFORMATION = FILE_FS_FULL_SIZE_INFORMATION *;
+
+struct FILE_FS_OBJECTID_INFORMATION {
+	UCHAR ObjectId[16];
+	UCHAR ExtendedInfo[48];
+};
+using PFILE_FS_OBJECTID_INFORMATION = FILE_FS_OBJECTID_INFORMATION *;
 
 struct DEVICE_OBJECT {
 	CSHORT Type;
@@ -499,6 +543,9 @@ struct IRP {
 using PIRP = IRP *;
 
 
+extern const UCHAR IopValidFsInformationQueries[];
+extern const ULONG IopQueryFsOperationAccess[];
+
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
 VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);
 VOID IopQueueThreadIrp(PIRP Irp);
@@ -513,3 +560,7 @@ NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG 
 	PVOID Context, PVOID *Object);
 VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
 VOID IopDropIrp(PIRP Irp, PFILE_OBJECT FileObject);
+VOID IopAcquireSynchronousFileLock(PFILE_OBJECT FileObject);
+VOID IopReleaseSynchronousFileLock(PFILE_OBJECT FileObject);
+NTSTATUS IopCleanupFailedIrpAllocation(PFILE_OBJECT FileObject, PKEVENT EventObject);
+NTSTATUS IopSynchronousService(PDEVICE_OBJECT DeviceObject, PIRP Irp, PFILE_OBJECT FileObject, BOOLEAN DeferredIoCompletion, BOOLEAN SynchronousIo);
