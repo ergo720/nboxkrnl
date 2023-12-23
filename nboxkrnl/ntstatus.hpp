@@ -58,3 +58,4 @@
 #define STATUS_VOLUME_DISMOUNTED                ((NTSTATUS)0xC000026EL)
 
 #define NT_SUCCESS(Status)                      ((NTSTATUS)(Status) >= 0)
+#define NT_WARNING(Status)                      ((ULONG)(Status) >> 30 == 2)

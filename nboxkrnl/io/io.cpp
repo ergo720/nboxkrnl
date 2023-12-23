@@ -232,7 +232,39 @@ EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
 	HANDLE Handle;
 	NTSTATUS Status = ObOpenObjectByName(ObjectAttributes, nullptr, &OpenPacket, &Handle);
 
-	RIP_API_MSG("incomplete");
+	BOOL SuccessfulIoParse = (BOOLEAN)(OpenPacket.ParseCheck == OPEN_PACKET_PATTERN);
+	if (!NT_SUCCESS(Status) || !SuccessfulIoParse) {
+		if (NT_SUCCESS(Status)) {
+			NtClose(Handle);
+			Status = STATUS_OBJECT_TYPE_MISMATCH;
+		}
+
+		if (!NT_SUCCESS(OpenPacket.FinalStatus)) {
+			Status = OpenPacket.FinalStatus;
+
+			if (NT_WARNING(Status)) {
+				IoStatusBlock->Status = OpenPacket.FinalStatus;
+				IoStatusBlock->Information = OpenPacket.Information;
+			}
+		}
+		else if (OpenPacket.FileObject && !SuccessfulIoParse) {
+			OpenPacket.FileObject->DeviceObject = nullptr;
+			ObfDereferenceObject(OpenPacket.FileObject);
+		}
+	}
+	else {
+		OpenPacket.FileObject->Flags |= FO_HANDLE_CREATED;
+		*FileHandle = Handle;
+		IoStatusBlock->Information = OpenPacket.Information;
+		IoStatusBlock->Status = OpenPacket.FinalStatus;
+		Status = OpenPacket.FinalStatus;
+	}
+
+	if (SuccessfulIoParse && OpenPacket.FileObject) {
+		ObfDereferenceObject(OpenPacket.FileObject);
+	}
+
+	return Status;
 }
 
 EXPORTNUM(72) VOID XBOXAPI IoFreeIrp
