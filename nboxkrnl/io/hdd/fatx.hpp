@@ -11,8 +11,16 @@
 #define FATX_MAX_FILE_NAME_LENGTH 42
 
 
+struct FSCACHE_EXTENSION {
+	PDEVICE_OBJECT TargetDeviceObject;
+	LARGE_INTEGER PartitionLength;
+	ULONG SectorSize;
+};
+using PFSCACHE_EXTENSION = FSCACHE_EXTENSION *;
+
 struct FAT_VOLUME_EXTENSION {
-	UCHAR Unknown1[43];
+	FSCACHE_EXTENSION CacheExtension;
+	UCHAR Unknown1[27];
 	UCHAR Flags;
 	UCHAR Unknown2[24];
 	ERWLOCK VolumeMutex;

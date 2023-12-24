@@ -4,6 +4,7 @@
 
 #include "..\dbg\dbg.hpp"
 #include "..\ex\ex.hpp"
+#include "..\io\fsc.hpp"
 #include "..\hal\hal.hpp"
 #include "..\ke\ke.hpp"
 #include "..\mm\mm.hpp"
@@ -56,7 +57,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&ExfInterlockedRemoveHeadList),            // 0x0022 (34)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&FscGetCacheSize),                         // 0x0023 (35)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&FscInvalidateIdleBlocks),                 // 0x0024 (36)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&FscSetCacheSize),                         // 0x0025 (37)
+	(ULONG)FUNC(&FscSetCacheSize),                         // 0x0025 (37)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalClearSoftwareInterrupt),               // 0x0026 (38)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalDisableSystemInterrupt),               // 0x0027 (39)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&HalDiskCachePartitionCount),          // 0x0028 (40)  A.k.a. "IdexDiskPartitionPrefixBuffer"
