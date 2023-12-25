@@ -106,13 +106,8 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 		call ZwRaiseException
 		// ZwRaiseException should never return. It would only be possible if KiRaiseException fails before copying the CONTEXT to the KTRAP_FRAME, but the
 		// function right now always succeeds
-	noreturn_eip:
-		push 0
-		push 0
-		push 0
-		push noreturn_eip
 		push NORETURN_FUNCTION_RETURNED
-		call KeBugCheckEx // won't return
+		call KeBugCheckLogEip // won't return
 	}
 }
 

@@ -628,3 +628,5 @@ VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount);
 VOID KeScheduleThread(PKTHREAD Thread);
 VOID KiScheduleThread(PKTHREAD Thread);
 VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread);
+
+[[noreturn]] VOID CDECL KeBugCheckLogEip(ULONG BugCheckCode);

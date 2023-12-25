@@ -40,13 +40,8 @@ VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID S
 	thread_start:
 		pop ecx
 		call ecx // SystemRoutine should never return
-	noreturn_eip:
-		push 0
-		push 0
-		push 0
-		push noreturn_eip
 		push NORETURN_FUNCTION_RETURNED
-		call KeBugCheckEx // won't return
+		call KeBugCheckLogEip // won't return
 	}
 }
 

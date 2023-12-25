@@ -35,3 +35,19 @@ EXPORTNUM(96) VOID XBOXAPI KeBugCheckEx
 
 	HalpShutdownSystem();
 }
+
+VOID __declspec(naked, noinline) CDECL KeBugCheckLogEip(ULONG BugCheckCode)
+{
+	// This function must be naked and never inlined because it needs to capture the return address placed on the stack by the caller
+
+	__asm {
+		mov eax, dword ptr [esp]
+		mov ecx, dword ptr [esp + 4]
+		push 0
+		push 0
+		push 0
+		push eax
+		push ecx
+		call KeBugCheckEx // won't return
+	}
+}

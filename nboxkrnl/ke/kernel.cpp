@@ -181,15 +181,7 @@ NTSTATUS HostToNtStatus(IoStatus Status)
 		return STATUS_OBJECT_NAME_NOT_FOUND;
 	}
 
-	__asm {
-	noreturn_eip:
-		push 0
-		push 0
-		push 0
-		push noreturn_eip
-		push UNREACHABLE_CODE_REACHED
-		call KeBugCheckEx // won't return
-	}
+	KeBugCheckLogEip(UNREACHABLE_CODE_REACHED);
 }
 
 // Source: Cxbx-Reloaded

@@ -372,15 +372,7 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 		OriName = RemainingName;
 	}
 
-	__asm {
-	unreachable_eip:
-		push 0
-		push 0
-		push 0
-		push unreachable_eip
-		push UNREACHABLE_CODE_REACHED
-		call KeBugCheckEx // won't return
-	}
+	KeBugCheckLogEip(UNREACHABLE_CODE_REACHED);
 }
 
 VOID XBOXAPI ObpDeleteSymbolicLink(PVOID Object)

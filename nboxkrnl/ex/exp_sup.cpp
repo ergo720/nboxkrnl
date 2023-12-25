@@ -64,12 +64,7 @@ EXPORTNUM(27) __declspec(naked) VOID XBOXAPI ExRaiseStatus
 		push ecx
 		call RtlDispatchException
 		// Because the exception is non-continuable, RtlDispatchException should never return. If it does return, then it must be a bug
-	noreturn_eip:
-		push 0
-		push 0
-		push 0
-		push noreturn_eip
 		push NORETURN_FUNCTION_RETURNED
-		call KeBugCheckEx // won't return
+		call KeBugCheckLogEip // won't return
 	}
 }

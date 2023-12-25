@@ -187,13 +187,6 @@ EXPORTNUM(258) DLLEXPORT VOID XBOXAPI PsTerminateSystemThread
 	KeInsertQueueDpc(&PspTerminationDpc, nullptr, nullptr);
 
 	KiSwapThread(); // won't return
-	__asm {
-	noreturn_eip:
-		push 0
-		push 0
-		push 0
-		push noreturn_eip
-		push NORETURN_FUNCTION_RETURNED
-		call KeBugCheckEx // won't return
-	}
+
+	KeBugCheckLogEip(NORETURN_FUNCTION_RETURNED);
 }
