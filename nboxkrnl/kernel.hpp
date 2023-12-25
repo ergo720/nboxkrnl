@@ -48,7 +48,15 @@
 // Special host handles
 #define XBE_HANDLE ((ULONGLONG)0)
 #define EEPROM_HANDLE ((ULONGLONG)1)
-#define LAST_NON_FREE_HANDLE EEPROM_HANDLE
+#define PARTITION0_HANDLE ((ULONGLONG)2)
+#define PARTITION1_HANDLE ((ULONGLONG)3)
+#define PARTITION2_HANDLE ((ULONGLONG)4)
+#define PARTITION3_HANDLE ((ULONGLONG)5)
+#define PARTITION4_HANDLE ((ULONGLONG)6)
+#define PARTITION5_HANDLE ((ULONGLONG)7)
+#define PARTITION6_HANDLE ((ULONGLONG)8) // non-standard
+#define PARTITION7_HANDLE ((ULONGLONG)9) // non-standard
+#define LAST_NON_FREE_HANDLE PARTITION7_HANDLE
 
 enum SystemType {
 	SYSTEM_XBOX,
@@ -135,6 +143,7 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request);
 VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id);
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
+NTSTATUS HostToNtStatus(IoStatus Status);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);
 BOOLEAN IsListEmpty(PLIST_ENTRY pListHead);

@@ -27,6 +27,7 @@
 #define HDD_TOTAL_NUM_OF_SECTORS 15657984
 
 
+#pragma pack(1)
 struct XBOX_PARTITION_TABLE {
 	UCHAR Magic[16];
 	CHAR Res0[32];
@@ -38,6 +39,7 @@ struct XBOX_PARTITION_TABLE {
 		ULONG Reserved;
 	} TableEntries[14];
 };
+#pragma pack()
 
 
 BOOLEAN HddInitDriver();

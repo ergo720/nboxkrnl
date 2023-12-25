@@ -7,7 +7,9 @@
 #include "..\..\ex\ex.hpp"
 #include "..\..\nt\nt.hpp"
 #include "..\..\rtl\rtl.hpp"
+#include "..\..\dbg\dbg.hpp"
 #include <assert.h>
+#include <string.h>
 
 
 /*
@@ -19,27 +21,7 @@ Z             Game Cache   0x5dc80000      0x2ee00000    FATX 	          \Device
 C             System       0x8ca80000      0x1f400000    FATX 	          \Device\Harddisk0\Partition2
 E             Data         0xabe80000      0x131f00000   FATX 	          \Device\Harddisk0\Partition1
 */
-// Note that this table ignores the non-standard partitions with drive letters F: and G:
-static constexpr XBOX_PARTITION_TABLE HddPartitionTable = {
-	{ '*', '*', '*', '*', 'P', 'A', 'R', 'T', 'I', 'N', 'F', 'O', '*', '*', '*', '*' },
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-	{
-		{ { 'X', 'B', 'O', 'X', ' ', 'S', 'H', 'E', 'L', 'L', ' ', ' ', ' ', ' ', ' ', ' ' }, PE_PARTFLAGS_IN_USE, XBOX_MUSICPART_LBA_START, XBOX_MUSICPART_LBA_SIZE, 0 },
-		{ { 'X', 'B', 'O', 'X', ' ', 'D', 'A', 'T', 'A', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, PE_PARTFLAGS_IN_USE, XBOX_SYSPART_LBA_START, XBOX_SYSPART_LBA_SIZE, 0 },
-		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '1' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART1_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
-		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '2' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART2_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
-		{ { 'X', 'B', 'O', 'X', ' ', 'G', 'A', 'M', 'E', ' ', 'S', 'W', 'A', 'P', ' ', '3' }, PE_PARTFLAGS_IN_USE, XBOX_SWAPPART3_LBA_START, XBOX_SWAPPART_LBA_SIZE, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-		{ { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' }, 0, 0, 0, 0 },
-	}
-};
+// NOTE: the above table ignores the non-standard partitions with drive letters F: and G:
 
 NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object);
@@ -105,6 +87,27 @@ BOOLEAN HddInitDriver()
 
 	NtClose(Handle);
 
+	XBOX_PARTITION_TABLE PartitionTable;
+	UCHAR ExpectedMagic[16] = { '*', '*', '*', '*', 'P', 'A', 'R', 'T', 'I', 'N', 'F', 'O', '*', '*', '*', '*' };
+	IoInfoBlock InfoBlock;
+	IoRequest Packet;
+	Packet.Id = InterlockedIncrement64(&IoRequestId);
+	Packet.Type = IoRequestType::Read;
+	Packet.HandleOrAddress = (ULONG_PTR)&PartitionTable;
+	Packet.Offset = 0;
+	Packet.Size = sizeof(PartitionTable);
+	Packet.HandleOrPath = PARTITION0_HANDLE;
+	SubmitIoRequestToHost(&Packet);
+	RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+	if (InfoBlock.Status != Success) {
+		return FALSE;
+	}
+	if (memcmp(&PartitionTable.Magic[0], &ExpectedMagic[0], sizeof(ExpectedMagic))) {
+		// If this fails, we log the error because it probably means that the partition table file on the host side is corrupted
+		DbgPrint("Partition table has an invalid signature");
+		return FALSE;
+	}
+
 	// Create all device objects required by the HDD, one for each partition and the whole disk
 	for (unsigned i = 0; i < XBOX_MAX_NUM_OF_PARTITIONS; ++i) {
 		PDEVICE_OBJECT HddDeviceObject;
@@ -123,8 +126,8 @@ BOOLEAN HddInitDriver()
 		else {
 			// Data partition, system partition or cache partitions
 			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO);
-			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)HddPartitionTable.TableEntries[i].LBAStart * HDD_SECTOR_SIZE;
-			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)HddPartitionTable.TableEntries[i].LBASize * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i].LBAStart * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i].LBASize * HDD_SECTOR_SIZE;
 		}
 
 		HddDeviceObject->AlignmentRequirement = HDD_ALIGNMENT_REQUIREMENT;

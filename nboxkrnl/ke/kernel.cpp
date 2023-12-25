@@ -139,6 +139,43 @@ ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)
 	}
 }
 
+NTSTATUS HostToNtStatus(IoStatus Status)
+{
+	switch (Status)
+	{
+	case IoStatus::Success:
+		return STATUS_SUCCESS;
+
+	case IoStatus::Pending:
+		return STATUS_PENDING;
+
+	case IoStatus::Error:
+		return STATUS_IO_DEVICE_ERROR;
+
+	case IoStatus::Failed:
+		return STATUS_ACCESS_DENIED;
+
+	case IoStatus::IsADirectory:
+		return STATUS_FILE_IS_A_DIRECTORY;
+
+	case IoStatus::NotADirectory:
+		return STATUS_NOT_A_DIRECTORY;
+
+	case IoStatus::NotFound:
+		return STATUS_OBJECT_NAME_NOT_FOUND;
+	}
+
+	__asm {
+	noreturn_eip:
+		push 0
+		push 0
+		push 0
+		push noreturn_eip
+		push UNREACHABLE_CODE_REACHED
+		call KeBugCheckEx // won't return
+	}
+}
+
 // Source: Cxbx-Reloaded
 VOID InitializeListHead(PLIST_ENTRY pListHead)
 {

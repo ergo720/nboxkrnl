@@ -91,6 +91,12 @@ union XBOX_PFN {
 		ULONG BusyType : 4;    // What the page is used for (must be VirtualPageTableType or SystemPageTableType)
 		ULONG Busy : 1;        // If set, PFN is in use
 	} PtPageFrame;
+	struct {
+		ULONG LockCount : 16;  // Set to prevent page relocation
+		ULONG Index : 11;      // Index used to find the cache element inside FscCacheElementArray
+		ULONG BusyType : 4;    // What the page is used for
+		ULONG Busy : 1;        // If set, PFN is in use
+	} FscCache;
 };
 using PXBOX_PFN = XBOX_PFN *;
 

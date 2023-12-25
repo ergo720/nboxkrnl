@@ -258,3 +258,8 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 	DbgPrint("%s:%s%s%s%s\n\n", ApiName, OpenBracket, Expression, CloseBracket, Message);
 	HalpShutdownSystem();
 }
+
+ULONG RtlpBitScanForward(ULONG Value)
+{
+	__asm bsf eax, Value
+}

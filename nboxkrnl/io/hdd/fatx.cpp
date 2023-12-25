@@ -3,10 +3,29 @@
  */
 
 #include "hdd.hpp"
-#include "fatx.hpp"
+#include "..\..\io\fsc.hpp"
 #include "..\..\ob\obp.hpp"
 #include "..\..\rtl\rtl.hpp"
+#include "..\..\dbg\dbg.hpp"
 
+
+#define FATX_NAME_LENGTH 32
+#define FATX_ONLINE_DATA_LENGTH 2048
+#define FATX_RESERVED_LENGTH 1968
+#define FATX_SIGNATURE 'XTAF'
+
+#pragma pack(1)
+struct FATX_SUPERBLOCK {
+	ULONG Signature;
+	ULONG VolumeID;
+	ULONG ClusterSize;
+	ULONG RootDirCluster;
+	WCHAR Name[FATX_NAME_LENGTH];
+	UCHAR OnlineData[FATX_ONLINE_DATA_LENGTH];
+	UCHAR Unused[FATX_RESERVED_LENGTH];
+};
+using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
+#pragma pack()
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -87,6 +106,47 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 	return TRUE;
 }
 
+static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension)
+{
+	PFATX_SUPERBLOCK Superblock;
+	if (NTSTATUS Status = FscMapElementPage(&VolumeExtension->CacheExtension, 0, (PVOID *)&Superblock, FALSE); !NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	// If we fail to validate the superblock, we log the error because it probably means that the partition.bin file on the host side is corrupted
+	if (Superblock->Signature != FATX_SIGNATURE) {
+		DbgPrint("Superblock has an invalid signature");
+		FscUnmapElementPage(Superblock);
+		return STATUS_UNRECOGNIZED_VOLUME;
+	}
+
+	switch (Superblock->ClusterSize)
+	{
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+	case 64:
+	case 128:
+		break;
+
+	default:
+		DbgPrint("Superblock has an invalid cluster size (it was %u)", Superblock->ClusterSize);
+		FscUnmapElementPage(Superblock);
+		return STATUS_UNRECOGNIZED_VOLUME;
+	}
+
+	VolumeExtension->BytesPerCluster = Superblock->ClusterSize << VolumeExtension->SectorShift;
+	VolumeExtension->ClusterShift = RtlpBitScanForward(VolumeExtension->BytesPerCluster);
+	VolumeExtension->VolumeID = Superblock->VolumeID;
+
+	FscUnmapElementPage(Superblock);
+
+	return STATUS_SUCCESS;
+}
+
 NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 {
 	// NOTE: This is called while holding DeviceObject->DeviceLock
@@ -128,7 +188,14 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	}
 
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)FatxDeviceObject->DeviceExtension;
+	VolumeExtension->CacheExtension.TargetDeviceObject = DeviceObject;
+	VolumeExtension->CacheExtension.SectorSize = FatxDeviceObject->SectorSize;
+	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
+
+	if (Status = FatxReadSuperblock(VolumeExtension); !NT_SUCCESS(Status)) {
+		return Status;
+	}
 
 	FatxDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
@@ -249,37 +316,14 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		SubmitIoRequestToHost(&Packet);
 		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
 
-		switch (InfoBlock.Status)
-		{
-		case IoStatus::Success:
-			InfoBlock.Status = (IoStatus)STATUS_SUCCESS;
+		NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+		if (Status == STATUS_SUCCESS) {
 			// Save the host handle in the object so that we can find it later for other requests to this same file/directory
 			*(PULONGLONG)IrpStackPointer->FileObject->FsContext2 = Packet.HandleOrAddress;
-			break;
-
-		case IoStatus::Pending:
+		}
+		else if (Status == STATUS_PENDING) {
 			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 			RIP_API_MSG("Asynchronous IO is not supported");
-
-		case IoStatus::Error:
-			InfoBlock.Status = (IoStatus)STATUS_IO_DEVICE_ERROR;
-			break;
-
-		case IoStatus::Failed:
-			InfoBlock.Status = (IoStatus)STATUS_ACCESS_DENIED;
-			break;
-
-		case IoStatus::IsADirectory:
-			InfoBlock.Status = (IoStatus)STATUS_FILE_IS_A_DIRECTORY;
-			break;
-
-		case IoStatus::NotADirectory:
-			InfoBlock.Status = (IoStatus)STATUS_NOT_A_DIRECTORY;
-			break;
-
-		case IoStatus::NotFound:
-			InfoBlock.Status = (IoStatus)STATUS_OBJECT_NAME_NOT_FOUND;
-			break;
 		}
 
 		Irp->IoStatus.Information = InfoBlock.Info;

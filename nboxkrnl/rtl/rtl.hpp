@@ -146,3 +146,6 @@ EXPORTNUM(320) DLLEXPORT VOID XBOXAPI RtlZeroMemory
 
 #define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
 #define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))
+
+
+ULONG RtlpBitScanForward(ULONG Value);

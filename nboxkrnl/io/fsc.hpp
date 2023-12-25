@@ -9,13 +9,14 @@
 
 
 struct FSCACHE_ELEMENT {
-	ULONG ByteOffset;
+	ULONG AlignedByteOffset;
 	PFSCACHE_EXTENSION CacheExtension;
 	union {
 		struct {
 			ULONG NumOfUsers : 8;
 			ULONG MarkForDeletion : 1;
-			ULONG Unused : 3;
+			ULONG WriteInProgress : 1;
+			ULONG Unused : 2;
 			ULONG CachePageAlignedAddr : 20;
 		};
 		PCHAR CacheBuffer;
@@ -40,3 +41,6 @@ EXPORTNUM(37) DLLEXPORT NTSTATUS XBOXAPI FscSetCacheSize
 
 
 inline ULONG FscCurrNumberOfCachePages = 0;
+
+NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffset, PVOID *ReturnedBuffer, BOOLEAN IsWrite);
+VOID FscUnmapElementPage(PVOID Buffer);

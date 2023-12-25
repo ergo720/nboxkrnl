@@ -5,6 +5,7 @@
 #include "..\kernel.hpp"
 #include "..\ke\ke.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\io\fsc.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
 #include "vad_tree.hpp"
@@ -245,6 +246,10 @@ BOOLEAN MmInitSystem()
 
 	KiPcr.PrcbData.DpcStack = MmCreateKernelStack(KERNEL_STACK_SIZE, FALSE);
 	if (KiPcr.PrcbData.DpcStack == nullptr) {
+		return FALSE;
+	}
+
+	if (!NT_SUCCESS(FscSetCacheSize(16))) {
 		return FALSE;
 	}
 

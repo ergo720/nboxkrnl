@@ -16,8 +16,71 @@ static PFSCACHE_ELEMENT FscCacheElementArray = nullptr;
 static LIST_ENTRY FscCacheElementListHead;
 
 static INITIALIZE_GLOBAL_KEVENT(FscUpdateNumOfPages, SynchronizationEvent, TRUE);
+static INITIALIZE_GLOBAL_KEVENT(FscConcurrentWriteEvent, NotificationEvent, FALSE);
 static INITIALIZE_GLOBAL_KEVENT(FscReleasedPagesEvent, SynchronizationEvent, FALSE);
 
+
+static ULONG FscByteOffsetToAlignedOffset(ULONGLONG ByteOffset)
+{
+	// Note that this cannot cause a truncation error because an xbox HDD is only 8/10 GiB large
+
+	return (ULONG)(ByteOffset >> PAGE_SHIFT);
+}
+
+static PFSCACHE_ELEMENT FscFindElement(PFSCACHE_EXTENSION CacheExtension, ULONG AlignedByteOffset)
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PLIST_ENTRY Entry = FscCacheElementListHead.Blink;
+	while (Entry != &FscCacheElementListHead) {
+		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
+		if ((Element->CacheExtension == CacheExtension) && (Element->AlignedByteOffset == AlignedByteOffset)) {
+			RemoveEntryList(&Element->ListEntry);
+			InsertTailList(&FscCacheElementListHead, &Element->ListEntry);
+
+			return Element;
+		}
+
+		if (Element->CacheExtension == nullptr) {
+			break;
+		}
+
+		Entry = Element->ListEntry.Blink;
+	}
+
+	return nullptr;
+}
+
+static PFSCACHE_ELEMENT FscFindElement(PVOID CacheBuffer)
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PMMPTE Pte = GetPteAddress(CacheBuffer);
+	PXBOX_PFN Pfn = GetPfnElement(Pte->Hw >> PAGE_SHIFT);
+
+	return &FscCacheElementArray[Pfn->FscCache.Index];
+}
+
+static PFSCACHE_ELEMENT FscAllocateFreeElement()
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	PLIST_ENTRY Entry = FscCacheElementListHead.Flink;
+	while (Entry != &FscCacheElementListHead) {
+		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
+		if (Element->CacheExtension == nullptr) {
+			return Element;
+		}
+
+		Entry = Element->ListEntry.Blink;
+	}
+
+	if (!NT_SUCCESS(FscSetCacheSize(FscCurrNumberOfCachePages + 1))) {
+		return nullptr;
+	}
+
+	return FscAllocateFreeElement(); // can't fail now
+}
 
 static VOID FscReBuildCacheElementList()
 {
@@ -41,8 +104,7 @@ static NTSTATUS FscIncreaseCacheSize(ULONG NumberOfCachePages)
 	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
 	assert(NumberOfCachePages > FscCurrNumberOfCachePages);
 
-	ULONG SizeOfNewCacheElementArray = sizeof(FSCACHE_ELEMENT) * NumberOfCachePages;
-	PFSCACHE_ELEMENT NewFscCacheElementArray = (PFSCACHE_ELEMENT)ExAllocatePoolWithTag(SizeOfNewCacheElementArray, 'AcsF');
+	PFSCACHE_ELEMENT NewFscCacheElementArray = (PFSCACHE_ELEMENT)ExAllocatePoolWithTag(sizeof(FSCACHE_ELEMENT) * NumberOfCachePages, 'AcsF');
 	if (NewFscCacheElementArray == nullptr) {
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
@@ -53,11 +115,14 @@ static NTSTATUS FscIncreaseCacheSize(ULONG NumberOfCachePages)
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
-	memcpy(NewFscCacheElementArray, FscCacheElementArray, SizeOfNewCacheElementArray);
+	memcpy(NewFscCacheElementArray, FscCacheElementArray, sizeof(FSCACHE_ELEMENT) * FscCurrNumberOfCachePages);
 
 	for (ULONG Index = FscCurrNumberOfCachePages; Index < NumberOfCachePages; ++Index) {
 		NewFscCacheElementArray[Index].CacheExtension = nullptr; // marks the element as invalid
 		NewFscCacheElementArray[Index].CacheBuffer = CacheBuffer; // clears all flag bits
+		PMMPTE Pte = GetPteAddress(CacheBuffer);
+		PXBOX_PFN Pfn = GetPfnElement(Pte->Hw >> PAGE_SHIFT);
+		Pfn->FscCache.Index = Index;
 		CacheBuffer += PAGE_SIZE;
 	}
 
@@ -125,6 +190,97 @@ static NTSTATUS FscReduceCacheSize(ULONG NumberOfCachePages)
 	FscReBuildCacheElementList();
 
 	return STATUS_SUCCESS;
+}
+
+NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffset, PVOID *ReturnedBuffer, BOOLEAN IsWrite)
+{
+	KIRQL OldIrql = MiLock();
+
+	retry:
+	ULONG AlignedByteOffset = FscByteOffsetToAlignedOffset(ByteOffset);
+	PFSCACHE_ELEMENT Element = FscFindElement(CacheExtension, AlignedByteOffset);
+	if (Element) {
+		if (Element->WriteInProgress == 0) {
+			++Element->NumOfUsers;
+			Element->WriteInProgress = IsWrite ? 1 : 0;
+			*ReturnedBuffer = PVOID((ULONG(Element->CacheBuffer) & ~PAGE_MASK) + BYTE_OFFSET(ByteOffset));
+			MiUnlock(OldIrql);
+
+			return STATUS_SUCCESS;
+		}
+
+		MiUnlock(OldIrql);
+		KeWaitForSingleObject(&FscConcurrentWriteEvent, Executive, KernelMode, FALSE, nullptr);
+		OldIrql = MiLock();
+
+		goto retry;
+	}
+	else {
+		if (Element = FscAllocateFreeElement(); Element == nullptr) {
+			MiUnlock(OldIrql);
+			return STATUS_NO_MEMORY;
+		}
+
+		if (CacheExtension->TargetDeviceObject->DeviceType != FILE_DEVICE_DISK) {
+			RIP_API_MSG("Only the HDD device is supported");
+		}
+
+		// Set NumOfUsers before releasing the Mm lock so that FscReduceCacheSize doesn't remove the element we are using
+		// Also set WriteInProgress so that FscMapElementPage doesn't attempt to use this element
+		Element->AlignedByteOffset = AlignedByteOffset;
+		Element->CacheExtension = CacheExtension;
+		Element->NumOfUsers = 1;
+		Element->WriteInProgress = 1;
+
+		MiUnlock(OldIrql);
+
+		IoInfoBlock InfoBlock;
+		IoRequest Packet;
+		Packet.Id = InterlockedIncrement64(&IoRequestId);
+		Packet.Type = IoRequestType::Read;
+		Packet.HandleOrAddress = ULONG(Element->CacheBuffer) & ~PAGE_MASK;
+		Packet.Offset = ByteOffset;
+		Packet.Size = PAGE_SIZE;
+		Packet.HandleOrPath = PARTITION0_HANDLE + PIDE_DISK_EXTENSION(CacheExtension->TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber;
+		SubmitIoRequestToHost(&Packet);
+		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+
+		OldIrql = MiLock();
+
+		NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+		if (Status == STATUS_SUCCESS) {
+			Element->WriteInProgress = IsWrite ? 1 : 0;
+			*ReturnedBuffer = PVOID((ULONG(Element->CacheBuffer) & ~PAGE_MASK) + BYTE_OFFSET(ByteOffset));
+		}
+		else if (Status == STATUS_PENDING) {
+			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+			RIP_API_MSG("Asynchronous IO is not supported");
+		}
+		else {
+			Element->CacheBuffer = PCHAR(ULONG(Element->CacheBuffer) & ~PAGE_MASK);
+		}
+
+		MiUnlock(OldIrql);
+
+		return Status;
+	}
+}
+
+VOID FscUnmapElementPage(PVOID Buffer)
+{
+	KIRQL OldIrql = MiLock();
+
+	// NOTE: there can only be a single write happening at any given time, since other threads attempting new writes will block in FscMapElementPage
+	PFSCACHE_ELEMENT Element = FscFindElement(Buffer);
+	--Element->NumOfUsers;
+	Element->WriteInProgress = 0;
+	if ((Element->NumOfUsers == 0) && (IsListEmpty(&FscReleasedPagesEvent.Header.WaitListHead) == FALSE)) {
+		KeSetEvent(&FscReleasedPagesEvent, 0, FALSE);
+	}
+	KeSetEvent(&FscConcurrentWriteEvent, 0, FALSE);
+	FscConcurrentWriteEvent.Header.SignalState = 0;
+
+	MiUnlock(OldIrql);
 }
 
 EXPORTNUM(37) NTSTATUS XBOXAPI FscSetCacheSize
