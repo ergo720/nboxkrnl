@@ -20,17 +20,20 @@ using PFSCACHE_EXTENSION = FSCACHE_EXTENSION *;
 
 struct FAT_VOLUME_EXTENSION {
 	FSCACHE_EXTENSION CacheExtension;
-	UCHAR Unknown1[20];
+	UCHAR Unknown1[16];
+	ULONG NumberOfClusters;
 	ULONG BytesPerCluster;
 	UCHAR SectorShift;
 	UCHAR ClusterShift;
 	UCHAR Unknown2;
 	UCHAR Flags;
-	UCHAR Unknown3[24];
+	UCHAR Unknown3[16];
+	ULONG NumberOfClustersAvailable;
+	ULONG Unknown4;
 	ERWLOCK VolumeMutex;
-	UCHAR Unknown4[96];
+	UCHAR Unknown5[96];
 	ULONG VolumeID;
-	UCHAR Unknown5[8];
+	UCHAR Unknown6[8];
 };
 using PFAT_VOLUME_EXTENSION = FAT_VOLUME_EXTENSION *;
 

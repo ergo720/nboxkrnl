@@ -7,6 +7,7 @@
 #include "..\..\ob\obp.hpp"
 #include "..\..\rtl\rtl.hpp"
 #include "..\..\dbg\dbg.hpp"
+#include <string.h>
 
 
 #define FATX_NAME_LENGTH 32
@@ -28,6 +29,7 @@ using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
 #pragma pack()
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT FatxDriverObject = {
 	nullptr,                            // DriverStartIo
@@ -41,7 +43,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
-		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
+		FatxIrpQueryVolumeInformation,  // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
@@ -56,6 +58,12 @@ static VOID FatxVolumeLockExclusive(PFAT_VOLUME_EXTENSION VolumeExtension)
 {
 	KeEnterCriticalRegion();
 	ExAcquireReadWriteLockExclusive(&VolumeExtension->VolumeMutex);
+}
+
+static VOID FatxVolumeLockShared(PFAT_VOLUME_EXTENSION VolumeExtension)
+{
+	KeEnterCriticalRegion();
+	ExAcquireReadWriteLockShared(&VolumeExtension->VolumeMutex);
 }
 
 static VOID FatxVolumeUnlock(PFAT_VOLUME_EXTENSION VolumeExtension)
@@ -106,7 +114,7 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 	return TRUE;
 }
 
-static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension)
+static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension, LONGLONG PartitionLength)
 {
 	PFATX_SUPERBLOCK Superblock;
 	if (NTSTATUS Status = FscMapElementPage(&VolumeExtension->CacheExtension, 0, (PVOID *)&Superblock, FALSE); !NT_SUCCESS(Status)) {
@@ -141,6 +149,8 @@ static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension)
 	VolumeExtension->BytesPerCluster = Superblock->ClusterSize << VolumeExtension->SectorShift;
 	VolumeExtension->ClusterShift = RtlpBitScanForward(VolumeExtension->BytesPerCluster);
 	VolumeExtension->VolumeID = Superblock->VolumeID;
+	VolumeExtension->NumberOfClusters = ULONG((PartitionLength - sizeof(FATX_SUPERBLOCK)) >> VolumeExtension->ClusterShift);
+	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters; // FIXME: hardcoded number of free clusters
 
 	FscUnmapElementPage(Superblock);
 
@@ -152,6 +162,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	// NOTE: This is called while holding DeviceObject->DeviceLock
 
 	DISK_GEOMETRY DiskGeometry;
+	LONGLONG PartitionLength;
 	
 	switch (DeviceObject->DeviceType)
 	{
@@ -167,6 +178,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 		DiskGeometry.TracksPerCylinder = 1;
 		DiskGeometry.SectorsPerTrack = 1;
 		DiskGeometry.BytesPerSector = HDD_SECTOR_SIZE;
+		PartitionLength = PIDE_DISK_EXTENSION(DeviceObject->DeviceExtension)->PartitionInformation.PartitionLength.QuadPart;
 		break;
 	}
 
@@ -193,7 +205,8 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
 
-	if (Status = FatxReadSuperblock(VolumeExtension); !NT_SUCCESS(Status)) {
+	if (Status = FatxReadSuperblock(VolumeExtension, PartitionLength); !NT_SUCCESS(Status)) {
+		// TODO: cleanup FatxDeviceObject when this fails
 		return Status;
 	}
 
@@ -327,4 +340,73 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		Irp->IoStatus.Information = InfoBlock.Info;
 		return FatxCompleteRequest(Irp, InfoBlock.Status, VolumeExtension);
 	}
+}
+
+NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	FatxVolumeLockShared(VolumeExtension);
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	memset(Irp->UserBuffer, 0, IrpStackPointer->Parameters.QueryVolume.Length);
+
+	ULONG BytesWritten;
+	NTSTATUS Status = STATUS_SUCCESS;
+	switch (IrpStackPointer->Parameters.QueryVolume.FsInformationClass)
+	{
+	case FileFsVolumeInformation:
+		PFILE_FS_VOLUME_INFORMATION(Irp->UserBuffer)->VolumeSerialNumber = VolumeExtension->VolumeID;
+		BytesWritten = offsetof(FILE_FS_VOLUME_INFORMATION, VolumeLabel);
+		break;
+
+	case FileFsSizeInformation: {
+		PFILE_FS_SIZE_INFORMATION SizeInformation = (PFILE_FS_SIZE_INFORMATION)Irp->UserBuffer;
+		SizeInformation->TotalAllocationUnits.QuadPart = VolumeExtension->NumberOfClusters;
+		SizeInformation->AvailableAllocationUnits.QuadPart = VolumeExtension->NumberOfClustersAvailable;
+		SizeInformation->SectorsPerAllocationUnit = VolumeExtension->BytesPerCluster >> VolumeExtension->SectorShift;
+		SizeInformation->BytesPerSector = VolumeExtension->CacheExtension.SectorSize;
+		BytesWritten = sizeof(FILE_FS_SIZE_INFORMATION);
+	}
+	break;
+
+	case FileFsDeviceInformation: {
+		PFILE_FS_DEVICE_INFORMATION DeviceInformation = (PFILE_FS_DEVICE_INFORMATION)Irp->UserBuffer;
+		DeviceInformation->DeviceType = VolumeExtension->CacheExtension.TargetDeviceObject->DeviceType;
+		DeviceInformation->Characteristics = 0;
+		BytesWritten = sizeof(FILE_FS_DEVICE_INFORMATION);
+	}
+	break;
+
+	case FileFsAttributeInformation: {
+		PFILE_FS_ATTRIBUTE_INFORMATION AttributeInformation = (PFILE_FS_ATTRIBUTE_INFORMATION)Irp->UserBuffer;
+		AttributeInformation->FileSystemAttributes = 0;
+		AttributeInformation->MaximumComponentNameLength = FATX_MAX_FILE_NAME_LENGTH;
+		AttributeInformation->FileSystemNameLength = 4; // strlen("FATX")
+
+		// NOTE: this writes the ANSI string "FATX" to FileSystemName if the buffer is large enough. The string is written as if ANSI, and not UNICODE like the WCHAR type
+		// of FileSystemName might suggest. This was confirmed by looking at this code from a dump of an original kernel
+		const ULONG OffsetOfFileSystemName = offsetof(FILE_FS_ATTRIBUTE_INFORMATION, FileSystemName);
+		if (IrpStackPointer->Parameters.QueryVolume.Length < (OffsetOfFileSystemName + 4)) {
+			BytesWritten = OffsetOfFileSystemName;
+			Status = STATUS_BUFFER_OVERFLOW;
+		}
+		else {
+			strncpy((PCHAR)&AttributeInformation->FileSystemName, "FATX", 4);
+			BytesWritten = OffsetOfFileSystemName + 4;
+		}
+	}
+	break;
+
+	default:
+		BytesWritten = 0;
+		Status = STATUS_INVALID_PARAMETER;
+	}
+
+	Irp->IoStatus.Information = BytesWritten;
+	return FatxCompleteRequest(Irp, Status, VolumeExtension);
 }
