@@ -304,22 +304,20 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		// NOTE1: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 		// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
 		// NOTE2: this is currently ignoring the file attributes, permissions and share access. This is because the host doesn't support these yet
-		IoInfoBlock InfoBlock;
-		IoRequest Packet;
-		Packet.Id = InterlockedIncrement64(&IoRequestId);
-		Packet.Type = (HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
-			(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | (Disposition & 7) | IoRequestType::Open;
-		Packet.HandleOrAddress = InterlockedIncrement64(&IoHostFileHandle);
-		Packet.Offset = 0;
-		Packet.Size = POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length;
-		Packet.HandleOrPath = (ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer);
-		SubmitIoRequestToHost(&Packet);
-		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+		ULONGLONG HostHandle = InterlockedIncrement64(&IoHostFileHandle);
+		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+			(HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+			(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | (Disposition & 7) | IoRequestType::Open,
+			0,
+			POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length,
+			HostHandle,
+			(ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer)
+		);
 
 		NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
 		if (Status == STATUS_SUCCESS) {
 			// Save the host handle in the object so that we can find it later for other requests to this same file/directory
-			*(PULONGLONG)IrpStackPointer->FileObject->FsContext2 = Packet.HandleOrAddress;
+			*(PULONGLONG)IrpStackPointer->FileObject->FsContext2 = HostHandle;
 		}
 		else if (Status == STATUS_PENDING) {
 			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous

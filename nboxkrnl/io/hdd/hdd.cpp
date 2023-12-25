@@ -89,16 +89,14 @@ BOOLEAN HddInitDriver()
 
 	XBOX_PARTITION_TABLE PartitionTable;
 	UCHAR ExpectedMagic[16] = { '*', '*', '*', '*', 'P', 'A', 'R', 'T', 'I', 'N', 'F', 'O', '*', '*', '*', '*' };
-	IoInfoBlock InfoBlock;
-	IoRequest Packet;
-	Packet.Id = InterlockedIncrement64(&IoRequestId);
-	Packet.Type = IoRequestType::Read;
-	Packet.HandleOrAddress = (ULONG_PTR)&PartitionTable;
-	Packet.Offset = 0;
-	Packet.Size = sizeof(PartitionTable);
-	Packet.HandleOrPath = PARTITION0_HANDLE;
-	SubmitIoRequestToHost(&Packet);
-	RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		IoRequestType::Read,
+		0,
+		sizeof(PartitionTable),
+		(ULONG_PTR)&PartitionTable,
+		PARTITION0_HANDLE
+	);
+
 	if (InfoBlock.Status != Success) {
 		return FALSE;
 	}

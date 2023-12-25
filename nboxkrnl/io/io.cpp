@@ -32,16 +32,13 @@ EXPORTNUM(71) OBJECT_TYPE IoFileObjectType = {
 
 BOOLEAN IoInitSystem()
 {
-	IoInfoBlock InfoBlock;
-	IoRequest Packet;
-	Packet.Id = InterlockedIncrement64(&IoRequestId);
-	Packet.Type = IoRequestType::Read;
-	Packet.HandleOrPath = EEPROM_HANDLE;
-	Packet.Offset = 0;
-	Packet.Size = sizeof(XBOX_EEPROM);
-	Packet.HandleOrAddress = (ULONG_PTR)&CachedEeprom;
-	SubmitIoRequestToHost(&Packet);
-	RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		IoRequestType::Read,
+		0,
+		sizeof(XBOX_EEPROM),
+		(ULONG_PTR)&CachedEeprom,
+		EEPROM_HANDLE
+	);
 
 	if (InfoBlock.Status != Success) {
 		return FALSE;

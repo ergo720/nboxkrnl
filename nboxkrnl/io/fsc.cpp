@@ -234,16 +234,13 @@ NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffs
 
 		MiUnlock(OldIrql);
 
-		IoInfoBlock InfoBlock;
-		IoRequest Packet;
-		Packet.Id = InterlockedIncrement64(&IoRequestId);
-		Packet.Type = IoRequestType::Read;
-		Packet.HandleOrAddress = ULONG(Element->CacheBuffer) & ~PAGE_MASK;
-		Packet.Offset = ByteOffset;
-		Packet.Size = PAGE_SIZE;
-		Packet.HandleOrPath = PARTITION0_HANDLE + PIDE_DISK_EXTENSION(CacheExtension->TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber;
-		SubmitIoRequestToHost(&Packet);
-		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+			IoRequestType::Read,
+			ByteOffset,
+			PAGE_SIZE,
+			ULONG(Element->CacheBuffer) & ~PAGE_MASK,
+			PARTITION0_HANDLE + PIDE_DISK_EXTENSION(CacheExtension->TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber
+		);
 
 		OldIrql = MiLock();
 

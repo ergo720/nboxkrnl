@@ -90,7 +90,7 @@ EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
 	*CurrentTime = SystemTime;
 }
 
-VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
+static VOID SubmitIoRequestToHost(IoRequest *Request)
 {
 	outl(IO_START, (ULONG_PTR)Request);
 	while (inl(IO_CHECK_ENQUEUE)) {
@@ -98,7 +98,7 @@ VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request)
 	}
 }
 
-VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
+static VOID RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
 {
 	// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
 
@@ -122,6 +122,22 @@ VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
 	} while (Info->Status == Pending);
 
 	__asm popfd
+}
+
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath)
+{
+	IoInfoBlock InfoBlock;
+	IoRequest Packet;
+	Packet.Id = InterlockedIncrement64(&IoRequestId);
+	Packet.Type = Type;
+	Packet.HandleOrAddress = HandleOrAddress;
+	Packet.Offset = Offset;
+	Packet.Size = Size;
+	Packet.HandleOrPath = HandleOrPath;
+	SubmitIoRequestToHost(&Packet);
+	RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+
+	return InfoBlock;
 }
 
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)

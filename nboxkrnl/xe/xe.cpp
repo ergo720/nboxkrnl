@@ -69,19 +69,16 @@ static NTSTATUS XeLoadXbe()
 		XeImageFileName.MaximumLength = (USHORT)PathSize - 1;
 		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize - 1); // NOTE: doesn't copy the terminating NULL character
 
-		IoInfoBlock InfoBlock;
-		IoRequest Packet;
-		Packet.Id = InterlockedIncrement64(&IoRequestId);
-		Packet.Type = IoRequestType::Open | FILE_OPEN;
-		Packet.HandleOrAddress = XBE_HANDLE;
-		Packet.Offset = 0;
-		Packet.Size = PathSize - 1;
-		Packet.HandleOrPath = (ULONG_PTR)PathBuffer;
-		SubmitIoRequestToHost(&Packet);
-		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+			IoRequestType::Open | FILE_OPEN,
+			0,
+			PathSize - 1,
+			XBE_HANDLE,
+			(ULONG_PTR)PathBuffer
+		);
 
 		if (InfoBlock.Status != Success) {
-			return STATUS_INVALID_PARAMETER; // fixme
+			return STATUS_IO_DEVICE_ERROR;
 		}
 
 		PXBE_HEADER XbeHeader = (PXBE_HEADER)ExAllocatePoolWithTag(PAGE_SIZE, 'hIeX');
@@ -89,17 +86,16 @@ static NTSTATUS XeLoadXbe()
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		Packet.Id = InterlockedIncrement64(&IoRequestId);
-		Packet.Type = IoRequestType::Read;
-		Packet.HandleOrPath = XBE_HANDLE;
-		Packet.Offset = 0;
-		Packet.Size = PAGE_SIZE;
-		Packet.HandleOrAddress = (ULONG_PTR)XbeHeader;
-		SubmitIoRequestToHost(&Packet);
-		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+		InfoBlock = SubmitIoRequestToHost(
+			IoRequestType::Read,
+			0,
+			PAGE_SIZE,
+			(ULONG_PTR)XbeHeader,
+			XBE_HANDLE
+		);
 
 		if (InfoBlock.Status != Success) {
-			return STATUS_INVALID_PARAMETER; // fixme
+			return STATUS_IO_DEVICE_ERROR;
 		}
 
 		// Sanity checks: make sure that the file looks like an XBE
@@ -128,17 +124,16 @@ static NTSTATUS XeLoadXbe()
 		XbeHeader = nullptr;
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
-			Packet.Id = InterlockedIncrement64(&IoRequestId);
-			Packet.Type = IoRequestType::Read;
-			Packet.HandleOrPath = XBE_HANDLE;
-			Packet.Offset = PAGE_SIZE;
-			Packet.Size = GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE;
-			Packet.HandleOrAddress = (ULONG_PTR)((PCHAR)XbeHeader + Packet.Offset);
-			SubmitIoRequestToHost(&Packet);
-			RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+			InfoBlock = SubmitIoRequestToHost(
+				IoRequestType::Read,
+				PAGE_SIZE,
+				GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE,
+				(ULONG_PTR)((PCHAR)XbeHeader + PAGE_SIZE),
+				XBE_HANDLE
+			);
 
 			if (InfoBlock.Status != Success) {
-				return STATUS_INVALID_PARAMETER; // fixme
+				return STATUS_IO_DEVICE_ERROR;
 			}
 		}
 
@@ -249,23 +244,20 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 		memset(Section->VirtualAddress, 0, Section->VirtualSize);
 
 		// Copy the section data
-		IoInfoBlock InfoBlock;
-		IoRequest Packet;
-		Packet.Id = InterlockedIncrement64(&IoRequestId);
-		Packet.Type = IoRequestType::Read;
-		Packet.HandleOrPath = XBE_HANDLE;
-		Packet.Offset = Section->FileAddress;
-		Packet.Size = Section->FileSize;
-		Packet.HandleOrAddress = (ULONG_PTR)Section->VirtualAddress;
-		SubmitIoRequestToHost(&Packet);
-		RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+			IoRequestType::Read,
+			Section->FileAddress,
+			Section->FileSize,
+			(ULONG_PTR)Section->VirtualAddress,
+			XBE_HANDLE
+		);
 
 		if (InfoBlock.Status != Success) {
 			BaseAddress = Section->VirtualAddress;
 			SectionSize = Section->VirtualSize;
 			NtFreeVirtualMemory(&BaseAddress, &SectionSize, MEM_DECOMMIT);
 			RtlLeaveCriticalSectionAndRegion(&XepXbeLoaderLock);
-			return STATUS_INVALID_HANDLE; // fixme
+			return STATUS_IO_DEVICE_ERROR;
 		}
 
 		// Increment the head/tail page reference counters

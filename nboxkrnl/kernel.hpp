@@ -140,8 +140,7 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 }
 #endif
 
-VOID FASTCALL SubmitIoRequestToHost(IoRequest *Request);
-VOID FASTCALL RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id);
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath);
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
 NTSTATUS HostToNtStatus(IoStatus Status);
 
