@@ -12,7 +12,6 @@
 #include <assert.h>
 
 #define TICKSPERSEC        10000000
-#define TICKSPERMSEC       10000
 #define SECSPERDAY         86400
 #define SECSPERHOUR        3600
 #define SECSPERMIN         60
@@ -127,6 +126,19 @@ EXPORTNUM(278) VOID XBOXAPI RtlEnterCriticalSectionAndRegion
 {
 	KeEnterCriticalRegion();
 	RtlEnterCriticalSection(CriticalSection);
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(281) LARGE_INTEGER XBOXAPI RtlExtendedIntegerMultiply
+(
+	LARGE_INTEGER Multiplicand,
+	LONG Multiplier
+)
+{
+	LARGE_INTEGER Product;
+	Product.QuadPart = Multiplicand.QuadPart * (LONGLONG)Multiplier;
+
+	return Product;
 }
 
 EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
@@ -293,7 +305,10 @@ EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
 		TimeFields->Hour) * MINSPERHOUR +
 		TimeFields->Minute) * SECSPERMIN +
 		TimeFields->Second) * 1000 +
-		TimeFields->Millisecond) * TICKSPERMSEC;
+		TimeFields->Millisecond);
+
+	// This function must return a time expressed in 100ns units (the Windows time interval), so it needs a final multiplication here
+	*Time = RtlExtendedIntegerMultiply(*Time, CLOCK_TIME_INCREMENT);
 
 	return TRUE;
 }

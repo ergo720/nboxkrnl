@@ -301,7 +301,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&RtlEnterCriticalSectionAndRegion),        // 0x0116 (278)
 	(ULONG)FUNC(&RtlEqualString),                          // 0x0117 (279)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlEqualUnicodeString),                   // 0x0118 (280)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlExtendedIntegerMultiply),              // 0x0119 (281)
+	(ULONG)FUNC(&RtlExtendedIntegerMultiply),              // 0x0119 (281)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlExtendedLargeIntegerDivide),           // 0x011A (282)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlExtendedMagicDivide),                  // 0x011B (283)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&RtlFillMemory),                           // 0x011C (284)

@@ -65,6 +65,12 @@ EXPORTNUM(279) DLLEXPORT BOOLEAN XBOXAPI RtlEqualString
 	BOOLEAN CaseInSensitive
 );
 
+EXPORTNUM(281) DLLEXPORT LARGE_INTEGER XBOXAPI RtlExtendedIntegerMultiply
+(
+	LARGE_INTEGER Multiplicand,
+	LONG Multiplier
+);
+
 EXPORTNUM(285) DLLEXPORT VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,
