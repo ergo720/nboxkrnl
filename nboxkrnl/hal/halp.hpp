@@ -84,4 +84,5 @@ inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {
 [[noreturn]] VOID HalpShutdownSystem();
 VOID HalpInitPIC();
 VOID HalpInitPIT();
+VOID HalpReadCmosTime(PTIME_FIELDS TimeFields);
 VOID HalpCheckUnmaskedInt();

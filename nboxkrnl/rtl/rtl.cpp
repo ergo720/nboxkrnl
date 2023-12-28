@@ -11,6 +11,26 @@
 #include <string.h>
 #include <assert.h>
 
+#define TICKSPERSEC        10000000
+#define TICKSPERMSEC       10000
+#define SECSPERDAY         86400
+#define SECSPERHOUR        3600
+#define SECSPERMIN         60
+#define MINSPERHOUR        60
+#define HOURSPERDAY        24
+#define EPOCHWEEKDAY       1  /* Jan 1, 1601 was Monday */
+#define DAYSPERWEEK        7
+#define MONSPERYEAR        12
+#define DAYSPERQUADRICENTENNIUM (365 * 400 + 97)
+#define DAYSPERNORMALQUADRENNIUM (365 * 4 + 1)
+
+ /* 1601 to 1970 is 369 years plus 89 leap days */
+#define SECS_1601_TO_1970  ((369 * 365 + 89) * (ULONGLONG)SECSPERDAY)
+#define TICKS_1601_TO_1970 (SECS_1601_TO_1970 * TICKSPERSEC)
+/* 1601 to 1980 is 379 years plus 91 leap days */
+#define SECS_1601_TO_1980  ((379 * 365 + 91) * (ULONGLONG)SECSPERDAY)
+#define TICKS_1601_TO_1980 (SECS_1601_TO_1980 * TICKSPERSEC)
+
 
 EXPORTNUM(264) VOID XBOXAPI RtlAssert
 (
@@ -213,6 +233,69 @@ EXPORTNUM(297) VOID XBOXAPI RtlMapGenericMask
 	}
 
 	*AccessMask &= ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
+}
+
+static const int RtlpMonthLengths[2][MONSPERYEAR] =
+{
+	{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+	{ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+};
+
+static inline BOOL RtlpIsLeapYear(int Year)
+{
+	return Year % 4 == 0 && (Year % 100 != 0 || Year % 400 == 0);
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
+(
+	PTIME_FIELDS TimeFields,
+	PLARGE_INTEGER Time
+)
+{
+	LONG Month, Year, Cleaps, Day;
+
+	if (TimeFields->Millisecond < 0 || TimeFields->Millisecond > 999 ||
+		TimeFields->Second < 0 || TimeFields->Second > 59 ||
+		TimeFields->Minute < 0 || TimeFields->Minute > 59 ||
+		TimeFields->Hour < 0 || TimeFields->Hour > 23 ||
+		TimeFields->Month < 1 || TimeFields->Month > 12 ||
+		TimeFields->Day < 1 ||
+		TimeFields->Day > RtlpMonthLengths
+		[TimeFields->Month == 2 || RtlpIsLeapYear(TimeFields->Year)]
+		[TimeFields->Month - 1] ||
+		TimeFields->Year < 1601) {
+		return FALSE;
+	}
+
+	/* now calculate a day count from the date
+	* First start counting years from March. This way the leap days
+	* are added at the end of the year, not somewhere in the middle.
+	* Formula's become so much less complicate that way.
+	* To convert: add 12 to the month numbers of Jan and Feb, and
+	* take 1 from the year */
+	if (TimeFields->Month < 3) {
+		Month = TimeFields->Month + 13;
+		Year = TimeFields->Year - 1;
+	}
+	else {
+		Month = TimeFields->Month + 1;
+		Year = TimeFields->Year;
+	}
+	Cleaps = (3 * (Year / 100) + 3) / 4;   /* nr of "century leap years"*/
+	Day = (36525 * Year) / 100 - Cleaps +  /* year * dayperyr, corrected */
+		(1959 * Month) / 64 +              /* months * daypermonth */
+		TimeFields->Day -                  /* day of the month */
+		584817;                            /* zero that on 1601-01-01 */
+	/* done */
+
+	Time->QuadPart = (((((LONGLONG)Day * HOURSPERDAY +
+		TimeFields->Hour) * MINSPERHOUR +
+		TimeFields->Minute) * SECSPERMIN +
+		TimeFields->Second) * 1000 +
+		TimeFields->Millisecond) * TICKSPERMSEC;
+
+	return TRUE;
 }
 
 EXPORTNUM(320) VOID XBOXAPI RtlZeroMemory

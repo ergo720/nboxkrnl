@@ -153,6 +153,18 @@ union LARGE_INTEGER {
 };
 using PLARGE_INTEGER = LARGE_INTEGER *;
 
+struct TIME_FIELDS {
+	USHORT Year;
+	USHORT Month;
+	USHORT Day;
+	USHORT Hour;
+	USHORT Minute;
+	USHORT Second;
+	USHORT Millisecond;
+	USHORT Weekday;
+};
+using PTIME_FIELDS = TIME_FIELDS *;
+
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES    16
 #define IMAGE_SIZEOF_SHORT_NAME              8
 

@@ -61,7 +61,7 @@ VOID KiRemoveTimer(PKTIMER Timer)
 }
 
 // Source: Cxbx-Reloaded
-static ULONG KiComputeTimerTableIndex(ULONGLONG DueTime)
+ULONG KiComputeTimerTableIndex(ULONGLONG DueTime)
 {
 	return (DueTime / CLOCK_TIME_INCREMENT) & (TIMER_TABLE_SIZE - 1);
 }
@@ -140,6 +140,108 @@ BOOLEAN KiInsertTimer(PKTIMER Timer, LARGE_INTEGER DueTime)
 	LARGE_INTEGER CurrentTime;
 	CurrentTime.QuadPart = KeQueryInterruptTime();
 	return KiInsertTimerInTimerTable(RelativeTime, CurrentTime, Timer);
+}
+
+BOOLEAN KiReinsertTimer(PKTIMER Timer, ULARGE_INTEGER DueTime)
+{
+	Timer->Header.Inserted = TRUE;
+	if (Timer->Period == 0) {
+		Timer->Header.SignalState = FALSE;
+	}
+
+	LARGE_INTEGER CurrentTime, TimeDifference;
+	CurrentTime.QuadPart = KeQueryInterruptTime();
+	TimeDifference.QuadPart = CurrentTime.QuadPart - DueTime.QuadPart;
+
+	// If TimeDifference is positive or zero, then SystemTime >= DueTime so the timer already expired
+	if (TimeDifference.HighPart >= 0) {
+		Timer->Header.SignalState = TRUE;
+		Timer->Header.Inserted = FALSE;
+		return FALSE;
+	}
+
+	return KiInsertTimerInTimerTable(TimeDifference, CurrentTime, Timer);
+}
+
+// Source: Cxbx-Reloaded
+VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
+{
+	ULARGE_INTEGER SystemTime;
+	LARGE_INTEGER Interval;
+	LONG i;
+	ULONG DpcCalls = 0;
+	PKTIMER Timer;
+	PKDPC TimerDpc;
+	ULONG Period;
+	DPC_QUEUE_ENTRY DpcEntry[MAX_TIMER_DPCS];
+
+	/* Query system */
+	KeQuerySystemTime((PLARGE_INTEGER)&SystemTime);
+
+	/* Loop expired list */
+	while (ExpiredListHead->Flink != ExpiredListHead) {
+		/* Get the current timer */
+		Timer = CONTAINING_RECORD(ExpiredListHead->Flink, KTIMER, TimerListEntry);
+
+		/* Remove it */
+		RemoveEntryList(&Timer->TimerListEntry);
+
+		/* Not inserted */
+		Timer->Header.Inserted = FALSE;
+
+		/* Signal it */
+		Timer->Header.SignalState = 1;
+
+		/* Get the DPC and period */
+		TimerDpc = Timer->Dpc;
+		Period = Timer->Period;
+
+		/* Check if there's any waiters */
+		if (!IsListEmpty(&Timer->Header.WaitListHead)) {
+			KiWaitTest(Timer, PRIORITY_BOOST_TIMER);
+		}
+
+		/* Check if we have a period */
+		if (Period) {
+			/* Calculate the interval and insert the timer */
+			Interval.QuadPart = Period * -10000LL;
+			while (!KiInsertTimer(Timer, Interval));
+		}
+
+		/* Check if we have a DPC */
+		if (TimerDpc) {
+			/* Setup the DPC Entry */
+			DpcEntry[DpcCalls].Dpc = TimerDpc;
+			DpcEntry[DpcCalls].Routine = TimerDpc->DeferredRoutine;
+			DpcEntry[DpcCalls].Context = TimerDpc->DeferredContext;
+			DpcCalls++;
+			assert(DpcCalls < MAX_TIMER_DPCS);
+		}
+	}
+
+	/* Check if we still have DPC entries */
+	if (DpcCalls) {
+		/* Release the dispatcher while doing DPCs */
+		KiUnlockDispatcherDatabase(DISPATCH_LEVEL);
+
+		/* Start looping all DPC Entries */
+		for (i = 0; DpcCalls; DpcCalls--, i++) {
+			/* Call the DPC */
+			DpcEntry[i].Routine(
+				DpcEntry[i].Dpc,
+				DpcEntry[i].Context,
+				PVOID(SystemTime.u.LowPart),
+				PVOID(SystemTime.u.HighPart)
+			);
+		}
+
+		/* Lower IRQL */
+		KfLowerIrql(OldIrql);
+	}
+	else {
+		/* Unlock the dispatcher */
+		KiUnlockDispatcherDatabase(OldIrql);
+	}
 }
 
 // Source: Cxbx-Reloaded

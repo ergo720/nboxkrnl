@@ -20,6 +20,7 @@
 #define PRIORITY_BOOST_MUTANT 1
 #define PRIORITY_BOOST_SEMAPHORE PRIORITY_BOOST_EVENT
 #define PRIORITY_BOOST_IO 0
+#define PRIORITY_BOOST_TIMER 0
 
 #define HIGH_LEVEL 31
 #define CLOCK_LEVEL 28
@@ -35,6 +36,8 @@
 #define SYNCHRONIZATION_OBJECT_TYPE_MASK 7
 
 #define MUTANT_LIMIT 0x80000000
+
+#define MAX_TIMER_DPCS 16
 
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
 // the accesses are atomic and thus thread-safe
@@ -407,6 +410,13 @@ struct KSYSTEM_TIME {
 	LONG HighTime;
 	LONG High2Time;
 };
+
+struct DPC_QUEUE_ENTRY {
+	PKDPC Dpc;
+	PKDEFERRED_ROUTINE Routine;
+	PVOID Context;
+};
+using PDPC_QUEUE_ENTRY = DPC_QUEUE_ENTRY *;
 
 #ifdef __cplusplus
 extern "C" {

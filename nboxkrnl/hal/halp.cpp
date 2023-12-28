@@ -18,6 +18,10 @@
 // NOTE: on the xbox, the pit frequency is 6% lower than the default one, see https://xboxdevwiki.net/Porting_an_Operating_System_to_the_Xbox_HOWTO#Timer_Frequency
 #define PIT_COUNTER_1MS    1125
 
+// CMOS i/o ports
+#define CMOS_PORT_CMD 0x70
+#define CMOS_PORT_DATA 0x71
+
 
 VOID HalpInitPIC()
 {
@@ -54,6 +58,74 @@ VOID HalpInitPIT()
 		shr ax, 8
 		out PIT_CHANNEL0_DATA, al
 	}
+}
+
+static BOOL HalpIsCmosUpdatingTime()
+{
+	outb(CMOS_PORT_CMD, 0x0A);
+	return inb(CMOS_PORT_DATA) & 0x80;
+}
+
+static BYTE HalpReadCmosRegister(BYTE Register)
+{
+	outb(CMOS_PORT_CMD, Register);
+	return inb(CMOS_PORT_DATA);
+}
+
+VOID HalpReadCmosTime(PTIME_FIELDS TimeFields)
+{
+	while (HalpIsCmosUpdatingTime()) {}
+
+	TimeFields->Millisecond = 0;
+	TimeFields->Second = HalpReadCmosRegister(0x00);
+	TimeFields->Minute = HalpReadCmosRegister(0x02);
+	TimeFields->Hour = HalpReadCmosRegister(0x04);
+	TimeFields->Day = HalpReadCmosRegister(0x07);
+	TimeFields->Month = HalpReadCmosRegister(0x08);
+	TimeFields->Year = HalpReadCmosRegister(0x09);
+	BYTE Century = HalpReadCmosRegister(0x7F);
+	USHORT LastSecond, LastMinute, LastHour, LastDay, LastMonth, LastYear, LastCentury;
+
+	do {
+		LastSecond = TimeFields->Second;
+		LastMinute = TimeFields->Minute;
+		LastHour = TimeFields->Hour;
+		LastDay = TimeFields->Day;
+		LastMonth = TimeFields->Month;
+		LastYear = TimeFields->Year;
+		LastCentury = Century;
+
+		while (HalpIsCmosUpdatingTime()) {}
+
+		TimeFields->Second = HalpReadCmosRegister(0x00);
+		TimeFields->Minute = HalpReadCmosRegister(0x02);
+		TimeFields->Hour = HalpReadCmosRegister(0x04);
+		TimeFields->Day = HalpReadCmosRegister(0x07);
+		TimeFields->Month = HalpReadCmosRegister(0x08);
+		TimeFields->Year = HalpReadCmosRegister(0x09);
+		Century = HalpReadCmosRegister(0x7F);
+
+	} while ((LastSecond != TimeFields->Second) || (LastMinute != TimeFields->Minute) || (LastHour != TimeFields->Hour) ||
+		(LastDay != TimeFields->Day) || (LastMonth != TimeFields->Month) || (LastYear != TimeFields->Year) || (LastCentury != Century));
+
+	BYTE RegisterB = HalpReadCmosRegister(0x0B);
+
+	if (!(RegisterB & 0x04)) { // bcd -> binary
+		TimeFields->Second = (TimeFields->Second & 0x0F) + ((TimeFields->Second / 16) * 10);
+		TimeFields->Minute = (TimeFields->Minute & 0x0F) + ((TimeFields->Minute / 16) * 10);
+		TimeFields->Hour = ((TimeFields->Hour & 0x0F) + (((TimeFields->Hour & 0x70) / 16) * 10)) | (TimeFields->Hour & 0x80);
+		TimeFields->Day = (TimeFields->Day & 0x0F) + ((TimeFields->Day / 16) * 10);
+		TimeFields->Month = (TimeFields->Month & 0x0F) + ((TimeFields->Month / 16) * 10);
+		TimeFields->Year = (TimeFields->Year & 0x0F) + ((TimeFields->Year / 16) * 10);
+		Century = (Century & 0x0F) + ((Century / 16) * 10);
+	}
+
+	if (!(RegisterB & 0x02) && (TimeFields->Hour & 0x80)) { // 12 -> 24 hour format
+		TimeFields->Hour = ((TimeFields->Hour & 0x7F) + 12) % 24;
+	}
+
+	// Calculate the full 4-digit year
+	TimeFields->Year += (Century * 100);
 }
 
 VOID HalpShutdownSystem()

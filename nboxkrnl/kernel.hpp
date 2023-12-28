@@ -143,6 +143,7 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath);
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
 NTSTATUS HostToNtStatus(IoStatus Status);
+VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);
 BOOLEAN IsListEmpty(PLIST_ENTRY pListHead);
@@ -161,11 +162,28 @@ static inline VOID CDECL outl(USHORT Port, ULONG Value)
 	}
 }
 
+static inline VOID CDECL outb(USHORT Port, BYTE Value)
+{
+	__asm {
+		mov al, Value
+		mov dx, Port
+		out dx, al
+	}
+}
+
 static inline ULONG CDECL inl(USHORT Port)
 {
 	__asm {
 		mov dx, Port
 		in eax, dx
+	}
+}
+
+static inline BYTE CDECL inb(USHORT Port)
+{
+	__asm {
+		mov dx, Port
+		in al, dx
 	}
 }
 

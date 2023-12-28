@@ -7,6 +7,7 @@
 
 #include "..\ki\ki.hpp"
 #include "..\kernel.hpp"
+#include <assert.h>
 
 #define XBOX_ACPI_FREQUENCY 3375000 // 3.375 MHz
 
@@ -88,6 +89,87 @@ EXPORTNUM(128) VOID XBOXAPI KeQuerySystemTime
 	}
 
 	*CurrentTime = SystemTime;
+}
+
+// Source: Cxbx-Reloaded
+VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime)
+{
+	KIRQL OldIrql, OldIrql2;
+	LARGE_INTEGER DeltaTime;
+	PLIST_ENTRY ListHead, NextEntry;
+	PKTIMER Timer;
+	LIST_ENTRY TempList, TempList2;
+	ULONG Hand, i;
+
+	/* Sanity checks */
+	assert((NewTime->u.HighPart & 0xF0000000) == 0);
+	assert(KeGetCurrentIrql() <= DISPATCH_LEVEL);
+
+	/* Lock the dispatcher, and raise IRQL */
+	OldIrql = KeRaiseIrqlToDpcLevel();
+	OldIrql2 = KfRaiseIrql(HIGH_LEVEL);
+
+	/* Query the system time now */
+	KeQuerySystemTime(OldTime);
+
+	KeSystemTime.High2Time = NewTime->HighPart;
+	KeSystemTime.LowTime = NewTime->LowPart;
+	KeSystemTime.HighTime = NewTime->HighPart;
+
+	/* Calculate the difference between the new and the old time */
+	DeltaTime.QuadPart = NewTime->QuadPart - OldTime->QuadPart;
+
+	KfLowerIrql(OldIrql2);
+
+	/* Setup a temporary list of absolute timers */
+	InitializeListHead(&TempList);
+
+	/* Loop current timers */
+	for (i = 0; i < TIMER_TABLE_SIZE; i++) {
+		/* Loop the entries in this table and lock the timers */
+		ListHead = &KiTimerTableListHead[i];
+		NextEntry = ListHead->Flink;
+		while (NextEntry != ListHead) {
+			/* Get the timer */
+			Timer = CONTAINING_RECORD(NextEntry, KTIMER, TimerListEntry);
+			NextEntry = NextEntry->Flink;
+
+			/* Is it absolute? */
+			if (Timer->Header.Absolute) {
+				/* Remove it from the timer list */
+				KiRemoveTimer(Timer);
+
+				/* Insert it into our temporary list */
+				InsertTailList(&TempList, &Timer->TimerListEntry);
+			}
+		}
+	}
+
+	/* Setup a temporary list of expired timers */
+	InitializeListHead(&TempList2);
+
+	/* Loop absolute timers */
+	while (TempList.Flink != &TempList) {
+		/* Get the timer */
+		Timer = CONTAINING_RECORD(TempList.Flink, KTIMER, TimerListEntry);
+		RemoveEntryList(&Timer->TimerListEntry);
+
+		/* Update the due time and handle */
+		Timer->DueTime.QuadPart -= DeltaTime.QuadPart;
+		Hand = KiComputeTimerTableIndex(Timer->DueTime.QuadPart);
+
+		/* Lock the timer and re-insert it */
+		if (KiReinsertTimer(Timer, Timer->DueTime)) {
+			/* Remove it from the timer list */
+			KiRemoveTimer(Timer);
+
+			/* Insert it into our temporary list */
+			InsertTailList(&TempList2, &Timer->TimerListEntry);
+		}
+	}
+
+	/* Process expired timers. This releases the dispatcher and timer locks */
+	KiTimerListExpire(&TempList2, OldIrql);
 }
 
 static VOID SubmitIoRequestToHost(IoRequest *Request)

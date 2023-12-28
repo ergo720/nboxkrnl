@@ -167,8 +167,12 @@ VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQ
 
 VOID XBOXAPI KiTimerExpiration(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
 BOOLEAN KiInsertTimer(PKTIMER Timer, LARGE_INTEGER DueTime);
+BOOLEAN KiReinsertTimer(PKTIMER Timer, ULARGE_INTEGER DueTime);
 VOID KiRemoveTimer(PKTIMER Timer);
+ULONG KiComputeTimerTableIndex(ULONGLONG DueTime);
 PLARGE_INTEGER KiRecalculateTimerDueTime(PLARGE_INTEGER OriginalTime, PLARGE_INTEGER DueTime, PLARGE_INTEGER NewTime);
+VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql);
+VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql);
 
 VOID KiWaitTest(PVOID Object, KPRIORITY Increment);
 VOID KiUnwaitThread(PKTHREAD Thread, LONG_PTR WaitStatus, KPRIORITY Increment);
