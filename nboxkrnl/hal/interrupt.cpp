@@ -333,10 +333,10 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		push eax
 		mov al, OCW2_EOI_IRQ
 		out PIC_MASTER_CMD, al // send eoi to master pic
-		// Query the total execution time and use that as the kernel time. If we instead just increment the time with the xbox increment, if the host
+		// Query the total execution time and clock increment. If we instead just increment the time with the xbox increment, if the host
 		// doesn't manage to call this every ms, then the time will start to lag behind the system clock time read from the CMOS, which in turn is synchronized
 		// with the current host time
-		mov edx, KE_TIME_LOW
+		mov edx, KE_CLOCK_INCREMENT_LOW
 		in eax, dx
 		mov esi, eax
 		inc edx
@@ -345,12 +345,20 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		inc edx
 		in eax, dx
 		sti
-		mov [KeInterruptTime]KSYSTEM_TIME.High2Time, edi
-		mov [KeInterruptTime]KSYSTEM_TIME.LowTime, esi
-		mov [KeInterruptTime]KSYSTEM_TIME.HighTime, edi
-		mov [KeSystemTime]KSYSTEM_TIME.High2Time, edi
-		mov [KeSystemTime]KSYSTEM_TIME.LowTime, esi
-		mov [KeSystemTime]KSYSTEM_TIME.HighTime, edi
+		mov ecx, [KeInterruptTime]KSYSTEM_TIME.LowTime
+		mov edx, [KeInterruptTime]KSYSTEM_TIME.HighTime
+		add ecx, esi
+		adc edx, edi
+		mov [KeInterruptTime]KSYSTEM_TIME.High2Time, edx
+		mov [KeInterruptTime]KSYSTEM_TIME.LowTime, ecx
+		mov [KeInterruptTime]KSYSTEM_TIME.HighTime, edx
+		mov ecx, [KeSystemTime]KSYSTEM_TIME.LowTime
+		mov edx, [KeSystemTime]KSYSTEM_TIME.HighTime
+		add ecx, esi
+		adc edx, edi
+		mov [KeSystemTime]KSYSTEM_TIME.High2Time, edx
+		mov [KeSystemTime]KSYSTEM_TIME.LowTime, ecx
+		mov [KeSystemTime]KSYSTEM_TIME.HighTime, edx
 		mov ebx, KeTickCount
 		mov KeTickCount, eax
 		mov edi, eax
