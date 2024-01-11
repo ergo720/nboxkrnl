@@ -350,7 +350,6 @@ struct DRIVER_OBJECT {
 	PDRIVER_DELETEDEVICE DriverDeleteDevice;
 	PDRIVER_DISMOUNTVOLUME DriverDismountVolume;
 	PDRIVER_DISPATCH MajorFunction[IRP_MJ_MAXIMUM_FUNCTION + 1];
-
 };
 using PDRIVER_OBJECT = DRIVER_OBJECT *;
 
@@ -380,6 +379,17 @@ struct DISK_GEOMETRY {
 	DWORD BytesPerSector;
 };
 using PDISK_GEOMETRY = DISK_GEOMETRY *;
+
+struct SHARE_ACCESS {
+	UCHAR OpenCount;
+	UCHAR ReadAccess;
+	UCHAR WriteAccess;
+	UCHAR DeleteAccess;
+	UCHAR SharedRead;
+	UCHAR SharedWrite;
+	UCHAR SharedDelete;
+};
+using PSHARE_ACCESS = SHARE_ACCESS *;
 
 struct IO_STACK_LOCATION {
 	UCHAR MajorFunction;

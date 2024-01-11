@@ -11,29 +11,35 @@
 #define FATX_MAX_FILE_NAME_LENGTH 42
 
 
+struct FATX_FILE_INFO {
+	UCHAR FileNameLength;
+	CHAR FileName[FATX_MAX_FILE_NAME_LENGTH];
+	ULONGLONG HostHandle;
+	SHARE_ACCESS ShareAccess;
+	LIST_ENTRY ListEntry;
+};
+using PFATX_FILE_INFO = FATX_FILE_INFO *;
+
 struct FSCACHE_EXTENSION {
 	PDEVICE_OBJECT TargetDeviceObject;
 	LARGE_INTEGER PartitionLength;
 	ULONG SectorSize;
+	ULONG DeviceType;
+	ULONGLONG HostHandle;
 };
 using PFSCACHE_EXTENSION = FSCACHE_EXTENSION *;
 
 struct FAT_VOLUME_EXTENSION {
 	FSCACHE_EXTENSION CacheExtension;
-	UCHAR Unknown1[16];
+	FATX_FILE_INFO VolumeInfo;
 	ULONG NumberOfClusters;
 	ULONG BytesPerCluster;
 	UCHAR SectorShift;
 	UCHAR ClusterShift;
-	UCHAR Unknown2;
 	UCHAR Flags;
-	UCHAR Unknown3[16];
 	ULONG NumberOfClustersAvailable;
-	ULONG Unknown4;
 	ERWLOCK VolumeMutex;
-	UCHAR Unknown5[96];
 	ULONG VolumeID;
-	UCHAR Unknown6[8];
 };
 using PFAT_VOLUME_EXTENSION = FAT_VOLUME_EXTENSION *;
 

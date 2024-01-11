@@ -70,7 +70,7 @@ static NTSTATUS XeLoadXbe()
 		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize - 1); // NOTE: doesn't copy the terminating NULL character
 
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Open | FILE_OPEN,
+			IoRequestType::Open | FILE_OPEN | DEV_TYPE(DEV_CDROM),
 			0,
 			PathSize - 1,
 			XBE_HANDLE,
@@ -87,7 +87,7 @@ static NTSTATUS XeLoadXbe()
 		}
 
 		InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read,
+			IoRequestType::Read | DEV_TYPE(DEV_CDROM),
 			0,
 			PAGE_SIZE,
 			(ULONG_PTR)XbeHeader,
@@ -125,7 +125,7 @@ static NTSTATUS XeLoadXbe()
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
 			InfoBlock = SubmitIoRequestToHost(
-				IoRequestType::Read,
+				IoRequestType::Read | DEV_TYPE(DEV_CDROM),
 				PAGE_SIZE,
 				GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE,
 				(ULONG_PTR)((PCHAR)XbeHeader + PAGE_SIZE),
@@ -245,7 +245,7 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 
 		// Copy the section data
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read,
+			IoRequestType::Read | DEV_TYPE(DEV_CDROM),
 			Section->FileAddress,
 			Section->FileSize,
 			(ULONG_PTR)Section->VirtualAddress,

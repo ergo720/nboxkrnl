@@ -33,7 +33,7 @@ EXPORTNUM(71) OBJECT_TYPE IoFileObjectType = {
 BOOLEAN IoInitSystem()
 {
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		IoRequestType::Read,
+		IoRequestType::Read | DEV_TYPE(DEV_EEPROM),
 		0,
 		sizeof(XBOX_EEPROM),
 		(ULONG_PTR)&CachedEeprom,
@@ -67,6 +67,49 @@ EXPORTNUM(59) PIRP XBOXAPI IoAllocateIrp
 	IoInitializeIrp(Irp, PacketSize, StackSize);
 
 	return Irp;
+}
+
+EXPORTNUM(63) NTSTATUS XBOXAPI IoCheckShareAccess
+(
+	ACCESS_MASK DesiredAccess,
+	ULONG DesiredShareAccess,
+	PFILE_OBJECT FileObject,
+	PSHARE_ACCESS ShareAccess,
+	BOOLEAN Update
+)
+{
+	FileObject->ReadAccess = (BOOLEAN)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
+	FileObject->WriteAccess = (BOOLEAN)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
+	FileObject->DeleteAccess = (BOOLEAN)(DesiredAccess & DELETE);
+
+	if (FileObject->ReadAccess || FileObject->WriteAccess || FileObject->DeleteAccess) {
+		FileObject->SharedRead = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_READ);
+		FileObject->SharedWrite = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_WRITE);
+		FileObject->SharedDelete = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_DELETE);
+
+		UCHAR OpenCount = ShareAccess->OpenCount;
+		if ((OpenCount == 255) ||
+			(FileObject->ReadAccess && (ShareAccess->SharedRead < OpenCount)) ||
+			(FileObject->WriteAccess && (ShareAccess->SharedWrite < OpenCount)) ||
+			(FileObject->DeleteAccess && (ShareAccess->SharedDelete < OpenCount)) ||
+			((ShareAccess->ReadAccess != 0) && !FileObject->SharedRead) ||
+			((ShareAccess->WriteAccess != 0) && !FileObject->SharedWrite) ||
+			((ShareAccess->DeleteAccess != 0) && !FileObject->SharedDelete)
+			) {
+			return STATUS_SHARING_VIOLATION;
+		}
+		else if (Update) {
+			++ShareAccess->OpenCount;
+			ShareAccess->ReadAccess += FileObject->ReadAccess;
+			ShareAccess->WriteAccess += FileObject->WriteAccess;
+			ShareAccess->DeleteAccess += FileObject->DeleteAccess;
+			ShareAccess->SharedRead += FileObject->SharedRead;
+			ShareAccess->SharedWrite += FileObject->SharedWrite;
+			ShareAccess->SharedDelete += FileObject->SharedDelete;
+		}
+	}
+
+	return STATUS_SUCCESS;
 }
 
 EXPORTNUM(65) NTSTATUS XBOXAPI IoCreateDevice
@@ -295,6 +338,78 @@ EXPORTNUM(74) NTSTATUS XBOXAPI IoInvalidDeviceRequest
 )
 {
 	RIP_UNIMPLEMENTED();
+}
+
+EXPORTNUM(78) VOID XBOXAPI IoRemoveShareAccess
+(
+	PFILE_OBJECT FileObject,
+	PSHARE_ACCESS ShareAccess
+)
+{
+	if (FileObject->ReadAccess || FileObject->WriteAccess || FileObject->DeleteAccess) {
+		--ShareAccess->OpenCount;
+
+		if (FileObject->ReadAccess) {
+			--ShareAccess->ReadAccess;
+		}
+
+		if (FileObject->WriteAccess) {
+			--ShareAccess->WriteAccess;
+		}
+
+		if (FileObject->DeleteAccess) {
+			--ShareAccess->DeleteAccess;
+		}
+
+		if (FileObject->SharedRead) {
+			--ShareAccess->SharedRead;
+		}
+
+		if (FileObject->SharedWrite) {
+			--ShareAccess->SharedWrite;
+		}
+
+		if (FileObject->SharedDelete) {
+			--ShareAccess->SharedDelete;
+		}
+	}
+}
+
+EXPORTNUM(80) VOID XBOXAPI IoSetShareAccess
+(
+	ULONG DesiredAccess,
+	ULONG DesiredShareAccess,
+	PFILE_OBJECT FileObject,
+	PSHARE_ACCESS ShareAccess
+)
+{
+	FileObject->ReadAccess = (BOOLEAN)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
+	FileObject->WriteAccess = (BOOLEAN)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
+	FileObject->DeleteAccess = (BOOLEAN)(DesiredAccess & DELETE);
+
+	if (FileObject->ReadAccess || FileObject->WriteAccess || FileObject->DeleteAccess) {
+		FileObject->SharedRead = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_READ);
+		FileObject->SharedWrite = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_WRITE);
+		FileObject->SharedDelete = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_DELETE);
+
+		ShareAccess->OpenCount = 1;
+		ShareAccess->ReadAccess = FileObject->ReadAccess;
+		ShareAccess->WriteAccess = FileObject->WriteAccess;
+		ShareAccess->DeleteAccess = FileObject->DeleteAccess;
+		ShareAccess->SharedRead = FileObject->SharedRead;
+		ShareAccess->SharedWrite = FileObject->SharedWrite;
+		ShareAccess->SharedDelete = FileObject->SharedDelete;
+
+	}
+	else {
+		ShareAccess->OpenCount = 0;
+		ShareAccess->ReadAccess = 0;
+		ShareAccess->WriteAccess = 0;
+		ShareAccess->DeleteAccess = 0;
+		ShareAccess->SharedRead = 0;
+		ShareAccess->SharedWrite = 0;
+		ShareAccess->SharedDelete = 0;
+	}
 }
 
 EXPORTNUM(86) NTSTATUS FASTCALL IofCallDriver

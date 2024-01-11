@@ -28,6 +28,8 @@ struct FATX_SUPERBLOCK {
 using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
 #pragma pack()
 
+static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
+
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -53,6 +55,8 @@ static DRIVER_OBJECT FatxDriverObject = {
 	}
 };
 
+// List of all open directory/files on the system
+static LIST_ENTRY FatxOpenFileList = { .Flink = &FatxOpenFileList, .Blink = &FatxOpenFileList };
 
 static VOID FatxVolumeLockExclusive(PFAT_VOLUME_EXTENSION VolumeExtension)
 {
@@ -114,9 +118,48 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 	return TRUE;
 }
 
-static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension, LONGLONG PartitionLength)
+static PFATX_FILE_INFO FatxFindOpenFile(POBJECT_STRING Name)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+
+	PFATX_FILE_INFO FileInfo = nullptr;
+	PLIST_ENTRY Entry = FatxOpenFileList.Blink;
+	while (Entry != &FatxOpenFileList) {
+		PFATX_FILE_INFO CurrFileInfo = CONTAINING_RECORD(Entry, FATX_FILE_INFO, ListEntry);
+		OBJECT_STRING CurrString;
+		CurrString.Buffer = CurrFileInfo->FileName;
+		CurrString.Length = CurrFileInfo->FileNameLength;
+		if (RtlEqualString(Name, &CurrString, TRUE)) {
+			// Place the found element at the tail of the list
+			RemoveEntryList(Entry);
+			InsertTailList(&FatxOpenFileList, Entry);
+			FileInfo = CurrFileInfo;
+			break;
+		}
+
+		Entry = Entry->Blink;
+	}
+
+	KfLowerIrql(OldIrql);
+
+	return FileInfo;
+}
+
+static VOID FatxInsertFile(PFATX_FILE_INFO FileInfo)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+
+	InsertTailList(&FatxOpenFileList, &FileInfo->ListEntry);
+
+	KfLowerIrql(OldIrql);
+}
+
+static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, PPARTITION_INFORMATION PartitionInformation)
 {
 	PFATX_SUPERBLOCK Superblock;
+	ULONGLONG HostHandle = PARTITION0_HANDLE + PartitionInformation->PartitionNumber;
+	VolumeExtension->CacheExtension.HostHandle = HostHandle;
+	VolumeExtension->CacheExtension.DeviceType = DEV_PARTITION0 + PartitionInformation->PartitionNumber;
 	if (NTSTATUS Status = FscMapElementPage(&VolumeExtension->CacheExtension, 0, (PVOID *)&Superblock, FALSE); !NT_SUCCESS(Status)) {
 		return Status;
 	}
@@ -149,8 +192,10 @@ static NTSTATUS FatxReadSuperblock(PFAT_VOLUME_EXTENSION VolumeExtension, LONGLO
 	VolumeExtension->BytesPerCluster = Superblock->ClusterSize << VolumeExtension->SectorShift;
 	VolumeExtension->ClusterShift = RtlpBitScanForward(VolumeExtension->BytesPerCluster);
 	VolumeExtension->VolumeID = Superblock->VolumeID;
-	VolumeExtension->NumberOfClusters = ULONG((PartitionLength - sizeof(FATX_SUPERBLOCK)) >> VolumeExtension->ClusterShift);
-	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters; // FIXME: hardcoded number of free clusters
+	VolumeExtension->NumberOfClusters = ULONG((PartitionInformation->PartitionLength.QuadPart - sizeof(FATX_SUPERBLOCK)) >> VolumeExtension->ClusterShift);
+	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters;
+	VolumeExtension->VolumeInfo.FileNameLength = 0;
+	VolumeExtension->VolumeInfo.HostHandle = HostHandle;
 
 	FscUnmapElementPage(Superblock);
 
@@ -162,7 +207,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	// NOTE: This is called while holding DeviceObject->DeviceLock
 
 	DISK_GEOMETRY DiskGeometry;
-	LONGLONG PartitionLength;
+	PARTITION_INFORMATION PartitionInformation;
 	
 	switch (DeviceObject->DeviceType)
 	{
@@ -178,7 +223,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 		DiskGeometry.TracksPerCylinder = 1;
 		DiskGeometry.SectorsPerTrack = 1;
 		DiskGeometry.BytesPerSector = HDD_SECTOR_SIZE;
-		PartitionLength = PIDE_DISK_EXTENSION(DeviceObject->DeviceExtension)->PartitionInformation.PartitionLength.QuadPart;
+		PartitionInformation = PIDE_DISK_EXTENSION(DeviceObject->DeviceExtension)->PartitionInformation;
 		break;
 	}
 
@@ -205,7 +250,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
 
-	if (Status = FatxReadSuperblock(VolumeExtension, PartitionLength); !NT_SUCCESS(Status)) {
+	if (Status = FatxSetupVolumeExtension(VolumeExtension, &PartitionInformation); !NT_SUCCESS(Status)) {
 		// TODO: cleanup FatxDeviceObject when this fails
 		return Status;
 	}
@@ -219,9 +264,6 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
-	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
-	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
-
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 	FatxVolumeLockExclusive(VolumeExtension);
 
@@ -229,8 +271,14 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}
 
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	ACCESS_MASK DesiredAccess = IrpStackPointer->Parameters.Create.DesiredAccess;
+	USHORT ShareAccess = IrpStackPointer->Parameters.Create.ShareAccess;
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
 	ULONG CreateOptions = IrpStackPointer->Parameters.Create.Options & 0xFFFFFF;
+
 	if (CreateOptions & FILE_OPEN_BY_FILE_ID) { // not supported on FAT
 		return FatxCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
 	}
@@ -258,88 +306,134 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 		}
 
+		PFATX_FILE_INFO FileInfo = &VolumeExtension->VolumeInfo;
+		if (FileInfo->ShareAccess.OpenCount == 0) {
+			// The requested volume is already open, but without any users to it, set the sharing permissions
+			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
+		}
+		else {
+			// The requested volume is already open, check the share permissions to see if we can open it again
+			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
+				return FatxCompleteRequest(Irp, Status, VolumeExtension);
+			}
+		}
+
 		// No host I/O required for opening a volume
 		Irp->IoStatus.Information = FILE_OPENED;
 		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
-	else {
-		BOOLEAN HasBackslashAtEnd = FALSE;
-		if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
-			// Special case: open the root directory of the volume
 
-			if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename the root directory
-				return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+	OBJECT_STRING FileName;
+	CHAR RootName = OB_PATH_DELIMITER;
+	BOOLEAN HasBackslashAtEnd = FALSE;
+	if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
+		// Special case: open the root directory of the volume
+
+		if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename the root directory
+			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		}
+
+		if ((Disposition != FILE_OPEN) && (Disposition != FILE_OPEN_IF)) { // the root directory can only be opened
+			return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_COLLISION, VolumeExtension);
+		}
+
+		HasBackslashAtEnd = TRUE;
+		FileName.Buffer = &RootName;
+		FileName.Length = 1;
+	}
+	else {
+		if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
+			HasBackslashAtEnd = TRUE; // creating or opening a directory
+		}
+
+		OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
+		while (true) {
+			// Iterate until we validate all path names
+			ObpParseName(&OriName, &FirstName, &LocalRemainingName);
+
+			// NOTE: ObpParseName discards the backslash from a name, so LocalRemainingName must be checked separately
+			if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
+				// Another delimiter in the name is invalid
+				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 			}
 
-			HasBackslashAtEnd = TRUE;
+			if (FatxIsNameValid(&FirstName) == FALSE) {
+				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+			}
+
+			if (LocalRemainingName.Length == 0) {
+				break;
+			}
+
+			OriName = LocalRemainingName;
+		}
+		FileName = FirstName;
+	}
+
+	if (HasBackslashAtEnd && (CreateOptions & FILE_NON_DIRECTORY_FILE)) { // file must not be a directory
+		return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
+	}
+	else if (!HasBackslashAtEnd && (CreateOptions & FILE_DIRECTORY_FILE)) { // file must be a directory
+		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
+	}
+
+	PFATX_FILE_INFO FileInfo;
+	BOOLEAN UpdatedShareAccess = FALSE;
+	if (FileInfo = FatxFindOpenFile(&FileName)) {
+		UpdatedShareAccess = TRUE;
+		if (FileInfo->ShareAccess.OpenCount == 0) {
+			// The requested file is already open, but without any users to it, set the sharing permissions
+			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
 		}
 		else {
-			if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
-				HasBackslashAtEnd = TRUE; // creating or opening a directory
-			}
-
-			OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
-			while (true) {
-				// Iterate until we validate all path names
-				ObpParseName(&OriName, &FirstName, &LocalRemainingName);
-
-				// NOTE: ObpParseName discards the backslash from a name, so LocalRemainingName must be checked separately
-				if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
-					// Another delimiter in the name is invalid
-					return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-				}
-
-				if (FatxIsNameValid(&FirstName) == FALSE) {
-					return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-				}
-
-				if (LocalRemainingName.Length == 0) {
-					break;
-				}
-
-				OriName = LocalRemainingName;
+			// The requested file is already open, check the share permissions to see if we can open it again
+			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
+				return FatxCompleteRequest(Irp, Status, VolumeExtension);
 			}
 		}
-
-		if (HasBackslashAtEnd && (CreateOptions & FILE_NON_DIRECTORY_FILE)) { // file must not be a directory
-			return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
-		}
-		else if (!HasBackslashAtEnd && (CreateOptions & FILE_DIRECTORY_FILE)) { // file must be a directory
-			return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
-		}
-
-		IrpStackPointer->FileObject->FsContext2 = ExAllocatePool(sizeof(IoHostFileHandle));
-		if (IrpStackPointer->FileObject->FsContext2 == nullptr) {
+	}
+	else {
+		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
+		if (FileInfo == nullptr) {
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
+		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
+		FileInfo->FileNameLength = (UCHAR)FileName.Length;
+		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
+		FatxInsertFile(FileInfo);
+		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
+	}
 
-		// Finally submit the I/O request to the host to do the actual work
-		// NOTE1: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
-		// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
-		// NOTE2: this is currently ignoring the file attributes, permissions and share access. This is because the host doesn't support these yet
-		ULONGLONG HostHandle = InterlockedIncrement64(&IoHostFileHandle);
-		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			(HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
-			(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | (Disposition & 7) | IoRequestType::Open,
-			0,
-			POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length,
-			HostHandle,
-			(ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer)
-		);
+	FileObject->FsContext2 = FileInfo;
 
-		NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
-		if (Status == STATUS_SUCCESS) {
-			// Save the host handle in the object so that we can find it later for other requests to this same file/directory
-			*(PULONGLONG)IrpStackPointer->FileObject->FsContext2 = HostHandle;
-		}
-		else if (Status == STATUS_PENDING) {
+	// Finally submit the I/O request to the host to do the actual work
+	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
+	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		(HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
+		(Disposition & 7) | IoRequestType::Open,
+		0,
+		POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length,
+		FileInfo->HostHandle,
+		(ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer)
+	);
+
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	if (!NT_SUCCESS(Status)) {
+		if (Status == STATUS_PENDING) {
 			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 			RIP_API_MSG("Asynchronous IO is not supported");
 		}
-
-		Irp->IoStatus.Information = InfoBlock.Info;
-		return FatxCompleteRequest(Irp, InfoBlock.Status, VolumeExtension);
+		if (UpdatedShareAccess) {
+			IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
+		}
 	}
+	else {
+		Irp->IoStatus.Information = InfoBlock.Info;
+	}
+
+	return FatxCompleteRequest(Irp, Status, VolumeExtension);
 }
 
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)

@@ -90,7 +90,7 @@ BOOLEAN HddInitDriver()
 	XBOX_PARTITION_TABLE PartitionTable;
 	UCHAR ExpectedMagic[16] = { '*', '*', '*', '*', 'P', 'A', 'R', 'T', 'I', 'N', 'F', 'O', '*', '*', '*', '*' };
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		IoRequestType::Read,
+		IoRequestType::Read | DEV_TYPE(DEV_PARTITION0),
 		0,
 		sizeof(PartitionTable),
 		(ULONG_PTR)&PartitionTable,

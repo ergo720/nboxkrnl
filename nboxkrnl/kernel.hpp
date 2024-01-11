@@ -45,18 +45,32 @@
 #define KERNEL_STACK_SIZE 12288
 #define KERNEL_BASE 0x80010000
 
+// Host device number
+#define DEV_CDROM      0
+#define DEV_EEPROM     1
+#define DEV_PARTITION0 2
+#define DEV_PARTITION1 3
+#define DEV_PARTITION2 4
+#define DEV_PARTITION3 5
+#define DEV_PARTITION4 6
+#define DEV_PARTITION5 7
+#define DEV_PARTITION6 8 // non-standard
+#define DEV_PARTITION7 9 // non-standard
+#define NUM_OF_DEVS    10
+#define DEV_TYPE(n)    ((n) << 23)
+
 // Special host handles
-#define XBE_HANDLE ((ULONGLONG)0)
-#define EEPROM_HANDLE ((ULONGLONG)1)
-#define PARTITION0_HANDLE ((ULONGLONG)2)
-#define PARTITION1_HANDLE ((ULONGLONG)3)
-#define PARTITION2_HANDLE ((ULONGLONG)4)
-#define PARTITION3_HANDLE ((ULONGLONG)5)
-#define PARTITION4_HANDLE ((ULONGLONG)6)
-#define PARTITION5_HANDLE ((ULONGLONG)7)
-#define PARTITION6_HANDLE ((ULONGLONG)8) // non-standard
-#define PARTITION7_HANDLE ((ULONGLONG)9) // non-standard
-#define LAST_NON_FREE_HANDLE PARTITION7_HANDLE
+#define XBE_HANDLE        DEV_CDROM
+#define EEPROM_HANDLE     DEV_EEPROM
+#define PARTITION0_HANDLE DEV_PARTITION0
+#define PARTITION1_HANDLE DEV_PARTITION1
+#define PARTITION2_HANDLE DEV_PARTITION2
+#define PARTITION3_HANDLE DEV_PARTITION3
+#define PARTITION4_HANDLE DEV_PARTITION4
+#define PARTITION5_HANDLE DEV_PARTITION5
+#define PARTITION6_HANDLE DEV_PARTITION6
+#define PARTITION7_HANDLE DEV_PARTITION7
+#define FIRST_FREE_HANDLE NUM_OF_DEVS
 
 enum SystemType {
 	SYSTEM_XBOX,
@@ -99,8 +113,8 @@ enum IoInfo : ULONG {
 };
 
 // Type layout of IoRequest
-// IoRequestType - IoFlags - Disposition
-// 31 - 28         27 - 3    2 - 0
+// IoRequestType - DevType - IoFlags - Disposition
+// 31 - 28         27 - 23   22 - 3	   2 - 0
 
 #pragma pack(1)
 struct IoRequest {
@@ -128,7 +142,7 @@ struct XBOX_HARDWARE_INFO {
 
 inline SystemType XboxType;
 inline ULONGLONG IoRequestId = 0;
-inline ULONGLONG IoHostFileHandle = LAST_NON_FREE_HANDLE;
+inline ULONGLONG IoHostFileHandle = FIRST_FREE_HANDLE;
 
 #ifdef __cplusplus
 extern "C" {

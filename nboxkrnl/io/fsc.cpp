@@ -75,7 +75,8 @@ static PFSCACHE_ELEMENT FscAllocateFreeElement()
 		Entry = Element->ListEntry.Blink;
 	}
 
-	if (!NT_SUCCESS(FscSetCacheSize(FscCurrNumberOfCachePages + 1))) {
+	ULONG PagesToLeftToAllocate = MAX_NUMBER_OF_CACHE_PAGES - FscCurrNumberOfCachePages;
+	if (!NT_SUCCESS(FscSetCacheSize(FscCurrNumberOfCachePages + (16 < PagesToLeftToAllocate ? 16 : PagesToLeftToAllocate)))) {
 		return nullptr;
 	}
 
@@ -141,14 +142,20 @@ static NTSTATUS FscReduceCacheSize(ULONG NumberOfCachePages)
 	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
 	assert(NumberOfCachePages < FscCurrNumberOfCachePages);
 
-	ULONG SizeOfNewCacheElementArray = sizeof(FSCACHE_ELEMENT) * NumberOfCachePages;
-	PFSCACHE_ELEMENT NewFscCacheElementArray = (PFSCACHE_ELEMENT)ExAllocatePoolWithTag(SizeOfNewCacheElementArray, 'AcsF');
-	if (NewFscCacheElementArray == nullptr) {
-		return STATUS_INSUFFICIENT_RESOURCES;
+	PFSCACHE_ELEMENT NewFscCacheElementArray;
+	if (NumberOfCachePages == 0) {
+		NewFscCacheElementArray = nullptr;
+	}
+	else {
+		ULONG SizeOfNewCacheElementArray = sizeof(FSCACHE_ELEMENT) * NumberOfCachePages;
+		NewFscCacheElementArray = (PFSCACHE_ELEMENT)ExAllocatePoolWithTag(SizeOfNewCacheElementArray, 'AcsF');
+		if (NewFscCacheElementArray == nullptr) {
+			return STATUS_INSUFFICIENT_RESOURCES;
+		}
 	}
 
 	ULONG NumOfPagesToDelete = FscCurrNumberOfCachePages - NumberOfCachePages;
-	retry:
+Retry:
 	PLIST_ENTRY Entry = FscCacheElementListHead.Flink;
 	while (Entry != &FscCacheElementListHead) {
 		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
@@ -167,7 +174,7 @@ static NTSTATUS FscReduceCacheSize(ULONG NumberOfCachePages)
 		MiUnlock(PASSIVE_LEVEL);
 		KeWaitForSingleObject(&FscReleasedPagesEvent, Executive, KernelMode, FALSE, nullptr);
 		MiLock();
-		goto retry;
+		goto Retry;
 	}
 
 	for (ULONG NewIndex = 0, Index = 0; Index < FscCurrNumberOfCachePages; ++Index) {
@@ -175,6 +182,7 @@ static NTSTATUS FscReduceCacheSize(ULONG NumberOfCachePages)
 			NumOfPagesToDelete += (MiFreeSystemMemory(FscCacheElementArray[Index].CacheBuffer, PAGE_SIZE) >> PAGE_SHIFT);
 		}
 		else {
+			// NOTE: this case is not triggered when NumberOfCachePages == 0, because the above loop will mark all elements for deletion
 			NewFscCacheElementArray[NewIndex] = FscCacheElementArray[Index];
 			++NewIndex;
 		}
@@ -196,7 +204,7 @@ NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffs
 {
 	KIRQL OldIrql = MiLock();
 
-	retry:
+Retry:
 	ULONG AlignedByteOffset = FscByteOffsetToAlignedOffset(ByteOffset);
 	PFSCACHE_ELEMENT Element = FscFindElement(CacheExtension, AlignedByteOffset);
 	if (Element) {
@@ -213,16 +221,12 @@ NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffs
 		KeWaitForSingleObject(&FscConcurrentWriteEvent, Executive, KernelMode, FALSE, nullptr);
 		OldIrql = MiLock();
 
-		goto retry;
+		goto Retry;
 	}
 	else {
 		if (Element = FscAllocateFreeElement(); Element == nullptr) {
 			MiUnlock(OldIrql);
 			return STATUS_NO_MEMORY;
-		}
-
-		if (CacheExtension->TargetDeviceObject->DeviceType != FILE_DEVICE_DISK) {
-			RIP_API_MSG("Only the HDD device is supported");
 		}
 
 		// Set NumOfUsers before releasing the Mm lock so that FscReduceCacheSize doesn't remove the element we are using
@@ -235,11 +239,11 @@ NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffs
 		MiUnlock(OldIrql);
 
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read,
+			IoRequestType::Read | DEV_TYPE(CacheExtension->DeviceType),
 			ByteOffset,
 			PAGE_SIZE,
 			ULONG(Element->CacheBuffer) & ~PAGE_MASK,
-			PARTITION0_HANDLE + PIDE_DISK_EXTENSION(CacheExtension->TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber
+			CacheExtension->HostHandle
 		);
 
 		OldIrql = MiLock();
@@ -278,6 +282,11 @@ VOID FscUnmapElementPage(PVOID Buffer)
 	FscConcurrentWriteEvent.Header.SignalState = 0;
 
 	MiUnlock(OldIrql);
+}
+
+EXPORTNUM(35) ULONG XBOXAPI FscGetCacheSize()
+{
+	return FscCurrNumberOfCachePages;
 }
 
 EXPORTNUM(37) NTSTATUS XBOXAPI FscSetCacheSize
