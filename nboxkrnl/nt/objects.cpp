@@ -60,6 +60,15 @@ EXPORTNUM(188) NTSTATUS XBOXAPI NtCreateDirectoryObject
 	return Status;
 }
 
+EXPORTNUM(203) NTSTATUS XBOXAPI NtOpenSymbolicLinkObject
+(
+	PHANDLE LinkHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes
+)
+{
+	return ObOpenObjectByName(ObjectAttributes, &ObSymbolicLinkObjectType, nullptr, LinkHandle);
+}
+
 EXPORTNUM(233) NTSTATUS XBOXAPI NtWaitForSingleObject
 (
 	HANDLE Handle,

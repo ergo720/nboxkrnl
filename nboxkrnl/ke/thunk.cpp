@@ -223,7 +223,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtFsControlFile),                         // 0x00C8 (200)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtOpenDirectoryObject),                   // 0x00C9 (201)
 	(ULONG)FUNC(&NtOpenFile),                              // 0x00CA (202)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtOpenSymbolicLinkObject),                // 0x00CB (203)
+	(ULONG)FUNC(&NtOpenSymbolicLinkObject),                // 0x00CB (203)
 	(ULONG)FUNC(&NtProtectVirtualMemory),                  // 0x00CC (204)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtPulseEvent),                            // 0x00CD (205)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueueApcThread),                        // 0x00CE (206)
