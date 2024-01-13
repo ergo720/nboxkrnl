@@ -29,6 +29,7 @@
 #define IO_TYPE_DEVICE_OBJECT_EXTENSION  0x0000000d
 
 #define FILE_DEVICE_CD_ROM              0x00000002
+#define FILE_DEVICE_CD_ROM_FILE_SYSTEM  0x00000003
 #define FILE_DEVICE_DISK                0x00000007
 #define FILE_DEVICE_DISK_FILE_SYSTEM    0x00000008
 #define FILE_DEVICE_MEMORY_UNIT         0x0000003a
@@ -93,6 +94,7 @@ enum IO_ALLOCATION_ACTION {
 };
 
 enum MEDIA_TYPE {
+	RemovableMedia = 11,
 	FixedMedia = 12
 };
 

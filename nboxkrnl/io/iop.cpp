@@ -4,6 +4,7 @@
 
 #include "iop.hpp"
 #include "hdd\fatx.hpp"
+#include "cdrom\xiso.hpp"
 #include "..\rtl\rtl.hpp"
 
 
@@ -47,7 +48,9 @@ NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject)
 			switch (DeviceObject->DeviceType)
 			{
 			case FILE_DEVICE_CD_ROM:
-				RIP_API_MSG("Mounting CD/DVDs is not supported");
+				// FIXME: this could also be a regular CD/DVD with UDF filesystem instead of XISO
+				Status = XisoCreateVolume(DeviceObject);
+				break;
 
 			case FILE_DEVICE_DISK:
 				Status = FatxCreateVolume(DeviceObject);

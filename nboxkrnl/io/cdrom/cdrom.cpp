@@ -1,5 +1,5 @@
 /*
- * ergo720                Copyright (c) 2023
+ * ergo720                Copyright (c) 2024
  */
 
 #include "cdrom.hpp"
@@ -37,8 +37,14 @@ BOOLEAN CdromInitDriver()
 	// This will also create an object of type IoDeviceObjectType with the name "CdRom0". This is used by OB to resolve paths to the CDROM device
 
 	INITIALIZE_GLOBAL_OBJECT_STRING(CdromDirectoryName, "\\Device\\CdRom0");
+	INITIALIZE_GLOBAL_OBJECT_STRING(CdromDosDirectoryName, "\\??\\CdRom0:");
 
 	NTSTATUS Status = IoCreateDevice(&CdromDriverObject, 0, &CdromDirectoryName, FILE_DEVICE_CD_ROM, FALSE, &CdromDeviceObject);
+	if (!NT_SUCCESS(Status)) {
+		return FALSE;
+	}
+
+	Status = IoCreateSymbolicLink(&CdromDosDirectoryName, &CdromDirectoryName);
 	if (!NT_SUCCESS(Status)) {
 		return FALSE;
 	}
