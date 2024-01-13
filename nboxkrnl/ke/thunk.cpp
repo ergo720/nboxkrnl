@@ -210,7 +210,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&NtClose),                                 // 0x00BB (187)
 	(ULONG)FUNC(&NtCreateDirectoryObject),                 // 0x00BC (188)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtCreateEvent),                           // 0x00BD (189)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtCreateFile),                            // 0x00BE (190)
+	(ULONG)FUNC(&NtCreateFile),                            // 0x00BE (190)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtCreateIoCompletion),                    // 0x00BF (191)
 	(ULONG)FUNC(&NtCreateMutant),                          // 0x00C0 (192)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtCreateSemaphore),                       // 0x00C1 (193)

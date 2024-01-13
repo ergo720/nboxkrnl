@@ -6,6 +6,22 @@
 #include "..\rtl\rtl.hpp"
 
 
+EXPORTNUM(190) NTSTATUS XBOXAPI NtCreateFile
+(
+	PHANDLE FileHandle,
+	ACCESS_MASK DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	PLARGE_INTEGER AllocationSize,
+	ULONG FileAttributes,
+	ULONG ShareAccess,
+	ULONG CreateDisposition,
+	ULONG CreateOptions
+)
+{
+	return IoCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, 0);
+}
+
 EXPORTNUM(202) NTSTATUS XBOXAPI NtOpenFile
 (
 	PHANDLE FileHandle,
