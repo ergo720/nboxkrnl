@@ -87,7 +87,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&IoCompletionObjectType),              // 0x0040 (64)
 	(ULONG)FUNC(&IoCreateDevice),                          // 0x0041 (65)
 	(ULONG)FUNC(&IoCreateFile),                            // 0x0042 (66)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoCreateSymbolicLink),                    // 0x0043 (67)
+	(ULONG)FUNC(&IoCreateSymbolicLink),                    // 0x0043 (67)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoDeleteDevice),                          // 0x0044 (68)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoDeleteSymbolicLink),                    // 0x0045 (69)
 	(ULONG)VARIABLE(&IoDeviceObjectType),                  // 0x0046 (70)

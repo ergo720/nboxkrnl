@@ -6,6 +6,7 @@
 #include "..\rtl\rtl.hpp"
 #include "..\ob\obp.hpp"
 #include "..\nt\nt.hpp"
+#include "cdrom\cdrom.hpp"
 #include "hdd\hdd.hpp"
 #include <string.h>
 
@@ -47,6 +48,10 @@ BOOLEAN IoInitSystem()
 	XboxFactoryGameRegion = CachedEeprom.EncryptedSettings.GameRegion;
 
 	if (!HddInitDriver()) {
+		return FALSE;
+	}
+
+	if (!CdromInitDriver()) {
 		return FALSE;
 	}
 
@@ -302,6 +307,122 @@ EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
 
 	if (SuccessfulIoParse && OpenPacket.FileObject) {
 		ObfDereferenceObject(OpenPacket.FileObject);
+	}
+
+	return Status;
+}
+
+EXPORTNUM(67) NTSTATUS XBOXAPI IoCreateSymbolicLink
+(
+	PSTRING SymbolicLinkName,
+	PSTRING DeviceName
+)
+{
+	// Must be an absolute path because the search below always starts from the root directory
+	if (!DeviceName->Length || (DeviceName->Buffer[0] != OB_PATH_DELIMITER)) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	KIRQL OldIrql = ObLock();
+
+	// Sanity check: ensure that the target object exists
+	NTSTATUS Status;
+	PVOID FoundObject, TargetObject;
+	POBJECT_DIRECTORY Directory = ObpRootDirectoryObject;
+	OBJECT_STRING FirstName, RemainingName, OriName = *DeviceName;
+	while (true) {
+		ObpParseName(&OriName, &FirstName, &RemainingName);
+
+		if (RemainingName.Length && (RemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
+			// Another delimiter in the name is invalid
+			Status = STATUS_INVALID_PARAMETER;
+			ObUnlock(OldIrql);
+			break;
+		}
+
+		if (FoundObject = ObpFindObjectInDirectory(Directory, &FirstName, TRUE); FoundObject == NULL_HANDLE) {
+			Status = STATUS_INVALID_PARAMETER;
+			ObUnlock(OldIrql);
+			break;
+		}
+
+		POBJECT_HEADER Obj = GetObjHeader(FoundObject);
+		if (RemainingName.Length == 0) {
+			Status = STATUS_SUCCESS;
+			++Obj->PointerCount;
+			TargetObject = FoundObject;
+			ObUnlock(OldIrql);
+			break;
+		}
+
+		if (Obj->Type != &ObDirectoryObjectType) {
+			// NOTE: ParseProcedure is supposed to parse the remaining part of the name
+
+			if (Obj->Type->ParseProcedure == nullptr) {
+				Status = STATUS_INVALID_PARAMETER;
+				ObUnlock(OldIrql);
+				break;
+			}
+
+			++Obj->PointerCount;
+			ObUnlock(OldIrql);
+
+			Status = Obj->Type->ParseProcedure(FoundObject, nullptr, OBJ_CASE_INSENSITIVE, DeviceName, &RemainingName, nullptr, &TargetObject);
+
+			if (Status == STATUS_OBJECT_TYPE_MISMATCH) {
+				OBJECT_ATTRIBUTES ObjectAttributes;
+				InitializeObjectAttributes(&ObjectAttributes, DeviceName, OBJ_CASE_INSENSITIVE, nullptr);
+
+				HANDLE Handle;
+				IO_STATUS_BLOCK IoStatusBlock;
+				Status = NtOpenFile(&Handle, 0, &ObjectAttributes, &IoStatusBlock, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_DIRECTORY_FILE);
+
+				if (NT_SUCCESS(Status)) {
+					Status = ObReferenceObjectByHandle(Handle, &IoFileObjectType, &TargetObject);
+					NtClose(Handle);
+				}
+			}
+
+			ObfDereferenceObject(FoundObject);
+
+			break;
+		}
+
+		// Reset Directory to the FoundObject, which we know it's a directory object if we reach here. Otherwise, the code will keep looking for the objects specified
+		// in RemainingName in the root directory that was set when this loop first started
+		Directory = (POBJECT_DIRECTORY)FoundObject;
+		OriName = RemainingName;
+	}
+
+	// If the check succeeded, create the sym link object and insert it into OB
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	ULONG DeviceNameLength = DeviceName->Length;
+	OBJECT_ATTRIBUTES ObjectAttributes;
+	InitializeObjectAttributes(&ObjectAttributes, SymbolicLinkName, OBJ_PERMANENT | OBJ_CASE_INSENSITIVE, nullptr);
+
+	POBJECT_SYMBOLIC_LINK SymbolicObject;
+	Status = ObCreateObject(&ObSymbolicLinkObjectType, &ObjectAttributes, sizeof(OBJECT_SYMBOLIC_LINK) + DeviceNameLength, (PVOID *)&SymbolicObject);
+
+	if (NT_SUCCESS(Status)) {
+		PCHAR LinkTargetBuffer = (PCHAR)(SymbolicObject + 1);
+		strncpy(LinkTargetBuffer, DeviceName->Buffer, DeviceNameLength);
+
+		SymbolicObject->LinkTargetObject = TargetObject;
+		SymbolicObject->LinkTarget.Buffer = LinkTargetBuffer;
+		SymbolicObject->LinkTarget.Length = (USHORT)DeviceNameLength;
+		SymbolicObject->LinkTarget.MaximumLength = (USHORT)DeviceNameLength;
+
+		HANDLE Handle;
+		Status = ObInsertObject(SymbolicObject, &ObjectAttributes, 0, &Handle);
+		if (NT_SUCCESS(Status)) {
+			NtClose(Handle);
+		}
+	}
+	else {
+		ObfDereferenceObject(TargetObject);
 	}
 
 	return Status;
