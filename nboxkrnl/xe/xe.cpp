@@ -31,6 +31,9 @@ EXPORTNUM(326) OBJECT_STRING XeImageFileName = { 0, 0, nullptr };
 
 static INITIALIZE_GLOBAL_CRITICAL_SECTION(XepXbeLoaderLock);
 
+// FIXME: this is only required until XeLoadSection switches to the IO functions
+static ULONG DevType;
+
 // Source: partially from Cxbx-Reloaded
 static NTSTATUS XeLoadXbe()
 {
@@ -43,36 +46,39 @@ static NTSTATUS XeLoadXbe()
 		// NOTE: we cannot just assume that the XBE name from the DVD drive is called "default.xbe", because the user might have renamed it
 		ULONG PathSize;
 		__asm {
-			mov edx, XE_DVD_XBE_LENGTH
+			mov edx, XE_XBE_PATH_LENGTH
 			in eax, dx
 			mov PathSize, eax
 		}
-		ULONG DvdPathSize = strlen("\\Device\\CdRom0\\");
-		PathSize += (DvdPathSize + 1);
+
 		PCHAR PathBuffer = (PCHAR)ExAllocatePoolWithTag(PathSize, 'PebX');
 		if (!PathBuffer) {
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		strncpy(PathBuffer, "\\Device\\CdRom0\\", DvdPathSize);
-		{
-			PCHAR XbeNameAddr = &PathBuffer[DvdPathSize];
-			__asm {
-				mov edx, XE_DVD_XBE_ADDR
-				mov eax, XbeNameAddr
-				out dx, eax
-			}
+		__asm {
+			mov edx, XE_XBE_PATH_ADDR
+			mov eax, PathBuffer
+			out dx, eax
+		}
+
+		if (strncmp(&PathBuffer[8], "CdRom0", 6) == 0) {
+			DevType = DEV_TYPE(DEV_CDROM);
+		}
+		else {
+			// FIXME: the XBE could also be on a MU
+			DevType = DEV_TYPE(DEV_PARTITION0 + (PathBuffer[27] - '0'));
 		}
 
 		XeImageFileName.Buffer = PathBuffer;
-		XeImageFileName.Length = (USHORT)PathSize - 1;
-		XeImageFileName.MaximumLength = (USHORT)PathSize - 1;
-		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize - 1); // NOTE: doesn't copy the terminating NULL character
+		XeImageFileName.Length = (USHORT)PathSize;
+		XeImageFileName.MaximumLength = (USHORT)PathSize;
+		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize); // NOTE: doesn't copy the terminating NULL character
 
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Open | FILE_OPEN | DEV_TYPE(DEV_CDROM),
+			IoRequestType::Open | FILE_OPEN | DevType,
 			0,
-			PathSize - 1,
+			PathSize,
 			XBE_HANDLE,
 			(ULONG_PTR)PathBuffer
 		);
@@ -87,7 +93,7 @@ static NTSTATUS XeLoadXbe()
 		}
 
 		InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read | DEV_TYPE(DEV_CDROM),
+			IoRequestType::Read | DevType,
 			0,
 			PAGE_SIZE,
 			(ULONG_PTR)XbeHeader,
@@ -125,7 +131,7 @@ static NTSTATUS XeLoadXbe()
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
 			InfoBlock = SubmitIoRequestToHost(
-				IoRequestType::Read | DEV_TYPE(DEV_CDROM),
+				IoRequestType::Read | DevType,
 				PAGE_SIZE,
 				GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE,
 				(ULONG_PTR)((PCHAR)XbeHeader + PAGE_SIZE),
@@ -245,7 +251,7 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 
 		// Copy the section data
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read | DEV_TYPE(DEV_CDROM),
+			IoRequestType::Read | DevType,
 			Section->FileAddress,
 			Section->FileSize,
 			(ULONG_PTR)Section->VirtualAddress,

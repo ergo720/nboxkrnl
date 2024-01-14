@@ -34,10 +34,10 @@
 // Set the id of the I/O request to query
 #define IO_SET_ID_LOW 0x20B
 #define IO_SET_ID_HIGH 0x20C
-// Request the name's length of the first XBE to launch from the DVD drive
-#define XE_DVD_XBE_LENGTH 0x20D
-// Send the address where to put the name of the first XBE to launch from the DVD drive
-#define XE_DVD_XBE_ADDR 0x20E
+// Request the path's length of the XBE to launch when no reboot occured
+#define XE_XBE_PATH_LENGTH 0x20D
+// Send the address where to put the path of the XBE to launch when no reboot occured
+#define XE_XBE_PATH_ADDR 0x20E
 // Request the total ACPI time since booting
 #define KE_ACPI_TIME_LOW 0x20F
 #define KE_ACPI_TIME_HIGH 0x210
