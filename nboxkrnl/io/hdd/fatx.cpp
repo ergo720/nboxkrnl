@@ -320,8 +320,8 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	OBJECT_STRING FileName;
-	CHAR RootName = OB_PATH_DELIMITER;
+	OBJECT_STRING FileName, ParentName;
+	CHAR RootName = OB_PATH_DELIMITER, EmptyName = '\0';
 	BOOLEAN HasBackslashAtEnd = FALSE;
 	if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
 		// Special case: open the root directory of the volume
@@ -337,6 +337,8 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		HasBackslashAtEnd = TRUE;
 		FileName.Buffer = &RootName;
 		FileName.Length = 1;
+		ParentName.Buffer = &EmptyName;
+		ParentName.Length = 0;
 	}
 	else {
 		if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
@@ -344,6 +346,9 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 
 		OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
+		// FIXME: this might not be right if the parsing doesn't start from the root directory
+		ParentName.Buffer = &RootName;
+		ParentName.Length = 1;
 		while (true) {
 			// Iterate until we validate all path names
 			ObpParseName(&OriName, &FirstName, &LocalRemainingName);
@@ -362,6 +367,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 				break;
 			}
 
+			ParentName = FirstName;
 			OriName = LocalRemainingName;
 		}
 		FileName = FirstName;
@@ -393,7 +399,11 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 	}
 	else {
-		// FIXME: this should also check that the parent directory is not being deleted too
+		if (FileInfo = FatxFindOpenFile(VolumeExtension, &ParentName); FileInfo) {
+			if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
+				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+			}
+		}
 		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
 		if (FileInfo == nullptr) {
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
