@@ -8,6 +8,7 @@
 #include "..\hal\halp.hpp"
 #include "..\dbg\dbg.hpp"
 #include "..\ex\ex.hpp"
+#include "..\mm\mm.hpp"
 #include <string.h>
 #include <assert.h>
 
@@ -83,6 +84,59 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 		pop ebx
 		ret 4
 	}
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(266) USHORT XBOXAPI RtlCaptureStackBackTrace
+(
+	ULONG FramesToSkip,
+	ULONG FramesToCapture,
+	PVOID *BackTrace,
+	PULONG BackTraceHash
+)
+{
+	PVOID Frames[2 * 64];
+	ULONG FrameCount;
+	ULONG Hash = 0;
+	USHORT i;
+
+	/* Skip a frame for the caller */
+	FramesToSkip++;
+
+	/* Don't go past the limit */
+	if ((FramesToCapture + FramesToSkip) >= 128) {
+		return 0;
+	}
+
+	/* Do the back trace */
+	FrameCount = RtlWalkFrameChain(Frames, FramesToCapture + FramesToSkip, 0);
+
+	/* Make sure we're not skipping all of them */
+	if (FrameCount <= FramesToSkip) {
+		return 0;
+	}
+
+	/* Loop all the frames */
+	for (i = 0; i < FramesToCapture; i++) {
+		/* Don't go past the limit */
+		if ((FramesToSkip + i) >= FrameCount) {
+			break;
+		}
+
+		/* Save this entry and hash it */
+		BackTrace[i] = Frames[FramesToSkip + i];
+		Hash += reinterpret_cast<ULONG>(BackTrace[i]);
+	}
+
+	/* Write the hash */
+	if (BackTraceHash) {
+		*BackTraceHash = Hash;
+	}
+
+	/* Clear the other entries and return count */
+	RtlFillMemoryUlong(Frames, 128, 0);
+
+	return i;
 }
 
 EXPORTNUM(277) VOID XBOXAPI RtlEnterCriticalSection
@@ -313,6 +367,102 @@ EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
 	return TRUE;
 }
 
+// Source: Cxbx-Reloaded
+EXPORTNUM(319) ULONG XBOXAPI RtlWalkFrameChain
+(
+	PVOID *Callers,
+	ULONG Count,
+	ULONG Flags
+)
+{
+	// Note that this works even if there is a KTRAP_FRAME in the stack. This, because the exception handler sets ebp to the frame itself,
+	// and its first two members are DbgEbp and DbgEip, the old values of ebp and eip of the caller
+
+	ULONG_PTR Stack;
+	/* Get current EBP */
+	__asm mov Stack, ebp
+
+	/* Get the actual stack limits */
+	PKTHREAD Thread = KeGetCurrentThread();
+
+	/* Start with defaults */
+	ULONG_PTR StackBegin = reinterpret_cast<ULONG_PTR>(Thread->StackLimit); // base stack address
+	ULONG_PTR StackEnd = reinterpret_cast<ULONG_PTR>(Thread->StackBase); // highest stack address
+
+	/* Check if EBP is inside the stack */
+	if ((StackBegin <= Stack) && (Stack <= StackEnd)) {
+		/* Then make the stack start at EBP */
+		StackBegin = Stack;
+	}
+	else {
+		/* We're somewhere else entirely... use EBP for safety */
+		StackBegin = Stack;
+		StackEnd = ROUND_DOWN_4K(StackBegin);
+	}
+
+	ULONG i = 0;
+
+	/* Use a SEH block for maximum protection */
+	__try {
+		/* Loop the frames */
+		BOOLEAN StopSearch = FALSE;
+		for (i = 0; i < Count; i++) {
+			/*
+			 * Leave if we're past the stack,
+			 * if we're before the stack,
+			 * or if we've reached ourselves.
+			 */
+			if ((Stack >= StackEnd) ||
+				(!i ? (Stack < StackBegin) : (Stack <= StackBegin)) ||
+				((StackEnd - Stack) < (2 * sizeof(ULONG_PTR))))
+			{
+				/* We're done or hit a bad address */
+				break;
+			}
+
+			/* Get new stack and EIP */
+			ULONG_PTR NewStack = *(ULONG_PTR *)Stack;
+			ULONG Eip = *(ULONG_PTR *)(Stack + sizeof(ULONG_PTR));
+
+			/* Check if Eip is not in the forbidden 64 KiB block */
+			if (Eip < KiB(64)) {
+				break;
+			}
+
+			/* Check if the new pointer is above the old one and past the end */
+			if (!((Stack < NewStack) && (NewStack < StackEnd))) {
+				/* Stop searching after this entry */
+				StopSearch = TRUE;
+			}
+
+			/* Also make sure that the EIP isn't a stack address */
+			if ((StackBegin < Eip) && (Eip < StackEnd)) {
+				break;
+			}
+
+			/* Save this frame */
+			Callers[i] = reinterpret_cast<PVOID>(Eip);
+
+			/* Check if we should continue */
+			if (StopSearch)
+			{
+				/* Return the next index */
+				i++;
+				break;
+			}
+
+			/* Move to the next stack */
+			Stack = NewStack;
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		/* No index */
+		i = 0;
+	}
+
+	return i;
+}
+
 EXPORTNUM(320) VOID XBOXAPI RtlZeroMemory
 (
 	PVOID Destination,
@@ -353,7 +503,17 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 		ApiName = const_cast<PCHAR>("RIP");
 	}
 
-	DbgPrint("%s:%s%s%s%s\n\n", ApiName, OpenBracket, Expression, CloseBracket, Message);
+	DbgPrint("%s:%s%s%s%s", ApiName, OpenBracket, Expression, CloseBracket, Message);
+
+	// Capture a stack trace to help debugging this issue
+	PVOID BackTrace[128];
+	ULONG TraceHash;
+	ULONG NumOfFrames = RtlCaptureStackBackTrace(0, 126, BackTrace, &TraceHash);
+	DbgPrint("The kernel terminated execution with RtlRip. A stack trace was created with %u frames captured (Hash = 0x%X)", NumOfFrames, TraceHash);
+	for (unsigned i = 0; (i < 128) && BackTrace[i]; ++i) {
+		DbgPrint("Traced Eip at level %u is 0x%X", i, BackTrace[i]);
+	}
+
 	HalpShutdownSystem();
 }
 

@@ -7,6 +7,7 @@
 #include "..\rtl\rtl.hpp"
 #include "..\rtl\exp_sup.hpp"
 #include "..\mm\mi.hpp"
+#include "..\dbg\dbg.hpp"
 #include <string.h>
 
 
@@ -301,6 +302,19 @@ VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAM
 			KiCopyContextToKframe(TrapFrame, &ContextRecord);
 			return;
 		}
+	}
+
+	// Capture a stack trace to help debugging this issue
+	PVOID BackTrace[128];
+	ULONG TraceHash;
+	ULONG NumOfFrames = RtlCaptureStackBackTrace(0, 126, BackTrace, &TraceHash);
+	DbgPrint("The kernel has encountered an unhandled exception at Eip 0x%X. A stack trace was created with %u frames captured (Hash = 0x%X)", TrapFrame->Eip, NumOfFrames, TraceHash);
+	DbgPrint("The trap frame on the stack is the following:\nDbgEbp: 0x%X\nDbgEip: 0x%X\nDbgArgMark: 0x%X\nDbgArgPointer: 0x%X\nTempSegCs: 0x%X\nTempEsp: 0x%X\nEdx: 0x%X\nEcx: 0x%X\n\
+Eax: 0x%X\nExceptionList: 0x%X\nEdi: 0x%X\nEsi: 0x%X\nEbx: 0x%X\nEbp: 0x%X\nErrCode: 0x%X\nEip: 0x%X\nSegCs: 0x%X\nEFlags: 0x%X",
+TrapFrame->DbgEbp, TrapFrame->DbgEip, TrapFrame->DbgArgMark, TrapFrame->DbgArgPointer, TrapFrame->TempSegCs, TrapFrame->TempEsp, TrapFrame->Edx, TrapFrame->Ecx, TrapFrame->Eax,
+TrapFrame->ExceptionList, TrapFrame->Edi, TrapFrame->Esi, TrapFrame->Ebx, TrapFrame->Ebp, TrapFrame->ErrCode, TrapFrame->Eip, TrapFrame->SegCs, TrapFrame->EFlags);
+	for (unsigned i = 0; (i < 128) && BackTrace[i]; ++i) {
+		DbgPrint("Traced Eip at level %u is 0x%X", i, BackTrace[i]);
 	}
 
 	KeBugCheckEx(KERNEL_UNHANDLED_EXCEPTION, ExceptionRecord->ExceptionCode, reinterpret_cast<ULONG>(ExceptionRecord->ExceptionAddress),
