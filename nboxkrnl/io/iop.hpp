@@ -13,6 +13,7 @@
 #define FO_SYNCHRONOUS_IO                0x00000002
 #define FO_ALERTABLE_IO                  0x00000004
 #define FO_HANDLE_CREATED                0x00000020
+#define FO_CLEANUP_COMPLETE              0x00004000
 
 #define IO_TYPE_ADAPTER                  0x00000001
 #define IO_TYPE_CONTROLLER               0x00000002

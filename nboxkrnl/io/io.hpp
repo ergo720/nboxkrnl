@@ -214,3 +214,4 @@ EXPORTNUM(87) DLLEXPORT VOID FASTCALL IofCompleteRequest
 BOOLEAN IoInitSystem();
 NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING Name, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object);
+PIRP IoAllocateIrpNoFail(CCHAR StackSize);

@@ -595,7 +595,7 @@ EXPORTNUM(87) VOID FASTCALL IofCompleteRequest
 		}
 	}
 
-	if (Irp->Flags & (IRP_MOUNT_COMPLETION | IRP_CLOSE_OPERATION)) {
+	if (Irp->Flags & (IRP_MOUNT_COMPLETION)) {
 		RIP_API_MSG("SL_MUST_COMPLETE not implemented");
 	}
 
@@ -671,6 +671,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	}
 
 	// Sanity check: ensure that the request is really open/create
+	// INFO: the case OpenPacket == nullptr is triggered by IoCreateSymbolicLink when the target object is a HDD path and it invokes the ParseProcedure with a nullptr ParseContext
 	if ((OpenPacket == nullptr) || ((OpenPacket->Type != IO_TYPE_OPEN_PACKET) || (OpenPacket->Size != sizeof(OPEN_PACKET)))) {
 		NTSTATUS Status = STATUS_OBJECT_TYPE_MISMATCH;
 		if (OpenPacket) {
@@ -829,5 +830,18 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	}
 	else {
 		RIP_API_MSG("QueryOnly and DeleteOnly flags in OpenPacket are not implemented");
+	}
+}
+
+PIRP IoAllocateIrpNoFail(CCHAR StackSize)
+{
+	while (true) {
+		PIRP Irp = IoAllocateIrp(StackSize);
+		if (Irp) {
+			return Irp;
+		}
+
+		LARGE_INTEGER Timeout{ .QuadPart = -50 * 10000 };
+		KeDelayExecutionThread(KernelMode, FALSE, &Timeout);
 	}
 }

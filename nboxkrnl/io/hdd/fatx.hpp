@@ -16,6 +16,7 @@ struct FATX_FILE_INFO {
 	CHAR FileName[FATX_MAX_FILE_NAME_LENGTH];
 	ULONGLONG HostHandle;
 	SHARE_ACCESS ShareAccess;
+	ULONG Flags;
 	LIST_ENTRY ListEntry;
 };
 using PFATX_FILE_INFO = FATX_FILE_INFO *;

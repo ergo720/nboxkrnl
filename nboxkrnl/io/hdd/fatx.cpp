@@ -32,6 +32,7 @@ static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT FatxDriverObject = {
 	nullptr,                            // DriverStartIo
@@ -51,7 +52,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
-		IoInvalidDeviceRequest,         // IRP_MJ_CLEANUP
+		FatxIrpCleanup,                 // IRP_MJ_CLEANUP
 	}
 };
 
@@ -386,6 +387,9 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
 		}
 		else {
+			if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
+				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+			}
 			// The requested file is already open, check the share permissions to see if we can open it again
 			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
 				return FatxCompleteRequest(Irp, Status, VolumeExtension);
@@ -393,12 +397,14 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 	}
 	else {
+		// FIXME: this should also check that the parent directory is not being deleted too
 		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
 		if (FileInfo == nullptr) {
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
+		FileInfo->Flags = CreateOptions & FILE_DELETE_ON_CLOSE;
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		FatxInsertFile(FileInfo);
 		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
@@ -503,4 +509,32 @@ NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP
 
 	Irp->IoStatus.Information = BytesWritten;
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	// This is called when the last open handle to a file is closed by NtClose
+
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+
+	FatxVolumeLockExclusive(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
+	IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
+
+	if (!(VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) && (FileInfo->ShareAccess.OpenCount == 0) && (FileInfo->Flags & FILE_DELETE_ON_CLOSE)) {
+		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+			DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Remove,
+			0,
+			0,
+			0,
+			FileInfo->HostHandle
+		);
+	}
+
+	FileObject->Flags |= FO_CLEANUP_COMPLETE;
+
+	return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 }

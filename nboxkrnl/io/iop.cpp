@@ -135,7 +135,39 @@ PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp)
 
 VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount)
 {
-	RIP_UNIMPLEMENTED();
+	if (SystemHandleCount == 1) {
+		PFILE_OBJECT FileObject = (PFILE_OBJECT)Object;
+		FileObject->Flags |= FO_HANDLE_CREATED;
+
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			IopAcquireSynchronousFileLock(FileObject);
+		}
+
+		PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
+		PIRP Irp = IoAllocateIrpNoFail(DeviceObject->StackSize);
+		Irp->Tail.Overlay.OriginalFileObject = FileObject;
+		Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
+		Irp->UserIosb = &Irp->IoStatus;
+		Irp->Flags = IRP_SYNCHRONOUS_API | IRP_CLOSE_OPERATION;
+
+		PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
+		IrpStackPointer->MajorFunction = IRP_MJ_CLEANUP;
+		IrpStackPointer->FileObject = FileObject;
+
+		IopQueueThreadIrp(Irp);
+
+		IofCallDriver(DeviceObject, Irp);
+
+		KIRQL OldIrql = KfRaiseIrql(APC_LEVEL);
+		IopDequeueThreadIrp(Irp);
+		KfLowerIrql(OldIrql);
+
+		IoFreeIrp(Irp);
+
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			IopReleaseSynchronousFileLock(FileObject);
+		}
+	}
 }
 
 VOID XBOXAPI IopDeleteFile(PVOID Object)
