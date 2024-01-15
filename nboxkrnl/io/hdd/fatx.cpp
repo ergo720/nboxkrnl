@@ -5,7 +5,6 @@
 #include "hdd.hpp"
 #include "..\..\io\fsc.hpp"
 #include "..\..\ob\obp.hpp"
-#include "..\..\rtl\rtl.hpp"
 #include "..\..\dbg\dbg.hpp"
 #include <string.h>
 
@@ -55,9 +54,6 @@ static DRIVER_OBJECT FatxDriverObject = {
 		FatxIrpCleanup,                 // IRP_MJ_CLEANUP
 	}
 };
-
-// List of all open directory/files on the system
-static LIST_ENTRY FatxOpenFileList = { .Flink = &FatxOpenFileList, .Blink = &FatxOpenFileList };
 
 static VOID FatxVolumeLockExclusive(PFAT_VOLUME_EXTENSION VolumeExtension)
 {
@@ -119,13 +115,13 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 	return TRUE;
 }
 
-static PFATX_FILE_INFO FatxFindOpenFile(POBJECT_STRING Name)
+static PFATX_FILE_INFO FatxFindOpenFile(PFAT_VOLUME_EXTENSION VolumeExtension, POBJECT_STRING Name)
 {
-	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
 
 	PFATX_FILE_INFO FileInfo = nullptr;
-	PLIST_ENTRY Entry = FatxOpenFileList.Blink;
-	while (Entry != &FatxOpenFileList) {
+	PLIST_ENTRY Entry = VolumeExtension->OpenFileList.Blink;
+	while (Entry != &VolumeExtension->OpenFileList) {
 		PFATX_FILE_INFO CurrFileInfo = CONTAINING_RECORD(Entry, FATX_FILE_INFO, ListEntry);
 		OBJECT_STRING CurrString;
 		CurrString.Buffer = CurrFileInfo->FileName;
@@ -133,7 +129,7 @@ static PFATX_FILE_INFO FatxFindOpenFile(POBJECT_STRING Name)
 		if (RtlEqualString(Name, &CurrString, TRUE)) {
 			// Place the found element at the tail of the list
 			RemoveEntryList(Entry);
-			InsertTailList(&FatxOpenFileList, Entry);
+			InsertTailList(&VolumeExtension->OpenFileList, Entry);
 			FileInfo = CurrFileInfo;
 			break;
 		}
@@ -141,18 +137,16 @@ static PFATX_FILE_INFO FatxFindOpenFile(POBJECT_STRING Name)
 		Entry = Entry->Blink;
 	}
 
-	KfLowerIrql(OldIrql);
+	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 
 	return FileInfo;
 }
 
-static VOID FatxInsertFile(PFATX_FILE_INFO FileInfo)
+static VOID FatxInsertFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INFO FileInfo)
 {
-	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
-
-	InsertTailList(&FatxOpenFileList, &FileInfo->ListEntry);
-
-	KfLowerIrql(OldIrql);
+	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
+	InsertTailList(&VolumeExtension->OpenFileList, &FileInfo->ListEntry);
+	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
 static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, PPARTITION_INFORMATION PartitionInformation)
@@ -249,7 +243,9 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->CacheExtension.TargetDeviceObject = DeviceObject;
 	VolumeExtension->CacheExtension.SectorSize = FatxDeviceObject->SectorSize;
 	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
+	InitializeListHead(&VolumeExtension->OpenFileList);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
+	RtlInitializeCriticalSection(&VolumeExtension->FileInfoLock);
 
 	if (Status = FatxSetupVolumeExtension(VolumeExtension, &PartitionInformation); !NT_SUCCESS(Status)) {
 		// TODO: cleanup FatxDeviceObject when this fails
@@ -380,7 +376,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	PFATX_FILE_INFO FileInfo;
 	BOOLEAN UpdatedShareAccess = FALSE;
-	if (FileInfo = FatxFindOpenFile(&FileName)) {
+	if (FileInfo = FatxFindOpenFile(VolumeExtension, &FileName)) {
 		UpdatedShareAccess = TRUE;
 		if (FileInfo->ShareAccess.OpenCount == 0) {
 			// The requested file is already open, but without any users to it, set the sharing permissions
@@ -406,7 +402,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
 		FileInfo->Flags = CreateOptions & FILE_DELETE_ON_CLOSE;
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
-		FatxInsertFile(FileInfo);
+		FatxInsertFile(VolumeExtension, FileInfo);
 		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
 	}
 
