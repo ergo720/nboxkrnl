@@ -14,7 +14,57 @@ BOOLEAN KiInsertQueueApc
 	KPRIORITY Increment
 )
 {
-	RIP_UNIMPLEMENTED();
+	BOOLEAN Inserted = FALSE;
+	PKTHREAD Thread = Apc->Thread;
+
+	if (!Apc->Inserted) {
+		if (Apc->NormalRoutine) {
+			// If there is a NormalRoutine, it's either a user or a normal kernel APC. In both cases, the APC is added to the tail of the list
+			InsertTailList(&Thread->ApcState.ApcListHead[Apc->ApcMode], &Apc->ApcListEntry);
+		}
+		else {
+			// This is a special kernel APC. These are added at the head of ApcListHead, before all other normal kernel APCs
+			PLIST_ENTRY Entry = Thread->ApcState.ApcListHead[KernelMode].Flink;
+			while (Entry != &Thread->ApcState.ApcListHead[KernelMode]) {
+				PKAPC CurrApc = CONTAINING_RECORD(Entry, KAPC, ApcListEntry);
+				if (CurrApc->NormalRoutine) {
+					// We have found the first normal kernel APC in the list, so we add the new APC in front of the found APC
+					break;
+				}
+				Entry = Entry->Flink;
+			}
+			Entry = Entry->Blink;
+			InsertHeadList(Entry, &Apc->ApcListEntry);
+		}
+
+		Apc->Inserted = TRUE;
+
+		if (Apc->ApcMode == KernelMode) {
+			// If it's a kernel APC, attempt to deliver it right away
+			Thread->ApcState.KernelApcPending = TRUE;
+			if (Thread->State == Running) {
+				// Thread is running, try to preempt it with a APC interrupt
+				HalRequestSoftwareInterrupt(APC_LEVEL);
+			}
+			else if ((Thread->State == Waiting) && (Thread->WaitIrql == PASSIVE_LEVEL) &&
+				((Apc->NormalRoutine == nullptr) || ((Thread->KernelApcDisable == 0) && (Thread->ApcState.KernelApcInProgress == FALSE)))) {
+				// Thread is waiting (Thread->State == Waiting) and can execute APCs (Thread->WaitIrql == PASSIVE_LEVEL) after the wait. Exit the wait if this is a special
+				// kernel APC (Apc->NormalRoutine == nullptr) or it's a normal kernel APC that can execute (Thread->KernelApcDisable == 0) and there isn't another APC
+				// in progress (Thread->ApcState.KernelApcInProgress == FALSE)
+				KiUnwaitThread(Thread, STATUS_KERNEL_APC, Increment);
+			}
+
+		}
+		else if ((Thread->State == Waiting) && (Thread->WaitMode == UserMode) && (Thread->Alertable)) {
+			// If it's a user APC, only deliver it if the thread is doing an alertable wait in user mode
+			Thread->ApcState.UserApcPending = TRUE;
+			KiUnwaitThread(Thread, STATUS_USER_APC, Increment);
+		}
+
+		Inserted = TRUE;
+	}
+
+	return Inserted;
 }
 
 EXPORTNUM(101) VOID XBOXAPI KeEnterCriticalRegion()
