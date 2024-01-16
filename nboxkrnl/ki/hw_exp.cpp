@@ -305,7 +305,7 @@ VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAM
 	}
 
 	// Capture a stack trace to help debugging this issue
-	PVOID BackTrace[128];
+	PVOID BackTrace[128] = { 0 };
 	ULONG TraceHash;
 	ULONG NumOfFrames = RtlCaptureStackBackTrace(0, 126, BackTrace, &TraceHash);
 	DbgPrint("The kernel has encountered an unhandled exception at Eip 0x%X. A stack trace was created with %u frames captured (Hash = 0x%X)", TrapFrame->Eip, NumOfFrames, TraceHash);

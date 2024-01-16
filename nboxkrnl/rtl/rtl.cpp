@@ -506,7 +506,7 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 	DbgPrint("%s:%s%s%s%s", ApiName, OpenBracket, Expression, CloseBracket, Message);
 
 	// Capture a stack trace to help debugging this issue
-	PVOID BackTrace[128];
+	PVOID BackTrace[128] = { 0 };
 	ULONG TraceHash;
 	ULONG NumOfFrames = RtlCaptureStackBackTrace(0, 126, BackTrace, &TraceHash);
 	DbgPrint("The kernel terminated execution with RtlRip. A stack trace was created with %u frames captured (Hash = 0x%X)", NumOfFrames, TraceHash);
