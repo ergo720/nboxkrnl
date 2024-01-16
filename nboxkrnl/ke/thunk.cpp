@@ -150,7 +150,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&KeQueryPerformanceFrequency),             // 0x007F (127)
 	(ULONG)FUNC(&KeQuerySystemTime),                       // 0x0080 (128)
 	(ULONG)FUNC(&KeRaiseIrqlToDpcLevel),                   // 0x0081 (129)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeRaiseIrqlToSynchLevel),                 // 0x0082 (130)
+	(ULONG)FUNC(&KeRaiseIrqlToSynchLevel),                 // 0x0082 (130)
 	(ULONG)FUNC(&KeReleaseMutant),                         // 0x0083 (131)
 	(ULONG)FUNC(&KeReleaseSemaphore),                      // 0x0084 (132)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeRemoveByKeyDeviceQueue),                // 0x0085 (133)

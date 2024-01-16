@@ -108,8 +108,21 @@ static constexpr WORD PicIRQMasksForIRQL[] = {
 
 VOID XBOXAPI HalpSwIntApc()
 {
-	// Apc interrupt not implemented yet
-	RIP_UNIMPLEMENTED();
+	// On entry, interrupts must be disabled
+
+	__asm {
+		movzx eax, byte ptr[KiPcr]KPCR.Irql
+		mov byte ptr[KiPcr]KPCR.Irql, APC_LEVEL // raise IRQL
+		and HalpPendingInt, ~(1 << APC_LEVEL)
+		push eax
+		sti
+		call KiExecuteApcQueue
+		cli
+		pop eax
+		mov byte ptr[KiPcr]KPCR.Irql, al // lower IRQL
+		call HalpCheckUnmaskedInt
+		ret
+	}
 }
 
 VOID __declspec(naked) XBOXAPI HalpSwIntDpc()

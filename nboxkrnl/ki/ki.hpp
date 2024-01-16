@@ -158,6 +158,7 @@ VOID InitializeCrt();
 VOID KiInitSystem();
 [[noreturn]] VOID KiIdleLoopThread();
 DWORD KiSwapThreadContext();
+VOID XBOXAPI KiExecuteApcQueue();
 VOID XBOXAPI KiExecuteDpcQueue();
 PKTHREAD XBOXAPI KiQuantumEnd();
 VOID KiAdjustQuantumThread();

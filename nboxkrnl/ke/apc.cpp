@@ -8,11 +8,7 @@
 #include "..\rtl\rtl.hpp"
 
 
-BOOLEAN KiInsertQueueApc
-(
-	PKAPC Apc,
-	KPRIORITY Increment
-)
+static BOOLEAN KiInsertQueueApc(PKAPC Apc, KPRIORITY Increment)
 {
 	BOOLEAN Inserted = FALSE;
 	PKTHREAD Thread = Apc->Thread;
@@ -65,6 +61,73 @@ BOOLEAN KiInsertQueueApc
 	}
 
 	return Inserted;
+}
+
+VOID XBOXAPI KiExecuteApcQueue()
+{
+	// This function delivers all normal/special kernel APCs for the current thread. Note that user APCs are never delivered here, because those require the target thread
+	// to be waiting. If the current thread is waiting, then it surely cannot execute this code either
+	// NOTE: on entry, IRQL must be at APC_LEVEL
+
+	KIRQL OldIrql = KeRaiseIrqlToSynchLevel();
+	PKTHREAD Thread = KeGetCurrentThread();
+	Thread->ApcState.KernelApcPending = FALSE;
+
+	while (IsListEmpty(&Thread->ApcState.ApcListHead[KernelMode]) == FALSE) {
+		PLIST_ENTRY Entry = Thread->ApcState.ApcListHead[KernelMode].Flink;
+		PKAPC Apc = CONTAINING_RECORD(Entry, KAPC, ApcListEntry);
+
+		// Create a copy of the APC arguments because the KernelRoutine might delete the APC object
+		PKKERNEL_ROUTINE KernelRoutine = Apc->KernelRoutine;
+		PKNORMAL_ROUTINE NormalRoutine = Apc->NormalRoutine;
+		PVOID NormalContext = Apc->NormalContext;
+		PVOID SystemArgument1 = Apc->SystemArgument1;
+		PVOID SystemArgument2 = Apc->SystemArgument2;
+
+		if (NormalRoutine == nullptr) {
+			// Special kernel APC
+
+			RemoveEntryList(Entry);
+			Apc->Inserted = FALSE;
+			KfLowerIrql(OldIrql);
+
+			// Special kernel APCs run at APC_LEVEL
+			KernelRoutine(Apc, &NormalRoutine, &NormalContext, &SystemArgument1, &SystemArgument2);
+
+			OldIrql = KeRaiseIrqlToSynchLevel();
+		}
+		else {
+			// Normal kernel APC
+			if ((Thread->ApcState.KernelApcInProgress == FALSE) && (Thread->KernelApcDisable == 0)) {
+				RemoveEntryList(Entry);
+				Apc->Inserted = FALSE;
+				KfLowerIrql(OldIrql);
+
+				// Special kernel APCs run at APC_LEVEL
+				KernelRoutine(Apc, &NormalRoutine, &NormalContext, &SystemArgument1, &SystemArgument2);
+
+				if (NormalRoutine) {
+					Thread->ApcState.KernelApcInProgress = TRUE;
+					KfLowerIrql(PASSIVE_LEVEL);
+
+					// Normal kernel APCs run at PASSIVE_LEVEL
+					NormalRoutine(NormalContext, SystemArgument1, SystemArgument2);
+
+					OldIrql = KfRaiseIrql(APC_LEVEL);
+				}
+
+				OldIrql = KeRaiseIrqlToSynchLevel();
+				Thread->ApcState.KernelApcInProgress = FALSE;
+			}
+			else {
+				// If we reach here, it means we found a normal kernel APC that we cannot execute, so there's no point in cheking the remaining part of the list
+				// because they are all normal kernel APCs too
+				break;
+			}
+		}
+	}
+
+	KfLowerIrql(OldIrql);
 }
 
 EXPORTNUM(101) VOID XBOXAPI KeEnterCriticalRegion()

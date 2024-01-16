@@ -36,6 +36,11 @@ EXPORTNUM(129) KIRQL XBOXAPI KeRaiseIrqlToDpcLevel()
 	}
 }
 
+EXPORTNUM(130) KIRQL XBOXAPI KeRaiseIrqlToSynchLevel()
+{
+	return KfRaiseIrql(SYNC_LEVEL);
+}
+
 EXPORTNUM(160) KIRQL FASTCALL KfRaiseIrql
 (
 	KIRQL NewIrql
@@ -140,7 +145,7 @@ EXPORTNUM(163) __declspec(naked) VOID FASTCALL KiUnlockDispatcherDatabase
 	deliver_apc:
 		mov cl, APC_LEVEL
 		call KfLowerIrql
-		call HalpSwIntApc // NOTE: this might not be right, depending on how that function is going to be implemented
+		call KiExecuteApcQueue
 		xor ecx, ecx // if KiSwapThreadContext signals an APC, then WaitIrql of the previous thread must have been zero
 		jmp restore_regs
 	end_func:

@@ -433,7 +433,7 @@ NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 	deliver_apc:
 		mov cl, APC_LEVEL
 		call KfLowerIrql
-		call HalpSwIntApc // NOTE: this might not be right, depending on how that function is going to be implemented
+		call KiExecuteApcQueue
 		xor ecx, ecx // if KiSwapThreadContext signals an APC, then WaitIrql of the previous thread must have been zero
 		jmp restore_regs
 	end_func:
