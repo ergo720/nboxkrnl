@@ -8,8 +8,9 @@
 
 #define XBOX_KEY_LENGTH 16
 
-#define THREAD_QUANTUM 20 // ms that a thread is allowed to run before being preempted
-#define WAIT_QUANTUM_DECREMENT 3 // subtracts 3 ms after a wait completes
+#define THREAD_QUANTUM 60 // ms that a thread is allowed to run before being preempted, in multiples of CLOCK_QUANTUM_DECREMENT
+#define CLOCK_QUANTUM_DECREMENT 3 // subtracts 1 ms after every clock interrupt, in multiples of CLOCK_QUANTUM_DECREMENT
+#define WAIT_QUANTUM_DECREMENT 9 // subtracts 3 ms after a wait completes, in multiples of CLOCK_QUANTUM_DECREMENT
 #define NORMAL_BASE_PRIORITY 8
 #define TIME_CRITICAL_BASE_PRIORITY 14
 #define LOW_PRIORITY 0

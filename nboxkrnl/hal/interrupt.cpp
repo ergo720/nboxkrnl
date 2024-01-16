@@ -377,7 +377,7 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 		mov edi, eax
 		mov ecx, ebx
 		call KiCheckExpiredTimers
-		sub edi, ebx
+		sub edi, ebx // ms elapsed since the last clock interrupt
 		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
 		mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread
 		cmp byte ptr [esp], DISPATCH_LEVEL
@@ -393,7 +393,9 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 	kernel_time:
 		add [ecx]KTHREAD.KernelTime, edi // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
 	quantum:
-		sub [ecx]KTHREAD.Quantum, edi
+		mov eax, CLOCK_QUANTUM_DECREMENT
+		mul edi // scale ms with the clock decrement
+		sub [ecx]KTHREAD.Quantum, eax
 		jg not_expired
 		cmp ecx, offset KiIdleThread // if it's the idle thread, then don't switch
 		jz not_expired
