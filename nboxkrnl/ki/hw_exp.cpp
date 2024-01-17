@@ -111,6 +111,11 @@ void __declspec(naked) XBOXAPI KiTrap14()
 		mov edx, cr2
 		push edx
 		call MiPageFaultHandler
+		sti
+		mov eax, 0xC0000005 // STATUS_ACCESS_VIOLATION
+		mov ebx, [ebp]KTRAP_FRAME.Eip
+		CREATE_EXCEPTION_RECORD_ARG0;
+		HANDLE_EXCEPTION;
 		EXIT_EXCEPTION;
 	}
 }

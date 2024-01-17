@@ -568,8 +568,7 @@ ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
 
 VOID XBOXAPI MiPageFaultHandler(ULONG Cr2, ULONG Eip)
 {
-	// For now, this just logs the faulting access and terminates
+	// For now, this just logs the faulting access and returns
 
-	DbgPrint("Page fault at %p while touching address %p", Eip, Cr2);
-	KeBugCheck(KERNEL_UNHANDLED_EXCEPTION);
+	DbgPrint("Page fault at 0x%X while touching address 0x%X", Eip, Cr2);
 }
