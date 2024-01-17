@@ -190,7 +190,20 @@ VOID XBOXAPI IopDeleteFile(PVOID Object)
 NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING CompleteName, POBJECT_STRING RemainingName,
 	PVOID Context, PVOID *Object)
 {
-	RIP_UNIMPLEMENTED();
+	// This function is supposed to be called for create request from NtCreateFile, so the context is an OPEN_PACKET
+	POPEN_PACKET OpenPacket = (POPEN_PACKET)Context;
+
+	// Sanity check: ensure that the request is really create
+	if ((OpenPacket == nullptr) || ((OpenPacket->Type != IO_TYPE_OPEN_PACKET) || (OpenPacket->Size != sizeof(OPEN_PACKET)))) {
+		return STATUS_OBJECT_TYPE_MISMATCH;
+	}
+
+	// IopParseFile is the ParseProcedure of IoFileObjectType, so ParseObject must be a PFILE_OBJECT
+	PFILE_OBJECT FileObject = (PFILE_OBJECT)ParseObject;
+	OpenPacket->RelatedFileObject = FileObject;
+
+	// FileObject->DeviceObject is the device that "owns" the FileObject (e.g. for a file on the HDD, it will be a FatxDeviceObject)
+	return IoParseDevice(FileObject->DeviceObject, ObjectType, Attributes, CompleteName, RemainingName, Context, Object);
 }
 
 VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2)
