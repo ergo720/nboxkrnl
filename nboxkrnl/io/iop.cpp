@@ -6,6 +6,7 @@
 #include "hdd\fatx.hpp"
 #include "cdrom\xiso.hpp"
 #include "..\rtl\rtl.hpp"
+#include "..\nt\nt.hpp"
 
 
 const UCHAR IopValidFsInformationQueries[] = {
@@ -33,6 +34,16 @@ const ULONG IopQueryFsOperationAccess[] = {
    0,              // 8 FileFsObjectIdInformation [any access to file or volume]
    0xffffffff      // 9 FileFsMaximumInformation
 };
+
+static VOID XBOXAPI IopRundownRoutine(PKAPC Apc)
+{
+	IoFreeIrp(CONTAINING_RECORD(Apc, IRP, Tail.Apc));
+}
+
+static VOID XBOXAPI IopCompletionRoutine(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2)
+{
+	IopRundownRoutine(Apc);
+}
 
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject)
 {
@@ -143,6 +154,7 @@ VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount)
 			IopAcquireSynchronousFileLock(FileObject);
 		}
 
+		FileObject->Event.Header.SignalState = 0;
 		PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
 		PIRP Irp = IoAllocateIrpNoFail(DeviceObject->StackSize);
 		Irp->Tail.Overlay.OriginalFileObject = FileObject;
@@ -183,7 +195,58 @@ NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG 
 
 VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2)
 {
-	RIP_UNIMPLEMENTED();
+	PIRP Irp = CONTAINING_RECORD(Apc, IRP, Tail.Apc);
+	PFILE_OBJECT FileObject = (PFILE_OBJECT)*SystemArgument1;
+
+	if (!NT_ERROR(Irp->IoStatus.Status)) {
+		Irp->UserIosb->Information = Irp->IoStatus.Information;
+		Irp->UserIosb->Status = Irp->IoStatus.Status;
+
+		// If the original IO request supplied an event, signal it now. Also signal the FileObject's event too since the IO is completed now
+		if (Irp->UserEvent) {
+			KeSetEvent(Irp->UserEvent, 0, FALSE);
+			ObfDereferenceObject(Irp->UserEvent);
+			if (FileObject) {
+				KeSetEvent(&FileObject->Event, 0, FALSE);
+				FileObject->FinalStatus = Irp->IoStatus.Status;
+			}
+		}
+		else if (FileObject) {
+			KeSetEvent(&FileObject->Event, 0, FALSE);
+			FileObject->FinalStatus = Irp->IoStatus.Status;
+		}
+
+		IopDequeueThreadIrp(Irp);
+
+		// If the original IO request supplied an APC, execute it now
+		if (Irp->Overlay.AsynchronousParameters.UserApcRoutine) {
+			KeInitializeApc(&Irp->Tail.Apc,
+				KeGetCurrentThread(),
+				IopCompletionRoutine,
+				(PKRUNDOWN_ROUTINE)IopRundownRoutine,
+				(PKNORMAL_ROUTINE)Irp->Overlay.AsynchronousParameters.UserApcRoutine,
+				Irp->Overlay.AsynchronousParameters.UserApcRoutine == NtUserIoApcDispatcher ? UserMode : KernelMode,
+				Irp->Overlay.AsynchronousParameters.UserApcContext);
+
+			KeInsertQueueApc(&Irp->Tail.Apc, Irp->UserIosb, nullptr, 2);
+		}
+		else {
+			IoFreeIrp(Irp);
+		}
+	}
+	else {
+		// If the IO failed, don't signal the event but only dereference it and then destroy the irp
+		if (Irp->UserEvent) {
+			ObfDereferenceObject(Irp->UserEvent);
+		}
+
+		IopDequeueThreadIrp(Irp);
+		IoFreeIrp(Irp);
+	}
+
+	if (FileObject) {
+		ObfDereferenceObject(FileObject);
+	}
 }
 
 VOID IopDropIrp(PIRP Irp, PFILE_OBJECT FileObject)

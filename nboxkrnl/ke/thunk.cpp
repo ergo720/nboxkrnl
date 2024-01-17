@@ -252,7 +252,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtSetTimerEx),                            // 0x00E5 (229)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtSignalAndWaitForSingleObjectEx),        // 0x00E6 (230)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtSuspendThread),                         // 0x00E7 (231)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtUserIoApcDispatcher),                   // 0x00E8 (232)
+	(ULONG)FUNC(&NtUserIoApcDispatcher),                   // 0x00E8 (232)
 	(ULONG)FUNC(&NtWaitForSingleObject),                   // 0x00E9 (233)
 	(ULONG)FUNC(&NtWaitForSingleObjectEx),                 // 0x00EA (234)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtWaitForMultipleObjectsEx),              // 0x00EB (235)

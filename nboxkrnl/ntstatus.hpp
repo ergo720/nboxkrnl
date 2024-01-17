@@ -64,3 +64,4 @@
 
 #define NT_SUCCESS(Status)                      ((NTSTATUS)(Status) >= 0)
 #define NT_WARNING(Status)                      ((ULONG)(Status) >> 30 == 2)
+#define NT_ERROR(Status)                        ((ULONG)(Status) >> 30 == 3)

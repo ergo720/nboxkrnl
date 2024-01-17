@@ -99,3 +99,13 @@ EXPORTNUM(218) NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 
 	return IopSynchronousService(DeviceObject, Irp, FileObject, TRUE, IsSynchronousIo);
 }
+
+EXPORTNUM(232) DLLEXPORT VOID XBOXAPI NtUserIoApcDispatcher
+(
+	PVOID ApcContext,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	ULONG Reserved
+)
+{
+	RIP_UNIMPLEMENTED();
+}
