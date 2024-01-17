@@ -599,6 +599,13 @@ EXPORTNUM(87) VOID FASTCALL IofCompleteRequest
 		RIP_API_MSG("SL_MUST_COMPLETE not implemented");
 	}
 
+	if (Irp->Flags & IRP_CLOSE_OPERATION) {
+		// This is a close request from NtClose when the last handle is closed. The caller will already dequeue the packet and free the IRP, and there's no user event for
+		// this request. So basically, we only need to copy back the final IoStatus of the operation here
+		*Irp->UserIosb = Irp->IoStatus;
+		return;
+	}
+
 	if (Irp->Flags & IRP_UNLOCK_USER_BUFFER) {
 		RIP_API_MSG("IRP_UNLOCK_USER_BUFFER not implemented");
 	}
