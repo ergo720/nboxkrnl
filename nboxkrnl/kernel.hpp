@@ -79,11 +79,13 @@ enum SystemType {
 };
 
 enum IoRequestType : ULONG {
-	Open =   1 << 28,
-	Remove = 2 << 28,
-	Close =  3 << 28,
-	Read =   4 << 28,
-	Write =  5 << 28
+	Open       = 1 << 28,
+	Remove     = 2 << 28,
+	Close      = 3 << 28,
+	Read       = 4 << 28,
+	Write      = 5 << 28,
+	CreateLink = 6 << 28,
+	RemoveLink = 7 << 28
 };
 
 enum IoFlags : ULONG {

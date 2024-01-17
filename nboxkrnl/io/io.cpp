@@ -419,6 +419,15 @@ EXPORTNUM(67) NTSTATUS XBOXAPI IoCreateSymbolicLink
 		Status = ObInsertObject(SymbolicObject, &ObjectAttributes, 0, &Handle);
 		if (NT_SUCCESS(Status)) {
 			NtClose(Handle);
+
+			// Also inform the host about the new link that we just created
+			SubmitIoRequestToHost(
+				IoRequestType::CreateLink,
+				SymbolicLinkName->Length,
+				DeviceName->Length,
+				(ULONG_PTR)(SymbolicLinkName->Buffer),
+				(ULONG_PTR)(DeviceName->Buffer)
+			);
 		}
 	}
 	else {
