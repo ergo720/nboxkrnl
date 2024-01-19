@@ -699,7 +699,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	PDEVICE_OBJECT ParsedDeviceObject = (PDEVICE_OBJECT)ParseObject;
 
 	if (OpenPacket->RelatedFileObject) {
-		RIP_API_MSG("RelatedFileObject in OpenPacket is not supported");
+		ParsedDeviceObject = OpenPacket->RelatedFileObject->DeviceObject;
 	}
 
 	KIRQL OldIrql = IoLock();
@@ -774,7 +774,6 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 
 		memset(FileObject, 0, sizeof(FILE_OBJECT));
 		FileObject->Type = IO_TYPE_FILE;
-		FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
 		if (OpenPacket->CreateOptions & (FILE_SYNCHRONOUS_IO_ALERT | FILE_SYNCHRONOUS_IO_NONALERT)) {
 			FileObject->Flags = FO_SYNCHRONOUS_IO;
 			if (OpenPacket->CreateOptions & FILE_SYNCHRONOUS_IO_ALERT) {

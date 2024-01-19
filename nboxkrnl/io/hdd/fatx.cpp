@@ -271,6 +271,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PFILE_OBJECT RelatedFileObject = FileObject->RelatedFileObject;
 	ACCESS_MASK DesiredAccess = IrpStackPointer->Parameters.Create.DesiredAccess;
 	USHORT ShareAccess = IrpStackPointer->Parameters.Create.ShareAccess;
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
@@ -282,6 +283,39 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	if (Irp->Overlay.AllocationSize.HighPart) { // 4 GiB file size limit on FAT
 		return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+	}
+
+	PFATX_FILE_INFO FileInfo;
+	OBJECT_STRING FileName;
+	CHAR RootName = OB_PATH_DELIMITER;
+	BOOLEAN HasBackslashAtEnd = FALSE;
+	if (RelatedFileObject) {
+		FileInfo = (PFATX_FILE_INFO)RelatedFileObject->FsContext2;
+
+		if (!(FileInfo->Flags & FILE_DIRECTORY_FILE)) {
+			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		}
+
+		if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
+			return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+		}
+
+		if (RemainingName->Length == 0) {
+			HasBackslashAtEnd = TRUE;
+			FileName.Buffer = FileInfo->FileName;
+			FileName.Length = FileInfo->FileNameLength;
+			if ((FileName.Length == 1) && (FileName.Buffer[0] == OB_PATH_DELIMITER)) {
+				if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename the root directory
+					return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+				}
+
+				if ((Disposition != FILE_OPEN) && (Disposition != FILE_OPEN_IF)) { // the root directory can only be opened
+					return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_COLLISION, VolumeExtension);
+				}
+			}
+			goto ByPassPathCheck;
+		}
+		goto OpenFile;
 	}
 
 	if (RemainingName->Length == 0) {
@@ -320,9 +354,6 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	OBJECT_STRING FileName, ParentName;
-	CHAR RootName = OB_PATH_DELIMITER, EmptyName = '\0';
-	BOOLEAN HasBackslashAtEnd = FALSE;
 	if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
 		// Special case: open the root directory of the volume
 
@@ -337,18 +368,15 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		HasBackslashAtEnd = TRUE;
 		FileName.Buffer = &RootName;
 		FileName.Length = 1;
-		ParentName.Buffer = &EmptyName;
-		ParentName.Length = 0;
+		FileInfo = FatxFindOpenFile(VolumeExtension, &FileName);
 	}
 	else {
+		OpenFile:
 		if (RemainingName->Buffer[RemainingName->Length - 1] == OB_PATH_DELIMITER) {
 			HasBackslashAtEnd = TRUE; // creating or opening a directory
 		}
 
 		OBJECT_STRING FirstName, LocalRemainingName, OriName = *RemainingName;
-		// FIXME: this might not be right if the parsing doesn't start from the root directory
-		ParentName.Buffer = &RootName;
-		ParentName.Length = 1;
 		while (true) {
 			// Iterate until we validate all path names
 			ObpParseName(&OriName, &FirstName, &LocalRemainingName);
@@ -363,15 +391,19 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 			}
 
+			if (FileInfo = FatxFindOpenFile(VolumeExtension, &FirstName); FileInfo && (FileInfo->Flags & FILE_DELETE_ON_CLOSE)) {
+				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+			}
+
 			if (LocalRemainingName.Length == 0) {
 				break;
 			}
 
-			ParentName = FirstName;
 			OriName = LocalRemainingName;
 		}
 		FileName = FirstName;
 	}
+	ByPassPathCheck:
 
 	if (HasBackslashAtEnd && (CreateOptions & FILE_NON_DIRECTORY_FILE)) { // file must not be a directory
 		return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
@@ -380,18 +412,14 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 	}
 
-	PFATX_FILE_INFO FileInfo;
 	BOOLEAN UpdatedShareAccess = FALSE;
-	if (FileInfo = FatxFindOpenFile(VolumeExtension, &FileName)) {
+	if (FileInfo) {
 		UpdatedShareAccess = TRUE;
 		if (FileInfo->ShareAccess.OpenCount == 0) {
 			// The requested file is already open, but without any users to it, set the sharing permissions
 			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
 		}
 		else {
-			if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
-				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
-			}
 			// The requested file is already open, check the share permissions to see if we can open it again
 			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
 				return FatxCompleteRequest(Irp, Status, VolumeExtension);
@@ -399,18 +427,13 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 	}
 	else {
-		if (FileInfo = FatxFindOpenFile(VolumeExtension, &ParentName); FileInfo) {
-			if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
-				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
-			}
-		}
 		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
 		if (FileInfo == nullptr) {
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
-		FileInfo->Flags = CreateOptions & FILE_DELETE_ON_CLOSE;
+		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		FatxInsertFile(VolumeExtension, FileInfo);
 		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
