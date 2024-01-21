@@ -468,13 +468,13 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
 	if (!NT_SUCCESS(Status)) {
-		if (Status == STATUS_PENDING) {
-			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
-			RIP_API_MSG("Asynchronous IO is not supported");
-		}
 		if (UpdatedShareAccess) {
 			IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
 		}
+	}
+	else if (Status == STATUS_PENDING) {
+		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else {
 		Irp->IoStatus.Information = InfoBlock.Info;
@@ -538,14 +538,11 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	);
 
 	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
-	if (!NT_SUCCESS(Status)) {
-		if (Status == STATUS_PENDING) {
-			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
-			RIP_API_MSG("Asynchronous IO is not supported");
-		}
+	if (Status == STATUS_PENDING) {
+		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+		RIP_API_MSG("Asynchronous IO is not supported");
 	}
-	else {
-		Irp->IoStatus.Information = InfoBlock.Info;
+	else if (NT_SUCCESS(Status)) {
 		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
 		FileObject->CurrentByteOffset.QuadPart += Irp->IoStatus.Information;
 		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
@@ -554,6 +551,7 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		KfLowerIrql(OldIrql);
 	}
 
+	Irp->IoStatus.Information = InfoBlock.Info;
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
 }
 
