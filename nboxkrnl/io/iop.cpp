@@ -220,11 +220,10 @@ VOID XBOXAPI IopCompleteRequest(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOI
 			KeSetEvent(Irp->UserEvent, 0, FALSE);
 			ObfDereferenceObject(Irp->UserEvent);
 			if (FileObject) {
-				KeSetEvent(&FileObject->Event, 0, FALSE);
 				FileObject->FinalStatus = Irp->IoStatus.Status;
 			}
 		}
-		else if (FileObject) {
+		else if (FileObject && FileObject->Synchronize && ((FileObject->Flags & FO_SYNCHRONOUS_IO) || (Irp->Flags & IRP_SYNCHRONOUS_API))) {
 			KeSetEvent(&FileObject->Event, 0, FALSE);
 			FileObject->FinalStatus = Irp->IoStatus.Status;
 		}

@@ -87,6 +87,7 @@ file (GLOB HEADERS
 file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/main.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg/debug.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/event.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/exp_sup.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/mutant.cpp"

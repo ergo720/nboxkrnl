@@ -25,15 +25,10 @@
 #define IO_START 0x206
 // Retry submitting a I/O request
 #define IO_RETRY 0x207
-// Request the Status member of IoInfoBlock
-#define IO_QUERY_STATUS 0x208
-// Request the Info member of IoInfoBlock
-#define IO_QUERY_INFO 0x209
+// Request the I/O request with the specified id
+#define IO_QUERY 0x208
 // Check if a I/O request was submitted successfully
 #define IO_CHECK_ENQUEUE 0x20A
-// Set the id of the I/O request to query
-#define IO_SET_ID_LOW 0x20B
-#define IO_SET_ID_HIGH 0x20C
 // Request the path's length of the XBE to launch when no reboot occured
 #define XE_XBE_PATH_LENGTH 0x20D
 // Send the address where to put the path of the XBE to launch when no reboot occured
@@ -122,17 +117,19 @@ enum IoInfo : ULONG {
 struct IoRequest {
 	ULONGLONG Id; // unique id to identify this request
 	ULONG Type; // type of request and flags
-	LONGLONG Offset; // file offset from which to start the I/O
+	LONGLONG OffsetOrInitialSize; // file offset from which to start the I/O or file initial size
 	ULONG Size; // bytes to transfer or size of path for open/create requests
 	ULONGLONG HandleOrAddress; // virtual address of the data to transfer or file handle for open/create requests
 	ULONGLONG HandleOrPath; // file handle or file path for open/create requests
 };
-#pragma pack()
 
 struct IoInfoBlock {
 	IoStatus Status;
 	IoInfo Info;
+	uint64_t Info2OrId; // extra info or id of the io request to query
+	uint32_t Ready; // set to 0 by the guest, then set to 1 by the host when the io request is complete
 };
+#pragma pack()
 
 struct XBOX_HARDWARE_INFO {
 	ULONG Flags;
@@ -156,7 +153,7 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 }
 #endif
 
-IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath);
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG OffsetOrInitialSize, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath);
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
 NTSTATUS HostToNtStatus(IoStatus Status);
 VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime);

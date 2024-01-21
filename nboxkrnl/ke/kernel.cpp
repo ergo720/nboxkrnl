@@ -180,40 +180,26 @@ static VOID SubmitIoRequestToHost(IoRequest *Request)
 	}
 }
 
-static VOID RetrieveIoRequestFromHost(IoInfoBlock *Info, ULONGLONG Id)
+static VOID RetrieveIoRequestFromHost(volatile IoInfoBlock *Info, ULONGLONG Id)
 {
 	// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
 
-	ULONG IdLow = Id & 0xFFFFFFFF;
-	ULONG IdHigh = (Id >> 32);
-
-	__asm pushfd
+	Info->Info2OrId = Id;
+	Info->Ready = 0;
 
 	do {
-		disable();
-		outl(IO_SET_ID_LOW, IdLow);
-		outl(IO_SET_ID_HIGH, IdHigh);
-
-		Info->Status = (IoStatus)inl(IO_QUERY_STATUS);
-		Info->Info = (IoInfo)inl(IO_QUERY_INFO);
-
-		__asm {
-			sti
-			nop
-		}
-	} while (Info->Status == Pending);
-
-	__asm popfd
+		outl(IO_QUERY, (ULONG_PTR)Info);
+	} while (!Info->Ready);
 }
 
-IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath)
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG OffsetOrInitialSize, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath)
 {
 	IoInfoBlock InfoBlock;
 	IoRequest Packet;
 	Packet.Id = InterlockedIncrement64(&IoRequestId);
 	Packet.Type = Type;
 	Packet.HandleOrAddress = HandleOrAddress;
-	Packet.Offset = Offset;
+	Packet.OffsetOrInitialSize = OffsetOrInitialSize;
 	Packet.Size = Size;
 	Packet.HandleOrPath = HandleOrPath;
 	SubmitIoRequestToHost(&Packet);

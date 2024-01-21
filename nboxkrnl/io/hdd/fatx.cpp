@@ -30,6 +30,7 @@ using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
 static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -41,7 +42,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 		FatxIrpCreate,                  // IRP_MJ_CREATE
 		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
 		IoInvalidDeviceRequest,         // IRP_MJ_READ
-		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
+		FatxIrpWrite,                   // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
@@ -276,6 +277,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	USHORT ShareAccess = IrpStackPointer->Parameters.Create.ShareAccess;
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
 	ULONG CreateOptions = IrpStackPointer->Parameters.Create.Options & 0xFFFFFF;
+	ULONG InitialSize = Irp->Overlay.AllocationSize.LowPart;
 
 	if (CreateOptions & FILE_OPEN_BY_FILE_ID) { // not supported on FAT
 		return FatxCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
@@ -412,7 +414,15 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 	}
 
-	BOOLEAN UpdatedShareAccess = FALSE;
+	if ((DesiredAccess & FILE_APPEND_DATA) && !(DesiredAccess & FILE_WRITE_DATA)) {
+		FileObject->Flags |= FO_APPEND_ONLY;
+	}
+
+	if (DesiredAccess & FILE_NO_INTERMEDIATE_BUFFERING) {
+		FileObject->Flags |= FO_NO_INTERMEDIATE_BUFFERING;
+	}
+
+	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
 	if (FileInfo) {
 		UpdatedShareAccess = TRUE;
 		if (FileInfo->ShareAccess.OpenCount == 0) {
@@ -431,8 +441,10 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		if (FileInfo == nullptr) {
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
+		FileInfoCreated = TRUE;
 		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
+		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
 		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		FatxInsertFile(VolumeExtension, FileInfo);
@@ -448,7 +460,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		(HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
 		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
 		(Disposition & 7) | IoRequestType::Open,
-		0,
+		InitialSize,
 		POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length,
 		FileInfo->HostHandle,
 		(ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer)
@@ -466,6 +478,80 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else {
 		Irp->IoStatus.Information = InfoBlock.Info;
+		if (!HasBackslashAtEnd && FileInfoCreated && (InfoBlock.Info == Opened)) {
+			// Only update the file size if it was opened for the first time ever
+			FileInfo->FileSize = ULONG(InfoBlock.Info2OrId);
+		}
+	}
+
+	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FatxVolumeLockExclusive(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	ULONG Length = IrpStackPointer->Parameters.Write.Length;
+	LARGE_INTEGER FileOffset = IrpStackPointer->Parameters.Write.ByteOffset;
+	PVOID Buffer = Irp->UserBuffer;
+	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	// Don't allow to operate on the file after all its handles are closed
+	if (FileObject->Flags & FO_CLEANUP_COMPLETE) {
+		return FatxCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
+	}
+
+	if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
+		// NOTE: for the HDD, SectorSize is 512
+		if ((FileOffset.LowPart & (DeviceObject->SectorSize - 1)) || (Length & (DeviceObject->SectorSize - 1))) {
+			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		}
+	}
+
+	if (Length == 0) {
+		Irp->IoStatus.Information = 0;
+		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
+	}
+
+	if (FileOffset.QuadPart == -1) {
+		FileOffset.QuadPart = FileInfo->FileSize;
+	}
+
+	// 4 GiB file size limit on FAT
+	if (LARGE_INTEGER NewOffset{ .QuadPart = FileOffset.QuadPart + Length }; NewOffset.HighPart || (NewOffset.LowPart <= FileOffset.LowPart)) {
+		return FatxCompleteRequest(Irp, STATUS_DISK_FULL, VolumeExtension);
+	}
+
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Write,
+		FileOffset.LowPart,
+		Length,
+		(ULONG_PTR)Buffer,
+		FileInfo->HostHandle
+	);
+
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	if (!NT_SUCCESS(Status)) {
+		if (Status == STATUS_PENDING) {
+			// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+			RIP_API_MSG("Asynchronous IO is not supported");
+		}
+	}
+	else {
+		Irp->IoStatus.Information = InfoBlock.Info;
+		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+		FileObject->CurrentByteOffset.QuadPart += Irp->IoStatus.Information;
+		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
+			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
+		}
+		KfLowerIrql(OldIrql);
 	}
 
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);

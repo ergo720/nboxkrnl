@@ -3,6 +3,7 @@
  */
 
 #include "nt.hpp"
+#include "..\ex\ex.hpp"
 #include "..\rtl\rtl.hpp"
 
 
@@ -58,13 +59,10 @@ EXPORTNUM(218) NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 		return Status;
 	}
 
-	// Disabled because it can't work since IO is not storing the file permission accesses anywhere (yet)
-#if ENABLE_FILE_PERMISSION_CHECKS
 	if ((IopQueryFsOperationAccess[FileInformationClass] & FILE_READ_DATA) && !FileObject->ReadAccess) {
 		ObfDereferenceObject(FileObject);
 		return STATUS_ACCESS_DENIED;
-}
-#endif
+	}
 
 	BOOLEAN IsSynchronousIo;
 	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
@@ -76,7 +74,6 @@ EXPORTNUM(218) NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 
-	FileObject->Event.Header.SignalState = 0;
 	PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
 
 	PIRP Irp = IoAllocateIrp(DeviceObject->StackSize);
@@ -89,13 +86,15 @@ EXPORTNUM(218) NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 	if (IsSynchronousIo) {
 		Irp->UserIosb = IoStatusBlock;
 	}
-	Irp->Flags |= IRP_DEFER_IO_COMPLETION;
+	Irp->Flags |= (IRP_SYNCHRONOUS_API | IRP_DEFER_IO_COMPLETION);
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
 	IrpStackPointer->MajorFunction = IRP_MJ_QUERY_VOLUME_INFORMATION;
 	IrpStackPointer->FileObject = FileObject;
 	IrpStackPointer->Parameters.QueryVolume.Length = Length;
 	IrpStackPointer->Parameters.QueryVolume.FsInformationClass = FileInformationClass;
+
+	FileObject->Event.Header.SignalState = 0;
 
 	return IopSynchronousService(DeviceObject, Irp, FileObject, TRUE, IsSynchronousIo);
 }
@@ -108,4 +107,92 @@ EXPORTNUM(232) DLLEXPORT VOID XBOXAPI NtUserIoApcDispatcher
 )
 {
 	RIP_UNIMPLEMENTED();
+}
+
+EXPORTNUM(236) NTSTATUS XBOXAPI NtWriteFile
+(
+	HANDLE FileHandle,
+	HANDLE Event,
+	PIO_APC_ROUTINE ApcRoutine,
+	PVOID ApcContext,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	PVOID Buffer,
+	ULONG Length,
+	PLARGE_INTEGER ByteOffset
+)
+{
+	PFILE_OBJECT FileObject;
+	NTSTATUS Status = ObReferenceObjectByHandle(FileHandle, &IoFileObjectType, (PVOID *)&FileObject);
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	if (!FileObject->WriteAccess) {
+		ObfDereferenceObject(FileObject);
+		return STATUS_ACCESS_DENIED;
+	}
+
+	PKEVENT UserEvent = nullptr;
+	if (Event) {
+		NTSTATUS Status = ObReferenceObjectByHandle(Event, &ExEventObjectType, (PVOID *)&UserEvent);
+		if (!NT_SUCCESS(Status)) {
+			ObfDereferenceObject(FileObject);
+			return Status;
+		}
+		UserEvent->Header.SignalState = 0;
+	}
+
+	LARGE_INTEGER FileOffset;
+	if ((FileObject->Flags & FO_APPEND_ONLY) || (ByteOffset && (ByteOffset->HighPart == -1) && (ByteOffset->LowPart == FILE_WRITE_TO_END_OF_FILE))) {
+		FileOffset.QuadPart = -1;
+	}
+	else if ((FileObject->Flags & FO_SYNCHRONOUS_IO) && (!ByteOffset || ((ByteOffset->HighPart == -1) && (ByteOffset->LowPart == FILE_USE_FILE_POINTER_POSITION)))) {
+		FileOffset.QuadPart = FileObject->CurrentByteOffset.QuadPart;
+	}
+	else {
+		if (!ByteOffset || (ByteOffset->QuadPart < 0)) {
+			ObfDereferenceObject(FileObject);
+			if (Event) {
+				ObfDereferenceObject(Event);
+			}
+			return STATUS_INVALID_PARAMETER;
+		}
+		FileOffset.QuadPart = ByteOffset->QuadPart;
+	}
+
+	BOOLEAN IsSynchronousIo;
+	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+		IopAcquireSynchronousFileLock(FileObject);
+		IsSynchronousIo = TRUE;
+	}
+	else {
+		IsSynchronousIo = FALSE;
+		RIP_API_MSG("Asynchronous IO is not supported");
+	}
+
+	PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
+	PIRP Irp = IoAllocateIrp(DeviceObject->StackSize);
+	if (!Irp) {
+		return IopCleanupFailedIrpAllocation(FileObject, UserEvent);
+	}
+	Irp->Tail.Overlay.OriginalFileObject = FileObject;
+	Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
+	Irp->Overlay.AsynchronousParameters.UserApcRoutine = ApcRoutine;
+	Irp->Overlay.AsynchronousParameters.UserApcContext = ApcContext;
+	Irp->UserBuffer = Buffer;
+	Irp->UserEvent = UserEvent;
+	if (IsSynchronousIo) {
+		Irp->UserIosb = IoStatusBlock;
+	}
+	Irp->Flags |= (IRP_WRITE_OPERATION | IRP_DEFER_IO_COMPLETION);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
+	IrpStackPointer->MajorFunction = IRP_MJ_WRITE;
+	IrpStackPointer->FileObject = FileObject;
+	IrpStackPointer->Parameters.Write.Length = Length;
+	IrpStackPointer->Parameters.Write.ByteOffset = FileOffset;
+
+	FileObject->Event.Header.SignalState = 0;
+
+	return IopSynchronousService(DeviceObject, Irp, FileObject, TRUE, IsSynchronousIo);
 }

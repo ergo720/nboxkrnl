@@ -15,6 +15,7 @@
 struct FATX_FILE_INFO {
 	UCHAR FileNameLength;
 	CHAR FileName[FATX_MAX_FILE_NAME_LENGTH];
+	ULONG FileSize;
 	ULONGLONG HostHandle;
 	SHARE_ACCESS ShareAccess;
 	ULONG Flags;

@@ -10,8 +10,10 @@
 
 #define OPEN_PACKET_PATTERN              0xbeaa0251
 
+#define FO_NO_INTERMEDIATE_BUFFERING     0x00000001
 #define FO_SYNCHRONOUS_IO                0x00000002
 #define FO_ALERTABLE_IO                  0x00000004
+#define FO_APPEND_ONLY                   0x00000008
 #define FO_HANDLE_CREATED                0x00000020
 #define FO_CLEANUP_COMPLETE              0x00004000
 
@@ -81,6 +83,9 @@
 #define IRP_MJ_SHUTDOWN                 0x0c
 #define IRP_MJ_CLEANUP                  0x0d
 #define IRP_MJ_MAXIMUM_FUNCTION         0x0d
+
+#define FILE_WRITE_TO_END_OF_FILE       0xFFFFFFFF
+#define FILE_USE_FILE_POINTER_POSITION  0xFFFFFFFE
 
 
 using PFILE_SEGMENT_ELEMENT = PVOID;
@@ -268,7 +273,7 @@ struct FILE_OBJECT {
 	BOOLEAN SharedRead : 1;
 	BOOLEAN SharedWrite : 1;
 	BOOLEAN SharedDelete : 1;
-	BOOLEAN Reserved : 1;
+	BOOLEAN Synchronize : 1;
 	UCHAR Flags;
 	PDEVICE_OBJECT DeviceObject;
 	PVOID FsContext;

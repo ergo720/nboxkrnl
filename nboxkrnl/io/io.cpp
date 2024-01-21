@@ -83,14 +83,15 @@ EXPORTNUM(63) NTSTATUS XBOXAPI IoCheckShareAccess
 	BOOLEAN Update
 )
 {
-	FileObject->ReadAccess = (BOOLEAN)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
-	FileObject->WriteAccess = (BOOLEAN)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
-	FileObject->DeleteAccess = (BOOLEAN)(DesiredAccess & DELETE);
+	FileObject->ReadAccess = (BOOL)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
+	FileObject->WriteAccess = (BOOL)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
+	FileObject->DeleteAccess = (BOOL)(DesiredAccess & DELETE);
+	FileObject->Synchronize = (BOOL)(DesiredAccess & SYNCHRONIZE);
 
 	if (FileObject->ReadAccess || FileObject->WriteAccess || FileObject->DeleteAccess) {
-		FileObject->SharedRead = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_READ);
-		FileObject->SharedWrite = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_WRITE);
-		FileObject->SharedDelete = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_DELETE);
+		FileObject->SharedRead = (BOOL)(DesiredShareAccess & FILE_SHARE_READ);
+		FileObject->SharedWrite = (BOOL)(DesiredShareAccess & FILE_SHARE_WRITE);
+		FileObject->SharedDelete = (BOOL)(DesiredShareAccess & FILE_SHARE_DELETE);
 
 		UCHAR OpenCount = ShareAccess->OpenCount;
 		if ((OpenCount == 255) ||
@@ -513,14 +514,15 @@ EXPORTNUM(80) VOID XBOXAPI IoSetShareAccess
 	PSHARE_ACCESS ShareAccess
 )
 {
-	FileObject->ReadAccess = (BOOLEAN)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
-	FileObject->WriteAccess = (BOOLEAN)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
-	FileObject->DeleteAccess = (BOOLEAN)(DesiredAccess & DELETE);
+	FileObject->ReadAccess = (BOOL)(DesiredAccess & (FILE_EXECUTE | FILE_READ_DATA));
+	FileObject->WriteAccess = (BOOL)(DesiredAccess & (FILE_WRITE_DATA | FILE_APPEND_DATA));
+	FileObject->DeleteAccess = (BOOL)(DesiredAccess & DELETE);
+	FileObject->Synchronize = (BOOL)(DesiredAccess & SYNCHRONIZE);
 
 	if (FileObject->ReadAccess || FileObject->WriteAccess || FileObject->DeleteAccess) {
-		FileObject->SharedRead = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_READ);
-		FileObject->SharedWrite = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_WRITE);
-		FileObject->SharedDelete = (BOOLEAN)(DesiredShareAccess & FILE_SHARE_DELETE);
+		FileObject->SharedRead = (BOOL)(DesiredShareAccess & FILE_SHARE_READ);
+		FileObject->SharedWrite = (BOOL)(DesiredShareAccess & FILE_SHARE_WRITE);
+		FileObject->SharedDelete = (BOOL)(DesiredShareAccess & FILE_SHARE_DELETE);
 
 		ShareAccess->OpenCount = 1;
 		ShareAccess->ReadAccess = FileObject->ReadAccess;

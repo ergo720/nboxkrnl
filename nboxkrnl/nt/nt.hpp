@@ -120,6 +120,18 @@ EXPORTNUM(234) DLLEXPORT NTSTATUS XBOXAPI NtWaitForSingleObjectEx
 	PLARGE_INTEGER Timeout
 );
 
+EXPORTNUM(236) DLLEXPORT NTSTATUS XBOXAPI NtWriteFile
+(
+	HANDLE FileHandle,
+	HANDLE Event,
+	PIO_APC_ROUTINE ApcRoutine,
+	PVOID ApcContext,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	PVOID Buffer,
+	ULONG Length,
+	PLARGE_INTEGER ByteOffset
+);
+
 #ifdef __cplusplus
 }
 #endif
