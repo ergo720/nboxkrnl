@@ -14,6 +14,10 @@
 #define FATX_RESERVED_LENGTH 1968
 #define FATX_SIGNATURE 'XTAF'
 
+#define FATX_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
+#define FATX_DELETE_ON_CLOSE            FILE_DELETE_ON_CLOSE // = 0x00001000
+#define FATX_VOLUME_FILE                0x80000000
+
 #pragma pack(1)
 struct FATX_SUPERBLOCK {
 	ULONG Signature;
@@ -192,6 +196,7 @@ static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, 
 	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters;
 	VolumeExtension->VolumeInfo.FileNameLength = 0;
 	VolumeExtension->VolumeInfo.HostHandle = HostHandle;
+	VolumeExtension->VolumeInfo.Flags = FATX_VOLUME_FILE;
 
 	FscUnmapElementPage(Superblock);
 
@@ -294,11 +299,11 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	if (RelatedFileObject) {
 		FileInfo = (PFATX_FILE_INFO)RelatedFileObject->FsContext2;
 
-		if (!(FileInfo->Flags & FILE_DIRECTORY_FILE)) {
+		if (!(FileInfo->Flags & FATX_DIRECTORY_FILE)) {
 			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 		}
 
-		if (FileInfo->Flags & FILE_DELETE_ON_CLOSE) {
+		if (FileInfo->Flags & FATX_DELETE_ON_CLOSE) {
 			return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
 		}
 
@@ -393,7 +398,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 			}
 
-			if (FileInfo = FatxFindOpenFile(VolumeExtension, &FirstName); FileInfo && (FileInfo->Flags & FILE_DELETE_ON_CLOSE)) {
+			if (FileInfo = FatxFindOpenFile(VolumeExtension, &FirstName); FileInfo && (FileInfo->Flags & FATX_DELETE_ON_CLOSE)) {
 				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
 			}
 
@@ -524,9 +529,20 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FileOffset.QuadPart = FileInfo->FileSize;
 	}
 
-	// 4 GiB file size limit on FAT
-	if (LARGE_INTEGER NewOffset{ .QuadPart = FileOffset.QuadPart + Length }; NewOffset.HighPart || (NewOffset.LowPart <= FileOffset.LowPart)) {
-		return FatxCompleteRequest(Irp, STATUS_DISK_FULL, VolumeExtension);
+	if (FileInfo->Flags & FATX_VOLUME_FILE) {
+		// If it's the volume itself, we can only support the case where the caller wants to read the partition table (for partition0) or the
+		// fatx superblock (for all the other partitions)
+
+		ULONGLONG LengthLimit = PIDE_DISK_EXTENSION(VolumeExtension->CacheExtension.TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber == 0 ? KiB(512) : KiB(4);
+		if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
+			return FatxCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		}
+	}
+	else {
+		// 4 GiB file size limit on FAT
+		if (LARGE_INTEGER NewOffset{ .QuadPart = FileOffset.QuadPart + Length }; NewOffset.HighPart || (NewOffset.LowPart <= FileOffset.LowPart)) {
+			return FatxCompleteRequest(Irp, STATUS_DISK_FULL, VolumeExtension);
+		}
 	}
 
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
@@ -637,7 +653,7 @@ NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
 	IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
 
-	if (!(VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) && (FileInfo->ShareAccess.OpenCount == 0) && (FileInfo->Flags & FILE_DELETE_ON_CLOSE)) {
+	if (!(VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) && (FileInfo->ShareAccess.OpenCount == 0) && (FileInfo->Flags & FATX_DELETE_ON_CLOSE)) {
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 			DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Remove,
 			0,
