@@ -195,6 +195,54 @@ EXPORTNUM(281) LARGE_INTEGER XBOXAPI RtlExtendedIntegerMultiply
 	return Product;
 }
 
+// Source: Cxbx-Reloaded
+EXPORTNUM(283) LARGE_INTEGER XBOXAPI RtlExtendedMagicDivide
+(
+	LARGE_INTEGER Dividend,
+	LARGE_INTEGER MagicDivisor,
+	CCHAR ShiftCount
+)
+{
+	LARGE_INTEGER Result;
+
+	ULONGLONG DividendHigh;
+	ULONGLONG DividendLow;
+	ULONGLONG InverseDivisorHigh;
+	ULONGLONG InverseDivisorLow;
+	ULONGLONG AhBl;
+	ULONGLONG AlBh;
+	BOOLEAN Positive;
+
+	if (Dividend.QuadPart < 0) {
+		DividendHigh = UPPER_32((ULONGLONG)-Dividend.QuadPart);
+		DividendLow = LOWER_32((ULONGLONG)-Dividend.QuadPart);
+		Positive = FALSE;
+	}
+	else {
+		DividendHigh = UPPER_32((ULONGLONG)Dividend.QuadPart);
+		DividendLow = LOWER_32((ULONGLONG)Dividend.QuadPart);
+		Positive = TRUE;
+	}
+
+	InverseDivisorHigh = UPPER_32((ULONGLONG)MagicDivisor.QuadPart);
+	InverseDivisorLow = LOWER_32((ULONGLONG)MagicDivisor.QuadPart);
+
+	AhBl = DividendHigh * InverseDivisorLow;
+	AlBh = DividendLow * InverseDivisorHigh;
+
+	Result.QuadPart =
+		(LONGLONG)((DividendHigh * InverseDivisorHigh +
+			UPPER_32(AhBl) +
+			UPPER_32(AlBh) +
+			UPPER_32(LOWER_32(AhBl) + LOWER_32(AlBh) +
+				UPPER_32(DividendLow * InverseDivisorLow))) >> ShiftCount);
+	if (!Positive) {
+		Result.QuadPart = -Result.QuadPart;
+	}
+
+	return Result;
+}
+
 EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,

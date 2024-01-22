@@ -79,6 +79,13 @@ EXPORTNUM(281) DLLEXPORT LARGE_INTEGER XBOXAPI RtlExtendedIntegerMultiply
 	LONG Multiplier
 );
 
+EXPORTNUM(283) DLLEXPORT LARGE_INTEGER XBOXAPI RtlExtendedMagicDivide
+(
+	LARGE_INTEGER Dividend,
+	LARGE_INTEGER MagicDivisor,
+	CCHAR ShiftCount
+);
+
 EXPORTNUM(285) DLLEXPORT VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,

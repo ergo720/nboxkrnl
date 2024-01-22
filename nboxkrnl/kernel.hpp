@@ -67,6 +67,9 @@
 #define PARTITION7_HANDLE DEV_PARTITION7
 #define FIRST_FREE_HANDLE NUM_OF_DEVS
 
+#define LOWER_32(A) ((A) & 0xFFFFFFFF)
+#define UPPER_32(A) ((A) >> 32)
+
 enum SystemType {
 	SYSTEM_XBOX,
 	SYSTEM_CHIHIRO,
