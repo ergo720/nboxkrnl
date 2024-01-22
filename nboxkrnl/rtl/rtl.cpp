@@ -426,6 +426,63 @@ EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
 	return TRUE;
 }
 
+constexpr LARGE_INTEGER Magic10000 = { .QuadPart = 0xd1b71758e219652ci64 };
+#define SHIFT10000 13
+constexpr LARGE_INTEGER Magic86400000 = { .QuadPart = 0xc6d750ebfa67b90ei64 };
+#define SHIFT86400000 26
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(305) VOID XBOXAPI RtlTimeToTimeFields
+(
+	PLARGE_INTEGER Time,
+	PTIME_FIELDS TimeFields
+)
+{
+	LONGLONG Days, Cleaps, Years, Yearday, Months;
+
+	/* Extract milliseconds from time and days from milliseconds */
+	// NOTE: Reverse engineered native kernel uses RtlExtendedMagicDivide calls.
+	// Using similar code of ReactOS does not emulate native kernel's implement for
+	// one increment over large integer's max value.
+	LARGE_INTEGER MillisecondsTotal = RtlExtendedMagicDivide(*Time, Magic10000, SHIFT10000);
+	Days = RtlExtendedMagicDivide(MillisecondsTotal, Magic86400000, SHIFT86400000).u.LowPart;
+	MillisecondsTotal.QuadPart -= Days * SECSPERDAY * MSECSPERSEC;
+
+	/* compute time of day */
+	TimeFields->Millisecond = MillisecondsTotal.u.LowPart % MSECSPERSEC;
+	DWORD RemainderTime = MillisecondsTotal.u.LowPart / MSECSPERSEC;
+	TimeFields->Second = RemainderTime % SECSPERMIN;
+	RemainderTime /= SECSPERMIN;
+	TimeFields->Minute = RemainderTime % MINSPERHOUR;
+	RemainderTime /= MINSPERHOUR;
+	TimeFields->Hour = RemainderTime; // NOTE: Remaining hours did not received 24 hours modulo treatment.
+
+	/* compute day of week */
+	TimeFields->Weekday = (EPOCHWEEKDAY + Days) % DAYSPERWEEK;
+
+	/* compute year, month and day of month. */
+	Cleaps = (3 * ((4 * Days + 1227) / DAYSPERQUADRICENTENNIUM) + 3) / 4;
+	Days += 28188 + Cleaps;
+	Years = (20 * Days - 2442) / (5 * DAYSPERNORMALQUADRENNIUM);
+	Yearday = Days - (Years * DAYSPERNORMALQUADRENNIUM) / 4;
+	Months = (64 * Yearday) / 1959;
+	/* the result is based on a year starting on March.
+	* To convert take 12 from January and February and
+	* increase the year by one. */
+	if (Months < 14) {
+		TimeFields->Month = (USHORT)(Months - 1);
+		TimeFields->Year = (USHORT)(Years + 1524);
+	}
+	else {
+		TimeFields->Month = (USHORT)(Months - 13);
+		TimeFields->Year = (USHORT)(Years + 1525);
+	}
+	/* calculation of day of month is based on the wonderful
+	* sequence of INT( n * 30.6): it reproduces the
+	* 31-30-31-30-31-31 month lengths exactly for small n's */
+	TimeFields->Day = (USHORT)(Yearday - (1959 * Months) / 64);
+}
+
 // Source: Cxbx-Reloaded
 EXPORTNUM(319) ULONG XBOXAPI RtlWalkFrameChain
 (
