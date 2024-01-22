@@ -13,6 +13,8 @@
 #include <assert.h>
 
 #define TICKSPERSEC        10000000
+#define TICKSPERMSEC       10000
+#define MSECSPERSEC        1000
 #define SECSPERDAY         86400
 #define SECSPERHOUR        3600
 #define SECSPERMIN         60
@@ -369,16 +371,27 @@ EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
 {
 	LONG Month, Year, Cleaps, Day;
 
-	if (TimeFields->Millisecond < 0 || TimeFields->Millisecond > 999 ||
-		TimeFields->Second < 0 || TimeFields->Second > 59 ||
-		TimeFields->Minute < 0 || TimeFields->Minute > 59 ||
-		TimeFields->Hour < 0 || TimeFields->Hour > 23 ||
-		TimeFields->Month < 1 || TimeFields->Month > 12 ||
-		TimeFields->Day < 1 ||
-		TimeFields->Day > RtlpMonthLengths
-		[TimeFields->Month == 2 || RtlpIsLeapYear(TimeFields->Year)]
-		[TimeFields->Month - 1] ||
-		TimeFields->Year < 1601) {
+	/* Verify each TimeFields' variables are within range */
+	if (TimeFields->Millisecond < 0 || TimeFields->Millisecond > 999) {
+		return FALSE;
+	}
+	if (TimeFields->Second < 0 || TimeFields->Second > 59) {
+		return FALSE;
+	}
+	if (TimeFields->Minute < 0 || TimeFields->Minute > 59) {
+		return FALSE;
+	}
+	if (TimeFields->Hour < 0 || TimeFields->Hour > 23) {
+		return FALSE;
+	}
+	if (TimeFields->Month < 1 || TimeFields->Month > 12) {
+		return FALSE;
+	}
+	if (TimeFields->Day < 1 ||
+		TimeFields->Day > RtlpMonthLengths[RtlpIsLeapYear(TimeFields->Year)][TimeFields->Month - 1]) {
+		return FALSE;
+	}
+	if (TimeFields->Year < 1601) {
 		return FALSE;
 	}
 
@@ -397,20 +410,18 @@ EXPORTNUM(304) BOOLEAN XBOXAPI RtlTimeFieldsToTime
 		Year = TimeFields->Year;
 	}
 	Cleaps = (3 * (Year / 100) + 3) / 4;   /* nr of "century leap years"*/
-	Day = (36525 * Year) / 100 - Cleaps +  /* year * dayperyr, corrected */
-		(1959 * Month) / 64 +              /* months * daypermonth */
+	Day = (36525 * Year) / 100 - Cleaps +  /* year * DayPerYear, corrected */
+		(1959 * Month) / 64 +              /* months * DayPerMonth */
 		TimeFields->Day -                  /* day of the month */
 		584817;                            /* zero that on 1601-01-01 */
 	/* done */
 
-	Time->QuadPart = (((((LONGLONG)Day * HOURSPERDAY +
-		TimeFields->Hour) * MINSPERHOUR +
-		TimeFields->Minute) * SECSPERMIN +
-		TimeFields->Second) * 1000 +
-		TimeFields->Millisecond);
-
-	// This function must return a time expressed in 100ns units (the Windows time interval), so it needs a final multiplication here
-	*Time = RtlExtendedIntegerMultiply(*Time, CLOCK_TIME_INCREMENT);
+	/* Convert into Time format */
+	Time->QuadPart = Day * HOURSPERDAY;
+	Time->QuadPart = (Time->QuadPart + TimeFields->Hour) * MINSPERHOUR;
+	Time->QuadPart = (Time->QuadPart + TimeFields->Minute) * SECSPERMIN;
+	Time->QuadPart = (Time->QuadPart + TimeFields->Second) * MSECSPERSEC;
+	Time->QuadPart = (Time->QuadPart + TimeFields->Millisecond) * TICKSPERMSEC;
 
 	return TRUE;
 }
