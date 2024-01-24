@@ -274,6 +274,7 @@ EXPORTNUM(66) NTSTATUS XBOXAPI IoCreateFile
 	OpenPacket.DesiredAccess = DesiredAccess;
 	OpenPacket.FinalStatus = STATUS_SUCCESS;
 	OpenPacket.FileObject = nullptr;
+	OpenPacket.ObjectAttributes = ObjectAttributes;
 
 	HANDLE Handle;
 	NTSTATUS Status = ObOpenObjectByName(ObjectAttributes, nullptr, &OpenPacket, &Handle);
@@ -420,15 +421,6 @@ EXPORTNUM(67) NTSTATUS XBOXAPI IoCreateSymbolicLink
 		Status = ObInsertObject(SymbolicObject, &ObjectAttributes, 0, &Handle);
 		if (NT_SUCCESS(Status)) {
 			NtClose(Handle);
-
-			// Also inform the host about the new link that we just created
-			SubmitIoRequestToHost(
-				IoRequestType::CreateLink,
-				SymbolicLinkName->Length,
-				DeviceName->Length,
-				(ULONG_PTR)(SymbolicLinkName->Buffer),
-				(ULONG_PTR)(DeviceName->Buffer)
-			);
 		}
 	}
 	else {
@@ -795,7 +787,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	FileObject->RelatedFileObject = OpenPacket->RelatedFileObject;
 	FileObject->DeviceObject = MountedDeviceObject;
 
-	Irp->Tail.Overlay.DriverContext[0] = Name;
+	Irp->Tail.Overlay.DriverContext[0] = OpenPacket->ObjectAttributes;
 	Irp->Tail.Overlay.OriginalFileObject = FileObject;
 	IrpStackPointer->FileObject = FileObject;
 

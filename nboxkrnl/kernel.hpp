@@ -82,8 +82,6 @@ enum IoRequestType : ULONG {
 	Close      = 3 << 28,
 	Read       = 4 << 28,
 	Write      = 5 << 28,
-	CreateLink = 6 << 28,
-	RemoveLink = 7 << 28
 };
 
 enum IoFlags : ULONG {

@@ -7,8 +7,10 @@
 #include "..\..\ob\obp.hpp"
 #include "..\..\dbg\dbg.hpp"
 #include <string.h>
+#include <assert.h>
 
 
+#define FATX_PATH_NAME_LENGTH 250
 #define FATX_NAME_LENGTH 32
 #define FATX_ONLINE_DATA_LENGTH 2048
 #define FATX_RESERVED_LENGTH 1968
@@ -458,6 +460,50 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	FileObject->FsContext2 = FileInfo;
 
+	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH];
+	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
+	OBJECT_STRING FullPath = *ObjectAttributes->ObjectName;
+	if ((FullPath.Length < 7) || (strncmp(FullPath.Buffer, "\\Device", 7))) {
+		// If the path doesn't start with "\\Device", then there's a sym link in the path. Note that it's not enough to check for RelatedFileObject, because the sym link
+		// might not point to a file object (and thus RelatedFileObject would not be set). The sym link created by the cdrom device triggers this case, since the target
+		// is the device object "CdRom0" instead of a file object
+
+		USHORT ObjectAttributesLength = ObjectAttributes->ObjectName->Length;
+		for (USHORT i = 0; i < FullPath.Length; ++i) {
+			if (FullPath.Buffer[i] == OB_PATH_DELIMITER) {
+				// Set ObjectName->Length of ObjectAttributes to the sym link name, so that ObpReferenceObjectByName doesn't fail below when it attempts to resolve it
+				ObjectAttributes->ObjectName->Length = i;
+				break;
+			}
+		}
+
+		POBJECT_SYMBOLIC_LINK SymbolicLink;
+		NTSTATUS Status = ObpReferenceObjectByName(ObjectAttributes, &ObSymbolicLinkObjectType, nullptr, (PVOID *)&SymbolicLink);
+		assert(SymbolicLink && NT_SUCCESS(Status));
+		USHORT SymbolicLinkLength = GetObjDirInfoHeader(SymbolicLink)->Name.Length, Offset = 0;
+		assert(ObjectAttributes->ObjectName->Length == SymbolicLinkLength);
+		ObjectAttributes->ObjectName->Length = ObjectAttributesLength;
+
+		if (SymbolicLinkLength != FullPath.Length) {
+			assert(FullPath.Length > SymbolicLinkLength);
+			if ((SymbolicLink->LinkTarget.Buffer[SymbolicLink->LinkTarget.Length - 1] == OB_PATH_DELIMITER) &&
+				(FullPath.Buffer[SymbolicLinkLength] == OB_PATH_DELIMITER)) {
+				Offset = 1;
+			}
+			// Copy the resolved sym link name, and then the remaining part of the path too
+			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, SymbolicLink->LinkTarget.Length);
+			strncpy(&FullPathBuffer[SymbolicLink->LinkTarget.Length], &FullPath.Buffer[SymbolicLinkLength + Offset], FullPath.Length - SymbolicLinkLength - Offset);
+			Offset = FullPath.Length - SymbolicLinkLength - Offset;
+		}
+		else {
+			// FullPath consists only of the sym link
+			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, SymbolicLink->LinkTarget.Length);
+		}
+		FullPath.Buffer = FullPathBuffer;
+		FullPath.Length = SymbolicLink->LinkTarget.Length + Offset;
+		ObfDereferenceObject(SymbolicLink);
+	}
+
 	// Finally submit the I/O request to the host to do the actual work
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
@@ -466,9 +512,9 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
 		(Disposition & 7) | IoRequestType::Open,
 		InitialSize,
-		POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Length,
+		FullPath.Length,
 		FileInfo->HostHandle,
-		(ULONG_PTR)(POBJECT_STRING(Irp->Tail.Overlay.DriverContext[0])->Buffer)
+		(ULONG_PTR)(FullPath.Buffer)
 	);
 
 	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);

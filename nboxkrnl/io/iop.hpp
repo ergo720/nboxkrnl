@@ -324,6 +324,7 @@ struct OPEN_PACKET {
 	PDUMMY_FILE_OBJECT LocalFileObject;
 	BOOLEAN QueryOnly;
 	BOOLEAN DeleteOnly;
+	POBJECT_ATTRIBUTES ObjectAttributes;
 };
 using POPEN_PACKET = OPEN_PACKET *;
 

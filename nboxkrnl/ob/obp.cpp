@@ -292,7 +292,7 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 	}
 
 	PVOID FoundObject = Directory;
-	BOOLEAN ShouldFollowSymbolicLinks = ObjectType == &ObSymbolicLinkObjectType ? FALSE : TRUE;
+	BOOLEAN ShouldFollowSymbolicLinks = TRUE;
 	OBJECT_STRING FirstName, RemainingName;
 	POBJECT_HEADER Obj = GetObjHeader(FoundObject);
 	if (OriName.Length == 0) {
@@ -307,6 +307,10 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 			// Another delimiter in the name is invalid
 			ObUnlock(OldIrql);
 			return STATUS_OBJECT_NAME_INVALID;
+		}
+		else {
+			// Don't follow symbolic links only on the last path name
+			ShouldFollowSymbolicLinks = ObjectType == &ObSymbolicLinkObjectType ? FALSE : TRUE;
 		}
 
 		if (FoundObject = ObpFindObjectInDirectory(Directory, &FirstName, ShouldFollowSymbolicLinks); FoundObject == NULL_HANDLE) {
