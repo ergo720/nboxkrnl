@@ -460,7 +460,8 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	FileObject->FsContext2 = FileInfo;
 
-	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH];
+	constexpr USHORT DevicePathLength = sizeof("\\Device\\Harddisk0\\PartitionX") - 1;
+	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH + DevicePathLength];
 	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
 	OBJECT_STRING FullPath = *ObjectAttributes->ObjectName;
 	if ((FullPath.Length < 7) || (strncmp(FullPath.Buffer, "\\Device", 7))) {
@@ -483,25 +484,41 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		USHORT SymbolicLinkLength = GetObjDirInfoHeader(SymbolicLink)->Name.Length, Offset = 0;
 		assert(ObjectAttributes->ObjectName->Length == SymbolicLinkLength);
 		ObjectAttributes->ObjectName->Length = ObjectAttributesLength;
+		USHORT ResolvedSymbolicLinkLength = SymbolicLink->LinkTarget.Length;
 
 		if (SymbolicLinkLength != FullPath.Length) {
 			assert(FullPath.Length > SymbolicLinkLength);
-			if ((SymbolicLink->LinkTarget.Buffer[SymbolicLink->LinkTarget.Length - 1] == OB_PATH_DELIMITER) &&
+			if ((SymbolicLink->LinkTarget.Buffer[ResolvedSymbolicLinkLength - 1] == OB_PATH_DELIMITER) &&
 				(FullPath.Buffer[SymbolicLinkLength] == OB_PATH_DELIMITER)) {
 				Offset = 1;
 			}
 			// Copy the resolved sym link name, and then the remaining part of the path too
-			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, SymbolicLink->LinkTarget.Length);
-			strncpy(&FullPathBuffer[SymbolicLink->LinkTarget.Length], &FullPath.Buffer[SymbolicLinkLength + Offset], FullPath.Length - SymbolicLinkLength - Offset);
-			Offset = FullPath.Length - SymbolicLinkLength - Offset;
+			if ((ResolvedSymbolicLinkLength - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
+				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+			}
+			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
+			USHORT RemainingPathLength = FullPath.Length - SymbolicLinkLength - Offset;
+			if (((ResolvedSymbolicLinkLength + RemainingPathLength) - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
+				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+			}
+			strncpy(&FullPathBuffer[ResolvedSymbolicLinkLength], &FullPath.Buffer[SymbolicLinkLength + Offset], RemainingPathLength);
+			Offset = RemainingPathLength;
 		}
 		else {
 			// FullPath consists only of the sym link
-			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, SymbolicLink->LinkTarget.Length);
+			if ((ResolvedSymbolicLinkLength - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
+				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+			}
+			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
 		}
 		FullPath.Buffer = FullPathBuffer;
-		FullPath.Length = SymbolicLink->LinkTarget.Length + Offset;
+		FullPath.Length = ResolvedSymbolicLinkLength + Offset;
 		ObfDereferenceObject(SymbolicLink);
+	}
+	else {
+		if ((FullPath.Length - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
+			return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+		}
 	}
 
 	// Finally submit the I/O request to the host to do the actual work
