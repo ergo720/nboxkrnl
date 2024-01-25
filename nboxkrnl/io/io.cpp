@@ -778,6 +778,17 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 			FileObject->LockCount = -1;
 			KeInitializeEvent(&FileObject->Lock, SynchronizationEvent, FALSE);
 		}
+		if ((OpenPacket->DesiredAccess & FILE_APPEND_DATA) && !(OpenPacket->DesiredAccess & FILE_WRITE_DATA)) {
+			FileObject->Flags |= FO_APPEND_ONLY;
+		}
+
+		if (OpenPacket->CreateOptions & FILE_NO_INTERMEDIATE_BUFFERING) {
+			FileObject->Flags |= FO_NO_INTERMEDIATE_BUFFERING;
+		}
+
+		if (OpenPacket->CreateOptions & FILE_SEQUENTIAL_ONLY) {
+			FileObject->Flags |= FO_SEQUENTIAL_ONLY;
+		}
 	}
 	else {
 		RIP_API_MSG("QueryOnly and DeleteOnly flags in OpenPacket are not implemented");

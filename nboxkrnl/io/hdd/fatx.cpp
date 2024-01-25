@@ -37,6 +37,7 @@ static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
@@ -49,7 +50,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
 		IoInvalidDeviceRequest,         // IRP_MJ_READ
 		FatxIrpWrite,                   // IRP_MJ_WRITE
-		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
+		FatxIrpQueryInformation,        // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
 		FatxIrpQueryVolumeInformation,  // IRP_MJ_QUERY_VOLUME_INFORMATION
@@ -421,14 +422,6 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 	}
 
-	if ((DesiredAccess & FILE_APPEND_DATA) && !(DesiredAccess & FILE_WRITE_DATA)) {
-		FileObject->Flags |= FO_APPEND_ONLY;
-	}
-
-	if (DesiredAccess & FILE_NO_INTERMEDIATE_BUFFERING) {
-		FileObject->Flags |= FO_NO_INTERMEDIATE_BUFFERING;
-	}
-
 	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
 	if (FileInfo) {
 		UpdatedShareAccess = TRUE;
@@ -456,6 +449,14 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		FatxInsertFile(VolumeExtension, FileInfo);
 		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
+
+		// NOTE: this is not entirely correct. The timestamps are supposed to be stored on the filesystem metadata, but we are not persisting them anywhere right now,
+		// and relying on the host is unreliable because not all host filesystems support the creation time
+		LARGE_INTEGER CurrentTime;
+		KeQuerySystemTime(&CurrentTime);
+		FileInfo->CreationTime = CurrentTime;
+		FileInfo->LastAccessTime = CurrentTime;
+		FileInfo->LastWriteTime = CurrentTime;
 	}
 
 	FileObject->FsContext2 = FileInfo;
@@ -550,6 +551,13 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			// Only update the file size if it was opened for the first time ever
 			FileInfo->FileSize = ULONG(InfoBlock.Info2OrId);
 		}
+		if (!FileInfoCreated && ((InfoBlock.Info == Overwritten) || (InfoBlock.Info == Superseded))) {
+			LARGE_INTEGER CurrentTime;
+			KeQuerySystemTime(&CurrentTime);
+			FileInfo->CreationTime = CurrentTime;
+			FileInfo->LastAccessTime = CurrentTime;
+			FileInfo->LastWriteTime = CurrentTime;
+		}
 	}
 
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
@@ -628,9 +636,109 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
 		}
 		KfLowerIrql(OldIrql);
+		LARGE_INTEGER CurrentTime;
+		KeQuerySystemTime(&CurrentTime);
+		FileInfo->LastAccessTime = CurrentTime;
+		FileInfo->LastWriteTime = CurrentTime;
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
+	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FatxVolumeLockShared(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	// Don't allow to operate on the file after all its handles are closed
+	if (FileObject->Flags & FO_CLEANUP_COMPLETE) {
+		return FatxCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
+	}
+
+	if ((FileInfo->Flags & FATX_VOLUME_FILE) && (IrpStackPointer->Parameters.QueryFile.FileInformationClass != FilePositionInformation)) {
+		return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+	}
+
+	memset(Irp->UserBuffer, 0, IrpStackPointer->Parameters.QueryFile.Length);
+
+	ULONG BytesWritten;
+	NTSTATUS Status = STATUS_SUCCESS;
+	switch (IrpStackPointer->Parameters.QueryFile.FileInformationClass)
+	{
+	case FileInternalInformation:
+		PFILE_INTERNAL_INFORMATION(Irp->UserBuffer)->IndexNumber.HighPart = ULONG_PTR(VolumeExtension);
+		PFILE_INTERNAL_INFORMATION(Irp->UserBuffer)->IndexNumber.LowPart = ULONG_PTR(FileInfo);
+		BytesWritten = sizeof(FILE_INTERNAL_INFORMATION);
+		break;
+
+	case FilePositionInformation:
+		assert(!(FileObject->Flags & FO_SYNCHRONOUS_IO));
+		PFILE_POSITION_INFORMATION(Irp->UserBuffer)->CurrentByteOffset = FileObject->CurrentByteOffset;
+		BytesWritten = sizeof(FILE_POSITION_INFORMATION);
+		break;
+
+	case FileNetworkOpenInformation: {
+		PFILE_NETWORK_OPEN_INFORMATION NetworkOpenInformation = (PFILE_NETWORK_OPEN_INFORMATION)Irp->UserBuffer;
+		NetworkOpenInformation->CreationTime = FileInfo->CreationTime;
+		NetworkOpenInformation->LastAccessTime = FileInfo->LastAccessTime;
+		NetworkOpenInformation->LastWriteTime = FileInfo->LastWriteTime;
+		NetworkOpenInformation->ChangeTime = FileInfo->LastWriteTime;
+		if (FileInfo->Flags & FILE_DIRECTORY_FILE) {
+			NetworkOpenInformation->FileAttributes = FILE_ATTRIBUTE_DIRECTORY;
+			NetworkOpenInformation->AllocationSize.QuadPart = 0;
+			NetworkOpenInformation->EndOfFile.QuadPart = 0;
+		}
+		else {
+			NetworkOpenInformation->FileAttributes = FILE_ATTRIBUTE_NORMAL;
+			NetworkOpenInformation->AllocationSize.QuadPart = (ULONGLONG)FileInfo->FileSize;
+			NetworkOpenInformation->EndOfFile.QuadPart = (ULONGLONG)FileInfo->FileSize;
+		}
+		BytesWritten = sizeof(FILE_NETWORK_OPEN_INFORMATION);
+	}
+	break;
+
+	case FileModeInformation: {
+		PFILE_MODE_INFORMATION ModeInformation = (PFILE_MODE_INFORMATION)Irp->UserBuffer;
+		ModeInformation->Mode = 0;
+		if (FileObject->Flags & FO_SEQUENTIAL_ONLY) {
+			ModeInformation->Mode |= FILE_SEQUENTIAL_ONLY;
+		}
+		if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
+			ModeInformation->Mode |= FILE_NO_INTERMEDIATE_BUFFERING;
+		}
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			if (FileObject->Flags & FO_ALERTABLE_IO) {
+				ModeInformation->Mode |= FILE_SYNCHRONOUS_IO_ALERT;
+			}
+			else {
+				ModeInformation->Mode |= FILE_SYNCHRONOUS_IO_NONALERT;
+			}
+		}
+		BytesWritten = sizeof(FILE_MODE_INFORMATION);
+	}
+	break;
+
+	case FileAlignmentInformation:
+		PFILE_ALIGNMENT_INFORMATION(Irp->UserBuffer)->AlignmentRequirement = DeviceObject->AlignmentRequirement;
+		BytesWritten = sizeof(FILE_ALIGNMENT_INFORMATION);
+		break;
+
+	default:
+		BytesWritten = 0;
+		Status = STATUS_INVALID_PARAMETER;
+		break;
+	}
+
+	Irp->IoStatus.Information = BytesWritten;
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
 }
 

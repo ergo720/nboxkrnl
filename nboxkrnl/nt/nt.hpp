@@ -83,6 +83,15 @@ EXPORTNUM(204) DLLEXPORT NTSTATUS XBOXAPI NtProtectVirtualMemory
 	PULONG OldProtect
 );
 
+EXPORTNUM(211) DLLEXPORT NTSTATUS XBOXAPI NtQueryInformationFile
+(
+	HANDLE FileHandle,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	PVOID FileInformation,
+	ULONG Length,
+	FILE_INFORMATION_CLASS FileInformationClass
+);
+
 EXPORTNUM(218) DLLEXPORT NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 (
 	HANDLE FileHandle,

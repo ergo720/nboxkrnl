@@ -13,9 +13,10 @@
 #define FO_NO_INTERMEDIATE_BUFFERING     0x00000001
 #define FO_SYNCHRONOUS_IO                0x00000002
 #define FO_ALERTABLE_IO                  0x00000004
-#define FO_APPEND_ONLY                   0x00000008
+#define FO_SEQUENTIAL_ONLY               0x00000008
+#define FO_CLEANUP_COMPLETE              0x00000010
 #define FO_HANDLE_CREATED                0x00000020
-#define FO_CLEANUP_COMPLETE              0x00004000
+#define FO_APPEND_ONLY                   0x00000080
 
 #define IO_TYPE_ADAPTER                  0x00000001
 #define IO_TYPE_CONTROLLER               0x00000002
@@ -104,14 +105,6 @@ enum MEDIA_TYPE {
 	FixedMedia = 12
 };
 
-enum FILE_INFORMATION_CLASS {
-	FileBasicInformation = 4,
-	FileStandardInformation = 5,
-	FilePositionInformation = 14,
-	FileEndOfFileInformation = 20,
-};
-using PFILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS *;
-
 enum FS_INFORMATION_CLASS {
 	FileFsVolumeInformation = 1,
 	FileFsLabelInformation,
@@ -124,6 +117,47 @@ enum FS_INFORMATION_CLASS {
 	FileFsMaximumInformation
 };
 using PFS_INFORMATION_CLASS = FS_INFORMATION_CLASS *;
+
+enum FILE_INFORMATION_CLASS {
+	FileDirectoryInformation = 1,
+	FileFullDirectoryInformation,
+	FileBothDirectoryInformation,
+	FileBasicInformation,
+	FileStandardInformation,
+	FileInternalInformation,
+	FileEaInformation,
+	FileAccessInformation,
+	FileNameInformation,
+	FileRenameInformation,
+	FileLinkInformation,
+	FileNamesInformation,
+	FileDispositionInformation,
+	FilePositionInformation,
+	FileFullEaInformation,
+	FileModeInformation,
+	FileAlignmentInformation,
+	FileAllInformation,
+	FileAllocationInformation,
+	FileEndOfFileInformation,
+	FileAlternateNameInformation,
+	FileStreamInformation,
+	FilePipeInformation,
+	FilePipeLocalInformation,
+	FilePipeRemoteInformation,
+	FileMailslotQueryInformation,
+	FileMailslotSetInformation,
+	FileCompressionInformation,
+	FileObjectIdInformation,
+	FileCompletionInformation,
+	FileMoveClusterInformation,
+	FileQuotaInformation,
+	FileReparsePointInformation,
+	FileNetworkOpenInformation,
+	FileAttributeTagInformation,
+	FileTrackingInformation,
+	FileMaximumInformation
+};
+using PFILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS *;
 
 using PDRIVER_CONTROL = IO_ALLOCATION_ACTION(XBOXAPI *)(
 	struct DEVICE_OBJECT *DeviceObject,
@@ -294,6 +328,82 @@ struct DUMMY_FILE_OBJECT {
 };
 using PDUMMY_FILE_OBJECT = DUMMY_FILE_OBJECT *;
 
+struct FILE_BASIC_INFORMATION {
+	LARGE_INTEGER CreationTime;
+	LARGE_INTEGER LastAccessTime;
+	LARGE_INTEGER LastWriteTime;
+	LARGE_INTEGER ChangeTime;
+	ULONG FileAttributes;
+};
+using PFILE_BASIC_INFORMATION = FILE_BASIC_INFORMATION *;
+
+struct FILE_STANDARD_INFORMATION {
+	LARGE_INTEGER AllocationSize;
+	LARGE_INTEGER EndOfFile;
+	ULONG NumberOfLinks;
+	BOOLEAN DeletePending;
+	BOOLEAN Directory;
+};
+using PFILE_STANDARD_INFORMATION = FILE_STANDARD_INFORMATION *;
+
+struct FILE_INTERNAL_INFORMATION {
+	LARGE_INTEGER IndexNumber;
+};
+using PFILE_INTERNAL_INFORMATION = FILE_INTERNAL_INFORMATION *;
+
+struct FILE_EA_INFORMATION {
+	ULONG EaSize;
+};
+using PFILE_EA_INFORMATION = FILE_EA_INFORMATION *;
+
+struct FILE_ACCESS_INFORMATION {
+	ACCESS_MASK AccessFlags;
+};
+using PFILE_ACCESS_INFORMATION = FILE_ACCESS_INFORMATION *;
+
+struct FILE_POSITION_INFORMATION {
+	LARGE_INTEGER CurrentByteOffset;
+};
+using PFILE_POSITION_INFORMATION = FILE_POSITION_INFORMATION *;
+
+struct FILE_MODE_INFORMATION {
+	ULONG Mode;
+};
+using PFILE_MODE_INFORMATION = FILE_MODE_INFORMATION *;
+
+struct FILE_ALIGNMENT_INFORMATION {
+	ULONG AlignmentRequirement;
+};
+using PFILE_ALIGNMENT_INFORMATION = FILE_ALIGNMENT_INFORMATION *;
+
+struct FILE_NAME_INFORMATION {
+	ULONG FileNameLength;
+	CHAR FileName[1];
+};
+using PFILE_NAME_INFORMATION = FILE_NAME_INFORMATION *;
+
+struct FILE_ALL_INFORMATION {
+	FILE_BASIC_INFORMATION BasicInformation;
+	FILE_STANDARD_INFORMATION StandardInformation;
+	FILE_INTERNAL_INFORMATION InternalInformation;
+	FILE_EA_INFORMATION EaInformation;
+	FILE_ACCESS_INFORMATION AccessInformation;
+	FILE_POSITION_INFORMATION PositionInformation;
+	FILE_MODE_INFORMATION ModeInformation;
+	FILE_ALIGNMENT_INFORMATION AlignmentInformation;
+	FILE_NAME_INFORMATION NameInformation;
+};
+using PFILE_ALL_INFORMATION = FILE_ALL_INFORMATION *;
+
+struct FILE_STREAM_INFORMATION {
+	ULONG NextEntryOffset;
+	ULONG StreamNameLength;
+	LARGE_INTEGER StreamSize;
+	LARGE_INTEGER StreamAllocationSize;
+	CHAR StreamName[1];
+};
+using PFILE_STREAM_INFORMATION = FILE_STREAM_INFORMATION *;
+
 struct FILE_NETWORK_OPEN_INFORMATION {
 	LARGE_INTEGER CreationTime;
 	LARGE_INTEGER LastAccessTime;
@@ -304,6 +414,12 @@ struct FILE_NETWORK_OPEN_INFORMATION {
 	ULONG FileAttributes;
 };
 using PFILE_NETWORK_OPEN_INFORMATION = FILE_NETWORK_OPEN_INFORMATION *;
+
+struct FILE_ATTRIBUTE_TAG_INFORMATION {
+	ULONG FileAttributes;
+	ULONG ReparseTag;
+};
+using PFILE_ATTRIBUTE_TAG_INFORMATION = FILE_ATTRIBUTE_TAG_INFORMATION *;
 
 struct OPEN_PACKET {
 	CSHORT Type;
@@ -550,6 +666,8 @@ using PIRP = IRP *;
 
 extern const UCHAR IopValidFsInformationQueries[];
 extern const ULONG IopQueryFsOperationAccess[];
+extern const UCHAR IopQueryOperationLength[];
+extern const ULONG IopQueryOperationAccess[];
 
 NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
 VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);

@@ -231,7 +231,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryDirectoryObject),                  // 0x00D0 (208)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryEvent),                            // 0x00D1 (209)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryFullAttributesFile),               // 0x00D2 (210)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryInformationFile),                  // 0x00D3 (211)
+	(ULONG)FUNC(&NtQueryInformationFile),                  // 0x00D3 (211)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryIoCompletion),                     // 0x00D4 (212)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryMutant),                           // 0x00D5 (213)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQuerySemaphore),                        // 0x00D6 (214)

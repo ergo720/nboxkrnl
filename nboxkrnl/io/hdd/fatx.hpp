@@ -19,6 +19,9 @@ struct FATX_FILE_INFO {
 	ULONGLONG HostHandle;
 	SHARE_ACCESS ShareAccess;
 	ULONG Flags;
+	LARGE_INTEGER CreationTime;
+	LARGE_INTEGER LastAccessTime;
+	LARGE_INTEGER LastWriteTime;
 	LIST_ENTRY ListEntry;
 };
 using PFATX_FILE_INFO = FATX_FILE_INFO *;
