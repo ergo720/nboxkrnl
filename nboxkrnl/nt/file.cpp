@@ -45,7 +45,7 @@ EXPORTNUM(211) NTSTATUS XBOXAPI NtQueryInformationFile
 	FILE_INFORMATION_CLASS FileInformationClass
 )
 {
-	if ((FileInformationClass >= FileMaximumInformation) || (IopQueryOperationLength[FileInformationClass] == 0)) {
+	if (((ULONG)FileInformationClass >= FileMaximumInformation) || (IopQueryOperationLength[FileInformationClass] == 0)) {
 		return STATUS_INVALID_INFO_CLASS;
 	}
 
