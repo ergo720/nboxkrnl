@@ -239,7 +239,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryTimer),                            // 0x00D8 (216)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtQueryVirtualMemory),                    // 0x00D9 (217)
 	(ULONG)FUNC(&NtQueryVolumeInformationFile),            // 0x00DA (218)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtReadFile),                              // 0x00DB (219)
+	(ULONG)FUNC(&NtReadFile),                              // 0x00DB (219)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtReadFileScatter),                       // 0x00DC (220)
 	(ULONG)FUNC(&NtReleaseMutant),                         // 0x00DD (221)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&NtReleaseSemaphore),                      // 0x00DE (222)

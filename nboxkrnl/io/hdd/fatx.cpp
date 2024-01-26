@@ -36,6 +36,7 @@ using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
 static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
@@ -48,7 +49,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 	{
 		FatxIrpCreate,                  // IRP_MJ_CREATE
 		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
-		IoInvalidDeviceRequest,         // IRP_MJ_READ
+		FatxIrpRead,                    // IRP_MJ_READ
 		FatxIrpWrite,                   // IRP_MJ_WRITE
 		FatxIrpQueryInformation,        // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
@@ -563,6 +564,92 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
 }
 
+NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FatxVolumeLockShared(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	ULONG Length = IrpStackPointer->Parameters.Write.Length;
+	LARGE_INTEGER FileOffset = IrpStackPointer->Parameters.Write.ByteOffset;
+	PVOID Buffer = Irp->UserBuffer;
+	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	// Don't allow to operate on the file after all its handles are closed
+	if (FileObject->Flags & FO_CLEANUP_COMPLETE) {
+		return FatxCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
+	}
+
+	// Cannot read from a directory
+	if (FileInfo->Flags & FATX_DIRECTORY_FILE) {
+		return FatxCompleteRequest(Irp, STATUS_INVALID_DEVICE_REQUEST, VolumeExtension);
+	}
+
+	if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
+		// NOTE: for the HDD, SectorSize is 512
+		if ((FileOffset.LowPart & (DeviceObject->SectorSize - 1)) || (Length & (DeviceObject->SectorSize - 1))) {
+			return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		}
+	}
+
+	if (Length == 0) {
+		Irp->IoStatus.Information = 0;
+		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
+	}
+
+	if (FileInfo->Flags & FATX_VOLUME_FILE) {
+		// If it's the volume itself, we can only support the case where the caller wants to read the partition table (for partition0) or the
+		// fatx superblock (for all the other partitions)
+
+		ULONGLONG LengthLimit = PIDE_DISK_EXTENSION(VolumeExtension->CacheExtension.TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber == 0 ? KiB(512) : KiB(4);
+		if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
+			return FatxCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		}
+	}
+	else {
+		// Cannot read past the end of the file
+		if (FileOffset.HighPart || (FileOffset.LowPart >= FileInfo->FileSize)) {
+			return FatxCompleteRequest(Irp, STATUS_END_OF_FILE, VolumeExtension);
+		}
+
+		if ((FileOffset.LowPart + Length) > FileInfo->FileSize) {
+			// Reduce the number of butes transferred to avoid reading past the end of the file
+			Length = FileInfo->FileSize - FileOffset.LowPart;
+		}
+	}
+
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Read,
+		FileOffset.LowPart,
+		Length,
+		(ULONG_PTR)Buffer,
+		FileInfo->HostHandle
+	);
+
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	if (Status == STATUS_PENDING) {
+		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+		RIP_API_MSG("Asynchronous IO is not supported");
+	}
+	else if (NT_SUCCESS(Status)) {
+		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+		FileObject->CurrentByteOffset.QuadPart += Irp->IoStatus.Information;
+		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
+			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
+		}
+		KfLowerIrql(OldIrql);
+		KeQuerySystemTime(&FileInfo->LastAccessTime);
+	}
+
+	Irp->IoStatus.Information = InfoBlock.Info;
+	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
 NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
@@ -584,6 +671,11 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
 	}
 
+	// Cannot write to a directory
+	if (FileInfo->Flags & FATX_DIRECTORY_FILE) {
+		return FatxCompleteRequest(Irp, STATUS_INVALID_DEVICE_REQUEST, VolumeExtension);
+	}
+
 	if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
 		// NOTE: for the HDD, SectorSize is 512
 		if ((FileOffset.LowPart & (DeviceObject->SectorSize - 1)) || (Length & (DeviceObject->SectorSize - 1))) {
@@ -601,7 +693,7 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 
 	if (FileInfo->Flags & FATX_VOLUME_FILE) {
-		// If it's the volume itself, we can only support the case where the caller wants to read the partition table (for partition0) or the
+		// If it's the volume itself, we can only support the case where the caller wants to write to the partition table (for partition0) or the
 		// fatx superblock (for all the other partitions)
 
 		ULONGLONG LengthLimit = PIDE_DISK_EXTENSION(VolumeExtension->CacheExtension.TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber == 0 ? KiB(512) : KiB(4);
