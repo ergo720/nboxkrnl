@@ -121,7 +121,6 @@ VOID XBOXAPI HalpSwIntApc()
 		pop eax
 		mov byte ptr[KiPcr]KPCR.Irql, al // lower IRQL
 		call HalpCheckUnmaskedInt
-		ret
 	}
 }
 
