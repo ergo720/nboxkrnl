@@ -722,7 +722,7 @@ NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else if (NT_SUCCESS(Status)) {
 		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
-		FileObject->CurrentByteOffset.QuadPart += Irp->IoStatus.Information;
+		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
 			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
 		}
@@ -807,7 +807,7 @@ NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else if (NT_SUCCESS(Status)) {
 		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
-		FileObject->CurrentByteOffset.QuadPart += Irp->IoStatus.Information;
+		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
 			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
 		}
