@@ -5,7 +5,6 @@
 #include "iop.hpp"
 #include "hdd\fatx.hpp"
 #include "cdrom\xiso.hpp"
-#include "..\rtl\rtl.hpp"
 #include "..\nt\nt.hpp"
 
 
@@ -266,7 +265,48 @@ VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount)
 
 VOID XBOXAPI IopDeleteFile(PVOID Object)
 {
-	RIP_UNIMPLEMENTED();
+	PFILE_OBJECT FileObject = (PFILE_OBJECT)Object;
+
+	// The file won't have a DeviceObject only when a create/open request to it failed (IoParseDevice sets DeviceObject to nullptr and then calls ObfDereferenceObject
+	// which triggers this function)
+	if (FileObject->DeviceObject) {
+		PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
+
+		// This happens when OB fails a create/open request in IoCreateFile
+		if (!(FileObject->Flags & FO_HANDLE_CREATED)) {
+			IopCloseFile(Object, 1);
+		}
+
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			IopAcquireSynchronousFileLock(FileObject);
+		}
+
+		IO_STATUS_BLOCK IoStatus;
+		PIRP Irp = IoAllocateIrpNoFail(DeviceObject->StackSize);
+		PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
+		IrpStackPointer->MajorFunction = IRP_MJ_CLOSE;
+		IrpStackPointer->FileObject = FileObject;
+		Irp->UserIosb = &IoStatus;
+		Irp->Tail.Overlay.OriginalFileObject = FileObject;
+		Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
+		Irp->Flags = IRP_CLOSE_OPERATION | IRP_SYNCHRONOUS_API;
+
+		IopQueueThreadIrp(Irp);
+		IofCallDriver(DeviceObject, Irp);
+
+		KIRQL OldIrql = KfRaiseIrql(APC_LEVEL);
+		IopDequeueThreadIrp(Irp);
+		KfLowerIrql(OldIrql);
+
+		IoFreeIrp(Irp);
+
+		if (FileObject->CompletionContext) {
+			ObfDereferenceObject(FileObject->CompletionContext->Port);
+			ExFreePool(FileObject->CompletionContext);
+		}
+
+		IopDereferenceDeviceObject(DeviceObject);
+	}
 }
 
 NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING CompleteName, POBJECT_STRING RemainingName,

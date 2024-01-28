@@ -200,6 +200,58 @@ Retry:
 	return STATUS_SUCCESS;
 }
 
+VOID FscFlushPartitionElements(PFSCACHE_EXTENSION CacheExtension)
+{
+	// Acquire a lock to avoid somebody else changing the number of cache pages while we are trying to flush them
+	KeWaitForSingleObject(&FscUpdateNumOfPages, Executive, KernelMode, FALSE, nullptr);
+
+	KIRQL OldIrql = MiLock();
+
+	ULONG NumOfPagesToFlushLeft = 0;
+	PLIST_ENTRY Entry = FscCacheElementListHead.Blink;
+	while (Entry != &FscCacheElementListHead) {
+		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
+		if (Element->CacheExtension == CacheExtension) {
+			++NumOfPagesToFlushLeft;
+		}
+
+		if (Element->CacheExtension == nullptr) {
+			break;
+		}
+
+		Entry = Element->ListEntry.Blink;
+	}
+
+Retry:
+	Entry = FscCacheElementListHead.Blink;
+	while (Entry != &FscCacheElementListHead) {
+		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
+		if ((Element->CacheExtension == CacheExtension) && (Element->NumOfUsers == 0) && (Element->MarkForDeletion == 0)) {
+			--NumOfPagesToFlushLeft;
+			Element->MarkForDeletion = 1;
+			Element->CacheExtension = nullptr;
+			RemoveEntryList(&Element->ListEntry);
+		}
+
+		if (Element->CacheExtension == nullptr) {
+			break;
+		}
+
+		Entry = Element->ListEntry.Blink;
+	}
+
+	if (NumOfPagesToFlushLeft) {
+		MiUnlock(PASSIVE_LEVEL);
+		KeWaitForSingleObject(&FscReleasedPagesEvent, Executive, KernelMode, FALSE, nullptr);
+		MiLock();
+		goto Retry;
+	}
+
+	MiUnlock(OldIrql);
+
+	KeSetEvent(&FscUpdateNumOfPages, 0, FALSE);
+}
+
 NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffset, PVOID *ReturnedBuffer, BOOLEAN IsWrite)
 {
 	KIRQL OldIrql = MiLock();

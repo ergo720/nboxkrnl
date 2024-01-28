@@ -430,6 +430,35 @@ EXPORTNUM(67) NTSTATUS XBOXAPI IoCreateSymbolicLink
 	return Status;
 }
 
+EXPORTNUM(68) VOID XBOXAPI IoDeleteDevice
+(
+	PDEVICE_OBJECT DeviceObject
+)
+{
+	// Named devices use the permanent flag, so remove it so that we can actually delete it
+	if (DeviceObject->Flags & DO_DEVICE_HAS_NAME) {
+		ObMakeTemporaryObject(DeviceObject);
+	}
+
+	// Mark the device s being deleted so that IoParseDevice doesn't allow the opening/creation of new files with the device
+	KIRQL OldIrql = IoLock();
+	DeviceObject->DeletePending = TRUE;
+
+	// When ReferenceCount is zero, no more files are open for this DeviceObject
+	if (DeviceObject->ReferenceCount == 0) {
+		IoUnlock(OldIrql);
+		if (DeviceObject->DriverObject->DriverDeleteDevice) {
+			DeviceObject->DriverObject->DriverDeleteDevice(DeviceObject);
+		}
+		else {
+			ObfDereferenceObject(DeviceObject);
+		}
+	}
+	else {
+		IoUnlock(OldIrql);
+	}
+}
+
 EXPORTNUM(72) VOID XBOXAPI IoFreeIrp
 (
 	PIRP Irp
@@ -675,7 +704,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	POPEN_PACKET OpenPacket = (POPEN_PACKET)Context;
 
 	if ((OpenPacket == nullptr) && (RemainingName->Length == 0)) {
-		ObfDereferenceObject(ParseObject);
+		ObfReferenceObject(ParseObject);
 		*Object = ParseObject;
 		return STATUS_SUCCESS;
 	}
@@ -721,6 +750,7 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 		MountedDeviceObject = ParsedDeviceObject->MountedOrSelfDevice;
 	}
 
+	// Increase ReferenceCount for every file that's opened/created with this MountedDeviceObject
 	++MountedDeviceObject->ReferenceCount;
 	IoUnlock(OldIrql);
 

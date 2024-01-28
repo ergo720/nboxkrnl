@@ -36,6 +36,7 @@ using PFATX_SUPERBLOCK = FATX_SUPERBLOCK *;
 static_assert(sizeof(FATX_SUPERBLOCK) == PAGE_SIZE);
 
 NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
@@ -48,7 +49,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 	nullptr,                            // DriverDismountVolume
 	{
 		FatxIrpCreate,                  // IRP_MJ_CREATE
-		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
+		FatxIrpClose,                   // IRP_MJ_CLOSE
 		FatxIrpRead,                    // IRP_MJ_READ
 		FatxIrpWrite,                   // IRP_MJ_WRITE
 		FatxIrpQueryInformation,        // IRP_MJ_QUERY_INFORMATION
@@ -158,6 +159,13 @@ static VOID FatxInsertFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INF
 	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
+static VOID FatxRemoveFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INFO FileInfo)
+{
+	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
+	RemoveEntryList(&FileInfo->ListEntry);
+	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
+}
+
 static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, PPARTITION_INFORMATION PartitionInformation)
 {
 	PFATX_SUPERBLOCK Superblock;
@@ -205,6 +213,31 @@ static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, 
 	FscUnmapElementPage(Superblock);
 
 	return STATUS_SUCCESS;
+}
+
+static VOID FatxDeleteVolume(PDEVICE_OBJECT DeviceObject)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FscFlushPartitionElements(&VolumeExtension->CacheExtension);
+
+	// NOTE: we never delete the HDD TargetDeviceObject
+	PDEVICE_OBJECT HddDeviceObject = VolumeExtension->CacheExtension.TargetDeviceObject;
+	ULONG DeviceObjectHasName = DeviceObject->Flags & DO_DEVICE_HAS_NAME;
+	assert(VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED);
+	assert(VolumeExtension->CacheExtension.TargetDeviceObject);
+
+	// Set DeletePending flag so that new open requests in IoParseDevice will now fail
+	IoDeleteDevice(DeviceObject);
+
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	HddDeviceObject->MountedOrSelfDevice = nullptr;
+	KfLowerIrql(OldIrql);
+
+	// Dereferece DeviceObject because IoCreateDevice creates the object with a ref counter biased by one. Only do this if the device doesn't have a name, because IoDeleteDevice
+	// internally calls ObMakeTemporaryObject for named devices, which dereferences the DeviceObject already
+	if (!DeviceObjectHasName) {
+		ObfDereferenceObject(DeviceObject);
+	}
 }
 
 NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
@@ -258,7 +291,8 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	RtlInitializeCriticalSection(&VolumeExtension->FileInfoLock);
 
 	if (Status = FatxSetupVolumeExtension(VolumeExtension, &PartitionInformation); !NT_SUCCESS(Status)) {
-		// TODO: cleanup FatxDeviceObject when this fails
+		VolumeExtension->Flags |= FATX_VOLUME_DISMOUNTED;
+		FatxDeleteVolume(FatxDeviceObject);
 		return Status;
 	}
 
@@ -423,45 +457,6 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 	}
 
-	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
-	if (FileInfo) {
-		UpdatedShareAccess = TRUE;
-		if (FileInfo->ShareAccess.OpenCount == 0) {
-			// The requested file is already open, but without any users to it, set the sharing permissions
-			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
-		}
-		else {
-			// The requested file is already open, check the share permissions to see if we can open it again
-			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
-				return FatxCompleteRequest(Irp, Status, VolumeExtension);
-			}
-		}
-	}
-	else {
-		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
-		if (FileInfo == nullptr) {
-			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
-		}
-		FileInfoCreated = TRUE;
-		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
-		FileInfo->FileNameLength = (UCHAR)FileName.Length;
-		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
-		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
-		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
-		FatxInsertFile(VolumeExtension, FileInfo);
-		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
-
-		// NOTE: this is not entirely correct. The timestamps are supposed to be stored on the filesystem metadata, but we are not persisting them anywhere right now,
-		// and relying on the host is unreliable because not all host filesystems support the creation time
-		LARGE_INTEGER CurrentTime;
-		KeQuerySystemTime(&CurrentTime);
-		FileInfo->CreationTime = CurrentTime;
-		FileInfo->LastAccessTime = CurrentTime;
-		FileInfo->LastWriteTime = CurrentTime;
-	}
-
-	FileObject->FsContext2 = FileInfo;
-
 	constexpr USHORT DevicePathLength = sizeof("\\Device\\Harddisk0\\PartitionX") - 1;
 	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH + DevicePathLength];
 	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
@@ -523,6 +518,50 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 	}
 
+	// The optional creation of FileInfo must be the last thing to happen before SubmitIoRequestToHost. This, because if the IO fails, then IoParseDevice sets FileObject->DeviceObject
+	// to a nullptr, which causes it to invoke IopDeleteFile via ObfDereferenceObject. Because DeviceObject is nullptr, FatxIrpClose won't be called, thus leaking the host handle and
+	// the memory for FileInfo
+	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
+	if (FileInfo) {
+		UpdatedShareAccess = TRUE;
+		if (FileInfo->ShareAccess.OpenCount == 0) {
+			// The requested file is already open, but without any users to it, set the sharing permissions
+			IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
+		}
+		else {
+			// The requested file is already open, check the share permissions to see if we can open it again
+			if (NTSTATUS Status = IoCheckShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess, TRUE); !NT_SUCCESS(Status)) {
+				return FatxCompleteRequest(Irp, Status, VolumeExtension);
+			}
+		}
+		++FileInfo->RefCounter;
+	}
+	else {
+		FileInfo = (PFATX_FILE_INFO)ExAllocatePool(sizeof(FATX_FILE_INFO));
+		if (FileInfo == nullptr) {
+			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
+		}
+		FileInfoCreated = TRUE;
+		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
+		FileInfo->FileNameLength = (UCHAR)FileName.Length;
+		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
+		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
+		FileInfo->RefCounter = 1;
+		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
+		FatxInsertFile(VolumeExtension, FileInfo);
+		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
+
+		// NOTE: this is not entirely correct. The timestamps are supposed to be stored on the filesystem metadata, but we are not persisting them anywhere right now,
+		// and relying on the host is unreliable because not all host filesystems support the creation time
+		LARGE_INTEGER CurrentTime;
+		KeQuerySystemTime(&CurrentTime);
+		FileInfo->CreationTime = CurrentTime;
+		FileInfo->LastAccessTime = CurrentTime;
+		FileInfo->LastWriteTime = CurrentTime;
+	}
+
+	FileObject->FsContext2 = FileInfo;
+
 	// Finally submit the I/O request to the host to do the actual work
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
@@ -541,12 +580,18 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		if (UpdatedShareAccess) {
 			IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
 		}
+		if (FileInfoCreated) {
+			FatxRemoveFile(VolumeExtension, FileInfo);
+			ExFreePool(FileInfo);
+			FileObject->FsContext2 = nullptr;
+		}
 	}
 	else if (Status == STATUS_PENDING) {
 		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else {
+		++VolumeExtension->FileObjectCount;
 		Irp->IoStatus.Information = InfoBlock.Info;
 		if (!HasBackslashAtEnd && FileInfoCreated && (InfoBlock.Info == Opened)) {
 			// Only update the file size if it was opened for the first time ever
@@ -562,6 +607,45 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	FatxVolumeLockExclusive(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
+
+	SubmitIoRequestToHost(
+		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
+		0,
+		0,
+		0,
+		FileInfo->HostHandle
+	);
+
+	// NOTE: it's not viable to check for FileInfo->ShareAccess.OpenCount here, because it's possible to use a file handle with no access rights granted, which would
+	// mean that OpenCount is zero and yet the handle is still in use
+	if (--FileInfo->RefCounter == 0) {
+		FatxRemoveFile(VolumeExtension, FileInfo);
+		ExFreePool(FileInfo);
+		FileObject->FsContext2 = nullptr;
+	}
+
+	if ((--VolumeExtension->FileObjectCount == 0) && (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED)) {
+		FatxVolumeUnlock(VolumeExtension);
+		FatxDeleteVolume(DeviceObject);
+	}
+	else {
+		FatxVolumeUnlock(VolumeExtension);
+	}
+
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
+
+	return STATUS_SUCCESS;
 }
 
 NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)

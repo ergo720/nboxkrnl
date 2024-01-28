@@ -4,7 +4,6 @@
 
 #include "ob.hpp"
 #include "obp.hpp"
-#include "..\rtl\rtl.hpp"
 #include "..\ex\ex.hpp"
 #include "..\ps\ps.hpp"
 #include <string.h>
@@ -251,6 +250,24 @@ EXPORTNUM(241) NTSTATUS XBOXAPI ObInsertObject
 	return (Object == ObjectToInsert) ? STATUS_SUCCESS : STATUS_OBJECT_NAME_EXISTS;
 }
 
+EXPORTNUM(242) VOID XBOXAPI ObMakeTemporaryObject
+(
+	PVOID Object
+)
+{
+	KIRQL OldIrql = ObLock();
+
+	POBJECT_HEADER Obj = GetObjHeader(Object);
+	Obj->Flags &= ~OB_FLAG_PERMANENT_OBJECT;
+
+	if ((Obj->HandleCount == 0) && (Obj->Flags & OB_FLAG_ATTACHED_OBJECT)) {
+		ObpDetachNamedObject(Object, OldIrql);
+	}
+	else {
+		ObUnlock(OldIrql);
+	}
+}
+
 EXPORTNUM(243) NTSTATUS XBOXAPI ObOpenObjectByName
 (
 	POBJECT_ATTRIBUTES ObjectAttributes,
@@ -389,11 +406,12 @@ EXPORTNUM(250) VOID FASTCALL ObfDereferenceObject
 			Obj->Type->DeleteProcedure(Object); // performs object-specific cleanup
 		}
 
+		// Releases the memory used for the object
 		if (Obj->Flags & OB_FLAG_NAMED_OBJECT) {
-			RIP_API_MSG("destroying named objects is not supported yet");
+			Obj->Type->FreeProcedure(GetObjDirInfoHeader(Object));
 		}
 		else {
-			Obj->Type->FreeProcedure(Obj); // releases the memory used for the object
+			Obj->Type->FreeProcedure(Obj);
 		}
 	}
 }

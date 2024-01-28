@@ -46,3 +46,4 @@ inline ULONG FscCurrNumberOfCachePages = 0;
 
 NTSTATUS FscMapElementPage(PFSCACHE_EXTENSION CacheExtension, ULONGLONG ByteOffset, PVOID *ReturnedBuffer, BOOLEAN IsWrite);
 VOID FscUnmapElementPage(PVOID Buffer);
+VOID FscFlushPartitionElements(PFSCACHE_EXTENSION CacheExtension);

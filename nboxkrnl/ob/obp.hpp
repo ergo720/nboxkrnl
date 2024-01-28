@@ -72,3 +72,4 @@ NTSTATUS ObpResolveRootHandlePath(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_D
 PVOID ObpFindObjectInDirectory(POBJECT_DIRECTORY Directory, POBJECT_STRING Name, BOOLEAN ShouldFollowSymbolicLinks);
 ULONG ObpGetObjectHashIndex(POBJECT_STRING Name);
 VOID XBOXAPI ObpDeleteSymbolicLink(PVOID Object);
+VOID ObpDetachNamedObject(PVOID Object, KIRQL OldIrql);

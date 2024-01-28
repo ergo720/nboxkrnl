@@ -22,6 +22,7 @@ struct FATX_FILE_INFO {
 	LARGE_INTEGER CreationTime;
 	LARGE_INTEGER LastAccessTime;
 	LARGE_INTEGER LastWriteTime;
+	ULONG RefCounter;
 	LIST_ENTRY ListEntry;
 };
 using PFATX_FILE_INFO = FATX_FILE_INFO *;
@@ -46,6 +47,7 @@ struct FAT_VOLUME_EXTENSION {
 	ULONG NumberOfClustersAvailable;
 	ERWLOCK VolumeMutex;
 	ULONG VolumeID;
+	ULONG FileObjectCount;
 	RTL_CRITICAL_SECTION FileInfoLock;
 	LIST_ENTRY OpenFileList;
 };

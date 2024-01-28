@@ -384,5 +384,44 @@ VOID XBOXAPI ObpDeleteSymbolicLink(PVOID Object)
 	RIP_UNIMPLEMENTED();
 }
 
+VOID ObpDetachNamedObject(PVOID Object, KIRQL OldIrql)
+{
+	POBJECT_HEADER_NAME_INFO ObjDirectoryInfo = GetObjDirInfoHeader(Object);
+	POBJECT_DIRECTORY Directory = ObjDirectoryInfo->Directory;
+
+	if ((Directory == ObpDosDevicesDirectoryObject) && (ObjDirectoryInfo->Name.Length == 2) && (ObjDirectoryInfo->Name.Buffer[1] == ':')) {
+		CHAR DriveLetter = ObjDirectoryInfo->Name.Buffer[0];
+
+		if (DriveLetter >= 'a' && DriveLetter <= 'z') {
+			ObpDosDevicesDriveLetterArray[DriveLetter - 'a'] = nullptr;
+		}
+		else if (DriveLetter >= 'A' && DriveLetter <= 'Z') {
+			ObpDosDevicesDriveLetterArray[DriveLetter - 'A'] = nullptr;
+		}
+	}
+
+	ULONG Index = ObpGetObjectHashIndex(&ObjDirectoryInfo->Name);
+	POBJECT_HEADER_NAME_INFO LastObjDirectoryInfo = nullptr;
+	POBJECT_HEADER_NAME_INFO CurrObjDirectoryInfo = Directory->HashBuckets[Index];
+	while (CurrObjDirectoryInfo != ObjDirectoryInfo) {
+		LastObjDirectoryInfo = CurrObjDirectoryInfo;
+		CurrObjDirectoryInfo = CurrObjDirectoryInfo->ChainLink;
+	}
+
+	if (LastObjDirectoryInfo == nullptr) {
+		Directory->HashBuckets[Index] = CurrObjDirectoryInfo->ChainLink;
+	}
+	else {
+		LastObjDirectoryInfo->ChainLink = CurrObjDirectoryInfo->ChainLink;
+	}
+
+	ObjDirectoryInfo->ChainLink = nullptr;
+	ObjDirectoryInfo->Directory = nullptr;
+	ObUnlock(OldIrql);
+
+	ObfDereferenceObject(Directory);
+	ObfDereferenceObject(Object);
+}
+
 template PVOID ObpGetObjectFromHandle<true>(HANDLE Handle);
 template PVOID ObpGetObjectFromHandle<false>(HANDLE Handle);

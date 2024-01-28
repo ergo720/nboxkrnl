@@ -26,10 +26,11 @@ EXPORTNUM(187) NTSTATUS XBOXAPI NtClose
 			OldIrql = ObLock();
 		}
 
-		ObUnlock(OldIrql);
-
 		if ((Obj->HandleCount == 0) && (Obj->Flags & OB_FLAG_ATTACHED_OBJECT) && !(Obj->Flags & OB_FLAG_PERMANENT_OBJECT)) {
-			RIP_API_MSG("Closing handles with attached objects is not supported yet");
+			ObpDetachNamedObject(Object, OldIrql);
+		}
+		else {
+			ObUnlock(OldIrql);
 		}
 
 		ObfDereferenceObject(Object);
