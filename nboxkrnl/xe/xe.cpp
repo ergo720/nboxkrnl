@@ -8,6 +8,7 @@
 #include "..\ex\ex.hpp"
 #include "..\nt\nt.hpp"
 #include "..\mm\mi.hpp"
+#include "..\ob\obp.hpp"
 #include <string.h>
 
 #define XBE_BASE_ADDRESS 0x10000
@@ -31,8 +32,6 @@ EXPORTNUM(326) OBJECT_STRING XeImageFileName = { 0, 0, nullptr };
 
 static INITIALIZE_GLOBAL_CRITICAL_SECTION(XepXbeLoaderLock);
 
-// FIXME: this is only required until XeLoadSection switches to the IO functions
-static ULONG DevType;
 
 // Source: partially from Cxbx-Reloaded
 static NTSTATUS XeLoadXbe()
@@ -42,7 +41,6 @@ static NTSTATUS XeLoadXbe()
 		RIP_API_MSG("XBE reboot not supported");
 	}
 	else {
-		// TODO: instead of just loading the XBE directly from the host, this should parse the default XBE path with the IO functions
 		// NOTE: we cannot just assume that the XBE name from the DVD drive is called "default.xbe", because the user might have renamed it
 		ULONG PathSize;
 		__asm {
@@ -62,29 +60,18 @@ static NTSTATUS XeLoadXbe()
 			out dx, eax
 		}
 
-		if (strncmp(&PathBuffer[8], "CdRom0", 6) == 0) {
-			DevType = DEV_TYPE(DEV_CDROM);
-		}
-		else {
-			// FIXME: the XBE could also be on a MU
-			DevType = DEV_TYPE(DEV_PARTITION0 + (PathBuffer[27] - '0'));
-		}
-
 		XeImageFileName.Buffer = PathBuffer;
 		XeImageFileName.Length = (USHORT)PathSize;
 		XeImageFileName.MaximumLength = (USHORT)PathSize;
 		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize); // NOTE: doesn't copy the terminating NULL character
 
-		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Open | FILE_OPEN | DevType,
-			0,
-			PathSize,
-			XBE_HANDLE,
-			(ULONG_PTR)PathBuffer
-		);
-
-		if (InfoBlock.Status != Success) {
-			return STATUS_IO_DEVICE_ERROR;
+		OBJECT_ATTRIBUTES ObjectAttributes;
+		InitializeObjectAttributes(&ObjectAttributes, &XeImageFileName, OBJ_CASE_INSENSITIVE, nullptr);
+		IO_STATUS_BLOCK IoStatusBlock;
+		HANDLE XbeHandle;
+		if (NTSTATUS Status = NtOpenFile(&XbeHandle, GENERIC_READ, &ObjectAttributes, &IoStatusBlock, FILE_SHARE_READ,
+			FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE); !NT_SUCCESS(Status)) {
+			return Status;
 		}
 
 		PXBE_HEADER XbeHeader = (PXBE_HEADER)ExAllocatePoolWithTag(PAGE_SIZE, 'hIeX');
@@ -92,36 +79,42 @@ static NTSTATUS XeLoadXbe()
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read | DevType,
-			0,
-			PAGE_SIZE,
-			(ULONG_PTR)XbeHeader,
-			XBE_HANDLE
-		);
-
-		if (InfoBlock.Status != Success) {
-			return STATUS_IO_DEVICE_ERROR;
-		}
-
-		// Sanity checks: make sure that the file looks like an XBE
-		if ((InfoBlock.Info < sizeof(XBE_HEADER)) ||
-			(XbeHeader->dwMagic != *(PULONG)"XBEH") ||
-			(XbeHeader->dwBaseAddr != XBE_BASE_ADDRESS)) {
-			return STATUS_INVALID_IMAGE_FORMAT;
-		}
-
-		PVOID Address = (PVOID)XBE_BASE_ADDRESS;
-		ULONG Size = XbeHeader->dwSizeofImage;
-		NTSTATUS Status = NtAllocateVirtualMemory(&Address, 0, &Size, MEM_RESERVE, PAGE_READWRITE);
-		if (!NT_SUCCESS(Status)) {
+		LARGE_INTEGER XbeOffset{ .QuadPart = 0 };
+		if (NTSTATUS Status = NtReadFile(XbeHandle, nullptr, nullptr, nullptr, &IoStatusBlock,
+			XbeHeader, PAGE_SIZE, &XbeOffset); !NT_SUCCESS(Status)) {
+			ExFreePool(XbeHeader);
+			NtClose(XbeHandle);
 			return Status;
 		}
 
-		Address = (PVOID)XBE_BASE_ADDRESS;
+		// Sanity checks: make sure that the file looks like an XBE
+		if ((IoStatusBlock.Information < sizeof(XBE_HEADER)) ||
+			(XbeHeader->dwMagic != *(PULONG)"XBEH") ||
+			(XbeHeader->dwSizeofHeaders > XbeHeader->dwSizeofImage) ||
+			(XbeHeader->dwBaseAddr != XBE_BASE_ADDRESS)) {
+			ExFreePool(XbeHeader);
+			NtClose(XbeHandle);
+			return STATUS_INVALID_IMAGE_FORMAT;
+		}
+
+		PVOID Address = GetXbeAddress();
+		ULONG Size = XbeHeader->dwSizeofImage;
+		NTSTATUS Status = NtAllocateVirtualMemory(&Address, 0, &Size, MEM_RESERVE, PAGE_READWRITE);
+		if (!NT_SUCCESS(Status)) {
+			ExFreePool(XbeHeader);
+			NtClose(XbeHandle);
+			return Status;
+		}
+
+		Address = GetXbeAddress();
 		Size = XbeHeader->dwSizeofHeaders;
 		Status = NtAllocateVirtualMemory(&Address, 0, &Size, MEM_COMMIT, PAGE_READWRITE);
 		if (!NT_SUCCESS(Status)) {
+			Address = GetXbeAddress();
+			Size = 0;
+			NtFreeVirtualMemory(&Address, &Size, MEM_RELEASE);
+			ExFreePool(XbeHeader);
+			NtClose(XbeHandle);
 			return Status;
 		}
 
@@ -130,16 +123,14 @@ static NTSTATUS XeLoadXbe()
 		XbeHeader = nullptr;
 
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
-			InfoBlock = SubmitIoRequestToHost(
-				IoRequestType::Read | DevType,
-				PAGE_SIZE,
-				GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE,
-				(ULONG_PTR)((PCHAR)XbeHeader + PAGE_SIZE),
-				XBE_HANDLE
-			);
-
-			if (InfoBlock.Status != Success) {
-				return STATUS_IO_DEVICE_ERROR;
+			LARGE_INTEGER XbeOffset{ .QuadPart = PAGE_SIZE };
+			if (NTSTATUS Status = NtReadFile(XbeHandle, nullptr, nullptr, nullptr, &IoStatusBlock,
+				(PCHAR)XbeHeader + PAGE_SIZE, GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE, &XbeOffset); !NT_SUCCESS(Status)) {
+				Address = GetXbeAddress();
+				Size = 0;
+				NtFreeVirtualMemory(&Address, &Size, MEM_RELEASE);
+				NtClose(XbeHandle);
+				return Status;
 			}
 		}
 
@@ -179,6 +170,10 @@ static NTSTATUS XeLoadXbe()
 			if (SectionHeaders[i].Flags & XBEIMAGE_SECTION_PRELOAD) {
 				Status = XeLoadSection(&SectionHeaders[i]);
 				if (!NT_SUCCESS(Status)) {
+					Address = GetXbeAddress();
+					Size = 0;
+					NtFreeVirtualMemory(&Address, &Size, MEM_RELEASE);
+					NtClose(XbeHandle);
 					return Status;
 				}
 			}
@@ -202,6 +197,8 @@ static NTSTATUS XeLoadXbe()
 		}
 
 		// TODO: extract the keys from the certificate and store them in XboxLANKey, XboxSignatureKey and XboxAlternateSignatureKeys
+
+		NtClose(XbeHandle);
 
 		return STATUS_SUCCESS;
 	}
@@ -237,11 +234,21 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 		// XGRPH										DSOUND
 		// 1F18A0 + 2FC -> aligned_start = 1F1000		1F1BA0 -> aligned_start = 1F1000 <- collision
 
+		OBJECT_ATTRIBUTES ObjectAttributes;
+		InitializeObjectAttributes(&ObjectAttributes, &XeImageFileName, OBJ_CASE_INSENSITIVE, nullptr);
+		IO_STATUS_BLOCK IoStatusBlock;
+		HANDLE XbeHandle;
+		if (NTSTATUS Status = NtOpenFile(&XbeHandle, GENERIC_READ, &ObjectAttributes, &IoStatusBlock, FILE_SHARE_READ,
+			FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE); !NT_SUCCESS(Status)) {
+			RtlLeaveCriticalSectionAndRegion(&XepXbeLoaderLock);
+			return Status;
+		}
+
 		PVOID BaseAddress = Section->VirtualAddress;
 		ULONG SectionSize = Section->VirtualSize;
-
 		NTSTATUS Status = NtAllocateVirtualMemory(&BaseAddress, 0, &SectionSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 		if (!NT_SUCCESS(Status)) {
+			NtClose(XbeHandle);
 			RtlLeaveCriticalSectionAndRegion(&XepXbeLoaderLock);
 			return Status;
 		}
@@ -250,21 +257,21 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 		memset(Section->VirtualAddress, 0, Section->VirtualSize);
 
 		// Copy the section data
-		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-			IoRequestType::Read | DevType,
-			Section->FileAddress,
-			Section->FileSize,
-			(ULONG_PTR)Section->VirtualAddress,
-			XBE_HANDLE
-		);
-
-		if (InfoBlock.Status != Success) {
+		LARGE_INTEGER XbeOffset{ .QuadPart = Section->FileAddress };
+		if (NTSTATUS Status = NtReadFile(XbeHandle, nullptr, nullptr, nullptr, &IoStatusBlock,
+			Section->VirtualAddress, Section->FileSize, &XbeOffset); !NT_SUCCESS(Status) || (IoStatusBlock.Information != Section->FileSize)) {
+			if (IoStatusBlock.Information != Section->FileSize) {
+				Status = STATUS_FILE_CORRUPT_ERROR;
+			}
 			BaseAddress = Section->VirtualAddress;
 			SectionSize = Section->VirtualSize;
 			NtFreeVirtualMemory(&BaseAddress, &SectionSize, MEM_DECOMMIT);
+			NtClose(XbeHandle);
 			RtlLeaveCriticalSectionAndRegion(&XepXbeLoaderLock);
-			return STATUS_IO_DEVICE_ERROR;
+			return Status;
 		}
+
+		NtClose(XbeHandle);
 
 		// Increment the head/tail page reference counters
 		(*Section->HeadReferenceCount)++;
