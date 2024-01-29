@@ -450,13 +450,6 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	ByPassPathCheck:
 
-	if (HasBackslashAtEnd && (CreateOptions & FILE_NON_DIRECTORY_FILE)) { // file must not be a directory
-		return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
-	}
-	else if (!HasBackslashAtEnd && (CreateOptions & FILE_DIRECTORY_FILE)) { // file must be a directory
-		return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
-	}
-
 	constexpr USHORT DevicePathLength = sizeof("\\Device\\Harddisk0\\PartitionX") - 1;
 	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH + DevicePathLength];
 	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
@@ -523,6 +516,16 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	// the memory for FileInfo
 	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
 	if (FileInfo) {
+		if (FileInfo->Flags & FATX_DIRECTORY_FILE) {
+			if (CreateOptions & FILE_NON_DIRECTORY_FILE) {
+				return FatxCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
+			}
+		}
+		else {
+			if (HasBackslashAtEnd || (CreateOptions & FILE_DIRECTORY_FILE)) {
+				return FatxCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
+			}
+		}
 		UpdatedShareAccess = TRUE;
 		if (FileInfo->ShareAccess.OpenCount == 0) {
 			// The requested file is already open, but without any users to it, set the sharing permissions
@@ -566,7 +569,7 @@ NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		(HasBackslashAtEnd ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
 		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
 		(Disposition & 7) | IoRequestType::Open,
 		InitialSize,
