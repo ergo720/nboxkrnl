@@ -17,8 +17,8 @@
 #define CR0_MP (1 << 1) // monitor coprocessor
 
 #define SIZE_OF_FPU_REGISTERS        128
-#define NPX_STATE_NOT_LOADED (CR0_TS | CR0_MP) // x87 fpu, XMM, and MXCSR registers not saved
-#define NPX_STATE_LOADED 0                     // x87 fpu, XMM, and MXCSR registers saved
+#define NPX_STATE_NOT_LOADED (CR0_TS | CR0_MP) // x87 fpu, XMM, and MXCSR registers not loaded on fpu
+#define NPX_STATE_LOADED 0                     // x87 fpu, XMM, and MXCSR registers loaded on fpu
 
 #define TIMER_TABLE_SIZE 32
 #define CLOCK_TIME_INCREMENT 10000 // one clock interrupt every ms -> 1ms == 10000 units of 100ns

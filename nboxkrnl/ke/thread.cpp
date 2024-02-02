@@ -56,7 +56,7 @@ VOID KiInitializeContextThread(PKTHREAD Thread, ULONG TlsDataSize, PKSYSTEM_ROUT
 
 	FxSaveArea->FloatSave.ControlWord = 0x27F;
 	FxSaveArea->FloatSave.MXCsr = 0x1F80;
-
+	FxSaveArea->FloatSave.Cr0NpxState = NPX_STATE_NOT_LOADED;
 	Thread->NpxState = NPX_STATE_NOT_LOADED;
 
 	TlsDataSize = ROUND_UP(TlsDataSize, 4);
@@ -211,7 +211,7 @@ DWORD __declspec(naked) KiSwapThreadContext()
 		push [KiPcr]KPCR.NtTib.ExceptionList // save per-thread exception list
 		cli
 		mov [esi]KTHREAD.KernelStack, esp // save esp
-		// The float state is saved in a lazy manner, because it's expensive to save it at every context switch. Instead of actually saving it here, we
+		// The floating state is saved in a lazy manner, because it's expensive to save it at every context switch. Instead of actually saving it here, we
 		// only set flags in cr0 so that an attempt to use any fpu/mmx/sse instructions will cause a "no math coprocessor" exception, which is then handled
 		// by the kernel in KiTrap7 and it's there where the float context is restored
 		mov ecx, [edi]KTHREAD.StackBase
@@ -221,10 +221,8 @@ DWORD __declspec(naked) KiSwapThreadContext()
 		mov [KiPcr]KPCR.NtTib.StackLimit, eax
 		mov eax, cr0
 		and eax, ~(CR0_MP | CR0_EM | CR0_TS)
-		movzx edx, [edi]KTHREAD.NpxState
-		or edx, eax
-		or edx, [ecx] // points to Cr0NpxState of FLOATING_SAVE_AREA
-		mov cr0, edx
+		or eax, [ecx]FLOATING_SAVE_AREA.Cr0NpxState
+		mov cr0, eax
 		mov esp, [edi]KTHREAD.KernelStack // switch to the stack of the new thread -> it points to a KSWITCHFRAME
 		sti
 		inc [edi]KTHREAD.ContextSwitches // per-thread number of context switches

@@ -69,7 +69,38 @@ void __declspec(naked) XBOXAPI KiTrap6()
 // No math coprocessor
 void __declspec(naked) XBOXAPI KiTrap7()
 {
-	RIP_UNIMPLEMENTED();
+	// If CurrentThread->NpxState == NPX_STATE_NOT_LOADED, then we are here to load the floating state for this thread. Otherwise, bug check in all other cases
+
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE;
+		mov edx, [KiPcr]KPCR.PrcbData.CurrentThread
+		cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
+		je unexpected_exp
+		mov eax, cr0
+		and eax, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions
+		mov cr0, eax
+		mov eax, [KiPcr]KPCR.PrcbData.NpxThread
+		test eax, eax
+		jz no_npx_thread // NpxThread can be nullptr when no thread has loaded the floating state
+		mov ecx, [eax]KTHREAD.StackBase
+		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of NpxThread
+		fxsave [ecx]
+		mov [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
+	no_npx_thread:
+		mov ecx, [edx]KTHREAD.StackBase
+		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of CurrentThread
+		fxrstor [ecx]
+		and dword ptr [edx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions for this thread only
+		mov [KiPcr]KPCR.PrcbData.NpxThread, edx
+		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
+		jmp exit_exp
+	unexpected_exp:
+		sti
+		push KERNEL_UNHANDLED_EXCEPTION
+		call KeBugCheckLogEip // won't return
+	exit_exp:
+		EXIT_EXCEPTION;
+	}
 }
 
 // Double fault
@@ -204,7 +235,7 @@ static VOID KiFlushNPXState()
 		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
 		mov [KiPcr]KPCR.PrcbData.NpxThread, 0
 		or eax, NPX_STATE_NOT_LOADED
-		or eax, [ecx]
+		or dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, NPX_STATE_NOT_LOADED // block executing fpu instructions for this thread only
 		mov cr0, eax
 	not_loaded:
 		popfd

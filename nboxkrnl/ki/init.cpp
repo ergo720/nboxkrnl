@@ -183,6 +183,7 @@ VOID KiInitializeKernel()
 	KiIdleThread.State = Running;
 	KiIdleThread.WaitIrql = PASSIVE_LEVEL;
 
+	KiPcr.Prcb->NpxThread = nullptr;
 	KiPcr.Prcb->NextThread = nullptr;
 	KiPcr.Prcb->IdleThread = &KiIdleThread;
 
