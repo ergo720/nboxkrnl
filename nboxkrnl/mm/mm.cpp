@@ -322,3 +322,28 @@ EXPORTNUM(180) SIZE_T XBOXAPI MmQueryAllocationSize
 
 	return NumberOfPages << PAGE_SHIFT;
 }
+
+EXPORTNUM(181) NTSTATUS XBOXAPI MmQueryStatistics
+(
+	PMM_STATISTICS MemoryStatistics
+)
+{
+	if (!MemoryStatistics || (MemoryStatistics->Length != sizeof(MM_STATISTICS))) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	KIRQL OldIrql = MiLock();
+
+	MemoryStatistics->TotalPhysicalPages = MmSystemMaxMemory >> PAGE_SHIFT;
+	MemoryStatistics->AvailablePages = MiRetailRegion.PagesAvailable + ((MiLayoutDevkit && MiAllowNonDebuggerOnTop64MiB) ? MiDevkitRegion.PagesAvailable : 0);
+	MemoryStatistics->VirtualMemoryBytesCommitted = (MiPagesByUsage[VirtualMemory] + MiPagesByUsage[Image]) << PAGE_SHIFT;
+	MemoryStatistics->VirtualMemoryBytesReserved = MiVirtualMemoryBytesReserved;
+	MemoryStatistics->CachePagesCommitted = MiPagesByUsage[Cache];
+	MemoryStatistics->PoolPagesCommitted = MiPagesByUsage[Pool];
+	MemoryStatistics->StackPagesCommitted = MiPagesByUsage[Stack];
+	MemoryStatistics->ImagePagesCommitted = MiPagesByUsage[Image];
+
+	MiUnlock(OldIrql);
+
+	return STATUS_SUCCESS;
+}

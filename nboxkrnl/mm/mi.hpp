@@ -179,6 +179,8 @@ inline PCHAR MiPfnAddress = XBOX_PFN_ADDRESS;
 inline INITIALIZE_GLOBAL_CRITICAL_SECTION(MiVadLock);
 // Whether or not to allow NtAllocateVirtualMemory to use physical pages from the devkit region too (devkits only)
 inline BOOLEAN MiAllowNonDebuggerOnTop64MiB = FALSE;
+// Amount of virtual memory reserved with NtAllocateVirtualMemory
+inline ULONG MiVirtualMemoryBytesReserved = 0;
 
 #define VadLock() RtlEnterCriticalSectionAndRegion(&MiVadLock)
 #define VadUnlock() RtlLeaveCriticalSectionAndRegion(&MiVadLock)

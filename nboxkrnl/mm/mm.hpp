@@ -130,6 +130,20 @@ struct MMGLOBALDATA {
 	PVOID *VadFreeHint;
 };
 
+struct MM_STATISTICS
+{
+	ULONG Length;
+	ULONG TotalPhysicalPages;
+	ULONG AvailablePages;
+	ULONG VirtualMemoryBytesCommitted;
+	ULONG VirtualMemoryBytesReserved;
+	ULONG CachePagesCommitted;
+	ULONG PoolPagesCommitted;
+	ULONG StackPagesCommitted;
+	ULONG ImagePagesCommitted;
+};
+using PMM_STATISTICS = MM_STATISTICS *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -163,6 +177,11 @@ EXPORTNUM(172) DLLEXPORT ULONG XBOXAPI MmFreeSystemMemory
 EXPORTNUM(180) DLLEXPORT SIZE_T XBOXAPI MmQueryAllocationSize
 (
 	PVOID BaseAddress
+);
+
+EXPORTNUM(181) DLLEXPORT NTSTATUS XBOXAPI MmQueryStatistics
+(
+	PMM_STATISTICS MemoryStatistics
 );
 
 #ifdef __cplusplus

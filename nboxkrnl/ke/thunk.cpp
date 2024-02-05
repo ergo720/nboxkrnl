@@ -201,7 +201,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmPersistContiguousMemory),               // 0x00B2 (178)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmQueryAddressProtect),                   // 0x00B3 (179)
 	(ULONG)FUNC(&MmQueryAllocationSize),                   // 0x00B4 (180)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmQueryStatistics),                       // 0x00B5 (181)
+	(ULONG)FUNC(&MmQueryStatistics),                       // 0x00B5 (181)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmSetAddressProtect),                     // 0x00B6 (182)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmUnmapIoSpace),                          // 0x00B7 (183)
 	(ULONG)FUNC(&NtAllocateVirtualMemory),                 // 0x00B8 (184)

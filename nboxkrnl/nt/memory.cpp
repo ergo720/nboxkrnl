@@ -9,8 +9,6 @@
 #include <assert.h>
 
 
-static ULONG VirtualMemoryBytesReserved = 0;
-
 static ULONG MapMemoryBlock(ULONG Size, ULONG HighestAddress)
 {
 	VAD_NODE *Node = MiLastFree;
@@ -175,7 +173,7 @@ EXPORTNUM(184) NTSTATUS XBOXAPI NtAllocateVirtualMemory
 			return STATUS_NO_MEMORY;
 		}
 
-		VirtualMemoryBytesReserved += AlignedCapturedSize;
+		MiVirtualMemoryBytesReserved += AlignedCapturedSize;
 
 		if ((AllocationType & MEM_COMMIT) == 0) {
 			// MEM_COMMIT was not specified, so we are done with the allocation
@@ -204,7 +202,7 @@ EXPORTNUM(184) NTSTATUS XBOXAPI NtAllocateVirtualMemory
 		// The specified region is not completely inside a reserved VAD or it's free
 
 		if (DestructVadOnFailure) {
-			VirtualMemoryBytesReserved -= AlignedCapturedSize;
+			MiVirtualMemoryBytesReserved -= AlignedCapturedSize;
 			BOOLEAN Deleted = DestructVAD(AlignedCapturedBase, AlignedCapturedSize); // can't fail
 			assert(Deleted);
 		}
@@ -273,7 +271,7 @@ EXPORTNUM(184) NTSTATUS XBOXAPI NtAllocateVirtualMemory
 		MiUnlock(OldIrql);
 
 		if (DestructVadOnFailure) {
-			VirtualMemoryBytesReserved -= AlignedCapturedSize;
+			MiVirtualMemoryBytesReserved -= AlignedCapturedSize;
 			BOOLEAN Deleted = DestructVAD(AlignedCapturedBase, AlignedCapturedSize); // can't fail
 			assert(Deleted);
 		}
