@@ -75,6 +75,10 @@ using PACCESS_MASK = ACCESS_MASK *;
 #define LOWORD(l) ((WORD)((DWORD_PTR)(l)))
 #define HIWORD(l) ((WORD)(((DWORD_PTR)(l) >> 16) & 0xFFFF))
 
+#define MAXULONG_PTR (~((ULONG_PTR)0))
+#define MAXLONG_PTR  ((LONG_PTR)(MAXULONG_PTR >> 1))
+#define MINLONG_PTR  (~MAXLONG_PTR)
+
 struct LIST_ENTRY {
 	LIST_ENTRY *Flink;
 	LIST_ENTRY *Blink;

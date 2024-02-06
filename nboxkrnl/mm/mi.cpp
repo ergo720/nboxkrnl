@@ -300,7 +300,7 @@ BOOLEAN MiConvertPageToPtePermissions(ULONG Protect, PMMPTE Pte)
 	return TRUE;
 }
 
-static BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
+BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
 {
 	ULONG Mask = 0;
 

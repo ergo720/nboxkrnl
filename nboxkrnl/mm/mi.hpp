@@ -199,4 +199,5 @@ PFN_NUMBER MiRemoveAnyPageFromFreeList();
 PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyType, BOOLEAN AddGuardPage);
 ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes);
 BOOLEAN MiConvertPageToPtePermissions(ULONG Protect, PMMPTE Pte);
+BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte);
 VOID XBOXAPI MiPageFaultHandler(ULONG Cr2, ULONG Eip);

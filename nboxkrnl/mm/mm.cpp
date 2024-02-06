@@ -262,6 +262,103 @@ BOOLEAN MmInitSystem()
 	return TRUE;
 }
 
+EXPORTNUM(165) PVOID XBOXAPI MmAllocateContiguousMemory
+(
+	ULONG NumberOfBytes
+)
+{
+	return MmAllocateContiguousMemoryEx(NumberOfBytes, 0, MAXULONG_PTR, 0, PAGE_READWRITE);
+}
+
+EXPORTNUM(166) PVOID XBOXAPI MmAllocateContiguousMemoryEx
+(
+	ULONG NumberOfBytes,
+	PHYSICAL_ADDRESS LowestAcceptableAddress,
+	PHYSICAL_ADDRESS HighestAcceptableAddress,
+	ULONG Alignment,
+	ULONG ProtectionType
+)
+{
+	MMPTE TempPte;
+	if (!NumberOfBytes || (MiConvertPageToSystemPtePermissions(ProtectionType, &TempPte) == FALSE)) {
+		return nullptr;
+	}
+
+	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
+	ULONG LowestPfn = LowestAcceptableAddress >> PAGE_SHIFT;
+	ULONG HighestPfn = HighestAcceptableAddress >> PAGE_SHIFT;
+	ULONG PfnAlignment = Alignment >> PAGE_SHIFT;
+
+	if (HighestPfn > MiMaxContiguousPfn) { HighestPfn = MiMaxContiguousPfn; }
+	if (LowestPfn > HighestPfn) { LowestPfn = HighestPfn; }
+	if (!PfnAlignment) { PfnAlignment = 1; }
+
+	KIRQL OldIrql = MiLock();
+
+	if (NumberOfPages > MiRetailRegion.PagesAvailable) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	ULONG CurrentPfn = ROUND_DOWN(HighestPfn, PfnAlignment), FoundPages = 0;
+	do {
+		PXBOX_PFN Pf = GetPfnElement(CurrentPfn);
+		if (Pf->Busy.Busy) {
+			FoundPages = 0;
+			CurrentPfn = ROUND_DOWN(CurrentPfn - 1, PfnAlignment);
+			continue;
+		}
+
+		++FoundPages;
+		if (FoundPages == NumberOfPages) {
+			break;
+		}
+
+		--CurrentPfn;
+	} while ((LONG)CurrentPfn >= (LONG)LowestPfn);
+
+	if (FoundPages != NumberOfPages) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	PMMPTE Pte = GetPteAddress(CONTIGUOUS_MEMORY_BASE + (CurrentPfn << PAGE_SHIFT)), StartPte = Pte, PteEnd = Pte + NumberOfPages - 1;
+	while (Pte <= PteEnd) {
+		PMMPTE Pde = GetPteAddress(Pte);
+		if ((Pde->Hw & PTE_VALID_MASK) == 0) {
+			++NumberOfPages;
+		}
+		Pte = PMMPTE((PCHAR)Pte + PAGE_SIZE);
+	}
+
+	if (NumberOfPages > MiRetailRegion.PagesAvailable) {
+		MiUnlock(OldIrql);
+		return nullptr;
+	}
+
+	Pte = StartPte;
+	while (Pte <= PteEnd) {
+		if ((Pte == StartPte) || IsPteOnPdeBoundary(Pte)) {
+			PMMPTE Pde = GetPteAddress(Pte);
+			if ((Pde->Hw & PTE_VALID_MASK) == 0) {
+				PFN_NUMBER PageTablePfn = MiRemoveRetailPageFromFreeList();
+				WritePte(Pde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
+				MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, Pde);
+			}
+		}
+
+		MiRemovePageFromFreeList(CurrentPfn, Contiguous, Pte);
+		WritePte(Pte, TempPte.Hw | ((CurrentPfn << PAGE_SHIFT) + CONTIGUOUS_MEMORY_BASE));
+		++CurrentPfn;
+		++Pte;
+	}
+	PteEnd->Hw |= PTE_GUARD_END_MASK;
+
+	MiUnlock(OldIrql);
+
+	return (PVOID)GetVAddrMappedByPte(StartPte);
+}
+
 EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
 (
 	ULONG NumberOfBytes,

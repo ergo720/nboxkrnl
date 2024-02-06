@@ -144,11 +144,27 @@ struct MM_STATISTICS
 };
 using PMM_STATISTICS = MM_STATISTICS *;
 
+using PHYSICAL_ADDRESS = ULONG;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 EXPORTNUM(102) DLLEXPORT extern MMGLOBALDATA MmGlobalData;
+
+EXPORTNUM(165) DLLEXPORT PVOID XBOXAPI MmAllocateContiguousMemory
+(
+	ULONG NumberOfBytes
+);
+
+EXPORTNUM(166) DLLEXPORT PVOID XBOXAPI MmAllocateContiguousMemoryEx
+(
+	ULONG NumberOfBytes,
+	PHYSICAL_ADDRESS LowestAcceptableAddress,
+	PHYSICAL_ADDRESS HighestAcceptableAddress,
+	ULONG Alignment,
+	ULONG ProtectionType
+);
 
 EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
 (
