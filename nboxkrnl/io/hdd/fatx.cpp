@@ -621,17 +621,16 @@ NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
 	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
 
-	SubmitIoRequestToHost(
-		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
-		0,
-		0,
-		0,
-		FileInfo->HostHandle
-	);
-
 	// NOTE: it's not viable to check for FileInfo->ShareAccess.OpenCount here, because it's possible to use a file handle with no access rights granted, which would
 	// mean that OpenCount is zero and yet the handle is still in use
 	if (--FileInfo->RefCounter == 0) {
+		SubmitIoRequestToHost(
+			DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
+			0,
+			0,
+			0,
+			FileInfo->HostHandle
+		);
 		FatxRemoveFile(VolumeExtension, FileInfo);
 		ExFreePool(FileInfo);
 		FileObject->FsContext2 = nullptr;
