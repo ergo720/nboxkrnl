@@ -64,7 +64,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&HalDiskModelNumber),                  // 0x0029 (41)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&HalDiskSerialNumber),                 // 0x002A (42)
 	(ULONG)FUNC(&HalEnableSystemInterrupt),                // 0x002B (43)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalGetInterruptVector),                   // 0x002C (44)
+	(ULONG)FUNC(&HalGetInterruptVector),                   // 0x002C (44)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReadSMBusValue),                       // 0x002D (45)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReadWritePCISpace),                    // 0x002E (46)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalRegisterShutdownNotification),         // 0x002F (47)

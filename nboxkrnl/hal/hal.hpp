@@ -18,6 +18,12 @@ EXPORTNUM(43) DLLEXPORT VOID XBOXAPI HalEnableSystemInterrupt
 	KINTERRUPT_MODE InterruptMode
 );
 
+EXPORTNUM(44) DLLEXPORT ULONG XBOXAPI HalGetInterruptVector
+(
+	ULONG BusInterruptLevel,
+	PKIRQL Irql
+);
+
 EXPORTNUM(48) DLLEXPORT VOID FASTCALL HalRequestSoftwareInterrupt
 (
 	KIRQL Request

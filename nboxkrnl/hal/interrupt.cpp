@@ -470,6 +470,21 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 	}
 }
 
+EXPORTNUM(44) ULONG XBOXAPI HalGetInterruptVector
+(
+	ULONG BusInterruptLevel,
+	PKIRQL Irql
+)
+{
+	ULONG IdtVector = BusInterruptLevel + IDT_INT_VECTOR_BASE;
+	if ((IdtVector < IDT_INT_VECTOR_BASE) || (IdtVector > (IDT_INT_VECTOR_BASE + MAX_BUS_INTERRUPT_LEVEL))) {
+		return 0;
+	}
+
+	*Irql = MAX_BUS_INTERRUPT_LEVEL - BusInterruptLevel;
+	return IdtVector;
+}
+
 EXPORTNUM(48) VOID FASTCALL HalRequestSoftwareInterrupt
 (
 	KIRQL Request
