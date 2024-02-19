@@ -334,6 +334,183 @@ VOID __declspec(naked) HalpCheckUnmaskedInt()
 	}
 }
 
+static ULONG FASTCALL HalpCheckMaskedIntAtIRQLLevelNonSpurious(ULONG BusInterruptLevel, ULONG Irql)
+{
+	// On entry, interrupts must be disabled
+
+	if (BusInterruptLevel >= 8) {
+		outb(PIC_MASTER_CMD, OCW2_EOI_IRQ | 2); // send eoi to master pic
+	}
+
+	if ((KIRQL)Irql <= KiPcr.Irql) {
+		// Interrupt is masked at current IRQL, dismiss it
+		HalpPendingInt |= (1 << (IRQL_OFFSET_FOR_IRQ + BusInterruptLevel));
+		WORD IRQsMaskedAtIRQL = PicIRQMasksForIRQL[KiPcr.Irql];
+		IRQsMaskedAtIRQL |= HalpIntDisabled;
+		outb(PIC_MASTER_DATA, (BYTE)IRQsMaskedAtIRQL);
+		IRQsMaskedAtIRQL >>= 8;
+		outb(PIC_SLAVE_DATA, (BYTE)IRQsMaskedAtIRQL);
+		enable();
+
+		return 1;
+	}
+
+	KiPcr.Irql = (KIRQL)Irql; // raise IRQL
+	enable();
+
+	return 0;
+}
+
+static ULONG FASTCALL HalpCheckMaskedIntAtIRQLNonSpurious(ULONG BusInterruptLevel, ULONG Irql)
+{
+	// On entry, interrupts must be disabled
+
+	if ((KIRQL)Irql <= KiPcr.Irql) {
+		// Interrupt is masked at current IRQL, dismiss it
+		HalpPendingInt |= (1 << (IRQL_OFFSET_FOR_IRQ + BusInterruptLevel));
+		WORD IRQsMaskedAtIRQL = PicIRQMasksForIRQL[KiPcr.Irql];
+		IRQsMaskedAtIRQL |= HalpIntDisabled;
+		outb(PIC_MASTER_DATA, (BYTE)IRQsMaskedAtIRQL);
+		IRQsMaskedAtIRQL >>= 8;
+		outb(PIC_SLAVE_DATA, (BYTE)IRQsMaskedAtIRQL);
+		enable();
+
+		return 1;
+	}
+
+	KiPcr.Irql = (KIRQL)Irql; // raise IRQL
+	if (BusInterruptLevel >= 8) {
+		outb(PIC_SLAVE_CMD, OCW2_EOI_IRQ | (BusInterruptLevel - 8)); // send eoi to slave pic
+		outb(PIC_MASTER_CMD, OCW2_EOI_IRQ | 2); // send eoi to master pic
+	}
+	else {
+		outb(PIC_MASTER_CMD, OCW2_EOI_IRQ | BusInterruptLevel); // send eoi to master pic
+	}
+	enable();
+
+	return 0;
+}
+
+template<KINTERRUPT_MODE InterruptMode>
+static ULONG FASTCALL HalpCheckMaskedIntAtIRQLSpurious7(ULONG BusInterruptLevel, ULONG Irql)
+{
+	// On entry, interrupts must be disabled
+
+	outb(PIC_MASTER_CMD, OCW3_READ_ISR); // read IS register of master pic
+	if (inb(PIC_MASTER_CMD) & (1 << 7)) {
+		if constexpr (InterruptMode == Edge) {
+			return HalpCheckMaskedIntAtIRQLNonSpurious(BusInterruptLevel, Irql);
+		}
+		else {
+			return HalpCheckMaskedIntAtIRQLLevelNonSpurious(BusInterruptLevel, Irql);
+		}
+	}
+	enable();
+
+	return 1;
+}
+
+template<KINTERRUPT_MODE InterruptMode>
+static ULONG FASTCALL HalpCheckMaskedIntAtIRQLSpurious15(ULONG BusInterruptLevel, ULONG Irql)
+{
+	// On entry, interrupts must be disabled
+
+	outb(PIC_SLAVE_CMD, OCW3_READ_ISR); // read IS register of slave pic
+	if (inb(PIC_SLAVE_CMD) & (1 << 7)) {
+		if constexpr (InterruptMode == Edge) {
+			return HalpCheckMaskedIntAtIRQLNonSpurious(BusInterruptLevel, Irql);
+		}
+		else {
+			return HalpCheckMaskedIntAtIRQLLevelNonSpurious(BusInterruptLevel, Irql);
+		}
+	}
+	outb(PIC_MASTER_CMD, OCW2_EOI_IRQ | 2); // send eoi to master pic
+	enable();
+
+	return 1;
+}
+
+static constexpr ULONG(FASTCALL *const HalpCheckMaskedIntAtIRQL[])(ULONG BusInterruptLevel, ULONG Irql) = {
+	// Check level-triggered interrupts
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLSpurious7<LevelSensitive>,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLLevelNonSpurious,
+	HalpCheckMaskedIntAtIRQLSpurious15<LevelSensitive>,
+	// Check edge-triggered interrupts
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLSpurious7<Edge>,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLNonSpurious,
+	HalpCheckMaskedIntAtIRQLSpurious15<Edge>,
+};
+
+VOID __declspec(naked) XBOXAPI HalpInterruptCommon()
+{
+	// On entry, interrupts must be disabled
+	// This function uses a custom calling convention, so never call it from C++ code
+	// esi -> Interrupt
+
+	__asm {
+		mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2
+		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
+		movzx ebx, byte ptr [KiPcr]KPCR.Irql
+		movzx eax, byte ptr [esi]KINTERRUPT.Mode
+		shl eax, 6
+		mov ecx, [esi]KINTERRUPT.BusInterruptLevel
+		mov edx, [esi]KINTERRUPT.Irql
+		call HalpCheckMaskedIntAtIRQL[eax + ecx * 4]
+		test eax, eax
+		jz valid_int
+		cli
+		jmp end_isr
+	valid_int:
+		push [esi]KINTERRUPT.ServiceContext
+		push esi
+		call [esi]KINTERRUPT.ServiceRoutine // call ISR of the interrupt
+		cli
+		movzx eax, byte ptr [esi]KINTERRUPT.Mode
+		test eax, eax
+		jnz check_unmasked_int // only send eoi if level-triggered
+		mov eax, [esi]KINTERRUPT.BusInterruptLevel
+		cmp eax, 8
+		jae eoi_to_slave
+		or eax, OCW2_EOI_IRQ
+		out PIC_MASTER_CMD, al
+		jmp check_unmasked_int
+	eoi_to_slave:
+		add eax, OCW2_EOI_IRQ - 8
+		out PIC_SLAVE_CMD, al
+	check_unmasked_int:
+		mov byte ptr [KiPcr]KPCR.Irql, bl // lower IRQL
+		call HalpCheckUnmaskedInt
+	end_isr:
+		EXIT_INTERRUPT;
+	}
+}
+
 VOID __declspec(naked) XBOXAPI HalpClockIsr()
 {
 	__asm {

@@ -112,6 +112,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/device_queue.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/dpc.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/event.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/interrupt.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/irql.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/kernel.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke/mutant.cpp"

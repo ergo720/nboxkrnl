@@ -32,6 +32,9 @@
 // PIC ocw2 command bytes
 #define OCW2_EOI_IRQ            0x60
 
+// PIC ocw3 command bytes
+#define OCW3_READ_ISR           0x0B
+
 // PIC irq base (icw2)
 #define PIC_MASTER_VECTOR_BASE  IDT_INT_VECTOR_BASE
 #define PIC_SLAVE_VECTOR_BASE   (IDT_INT_VECTOR_BASE + 8)
@@ -56,6 +59,7 @@ VOID XBOXAPI HalpHwInt13();
 VOID XBOXAPI HalpHwInt14();
 VOID XBOXAPI HalpHwInt15();
 
+VOID XBOXAPI HalpInterruptCommon();
 VOID XBOXAPI HalpClockIsr();
 
 inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {

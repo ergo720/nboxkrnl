@@ -31,6 +31,7 @@
 #define PASSIVE_LEVEL 0
 
 #define IRQL_OFFSET_FOR_IRQ 4
+#define DISPATCH_LENGTH 22
 
 #define IDT_SERVICE_VECTOR_BASE 0x20
 #define IDT_INT_VECTOR_BASE 0x30
@@ -422,6 +423,24 @@ struct DPC_QUEUE_ENTRY {
 };
 using PDPC_QUEUE_ENTRY = DPC_QUEUE_ENTRY *;
 
+using PKSERVICE_ROUTINE = BOOLEAN(XBOXAPI *)(
+	struct KINTERRUPT *Interrupt,
+	PVOID ServiceContext
+	);
+
+struct KINTERRUPT {
+	PKSERVICE_ROUTINE ServiceRoutine;
+	PVOID ServiceContext;
+	ULONG BusInterruptLevel;
+	ULONG Irql;
+	BOOLEAN Connected;
+	BOOLEAN ShareVector;
+	UCHAR Mode;
+	ULONG ServiceCount;
+	ULONG DispatchCode[DISPATCH_LENGTH];
+};
+using PKINTERRUPT = KINTERRUPT *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -481,6 +500,17 @@ EXPORTNUM(108) DLLEXPORT VOID XBOXAPI KeInitializeEvent
 	PKEVENT Event,
 	EVENT_TYPE Type,
 	BOOLEAN SignalState
+);
+
+EXPORTNUM(109) DLLEXPORT VOID XBOXAPI KeInitializeInterrupt
+(
+	PKINTERRUPT Interrupt,
+	PKSERVICE_ROUTINE ServiceRoutine,
+	PVOID ServiceContext,
+	ULONG Vector,
+	KIRQL Irql,
+	KINTERRUPT_MODE InterruptMode,
+	BOOLEAN ShareVector
 );
 
 EXPORTNUM(110) DLLEXPORT VOID XBOXAPI KeInitializeMutant
