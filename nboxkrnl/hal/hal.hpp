@@ -8,6 +8,17 @@
 #include "..\ke\ke.hpp"
 
 
+using PHAL_SHUTDOWN_NOTIFICATION = VOID(XBOXAPI *)(
+	struct HAL_SHUTDOWN_REGISTRATION *ShutdownRegistration
+	);
+
+struct HAL_SHUTDOWN_REGISTRATION {
+	PHAL_SHUTDOWN_NOTIFICATION NotificationRoutine;
+	LONG Priority;
+	LIST_ENTRY ListEntry;
+};
+using PHAL_SHUTDOWN_REGISTRATION = HAL_SHUTDOWN_REGISTRATION *;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +33,12 @@ EXPORTNUM(44) DLLEXPORT ULONG XBOXAPI HalGetInterruptVector
 (
 	ULONG BusInterruptLevel,
 	PKIRQL Irql
+);
+
+EXPORTNUM(47) DLLEXPORT VOID XBOXAPI HalRegisterShutdownNotification
+(
+	PHAL_SHUTDOWN_REGISTRATION ShutdownRegistration,
+	BOOLEAN Register
 );
 
 EXPORTNUM(48) DLLEXPORT VOID FASTCALL HalRequestSoftwareInterrupt

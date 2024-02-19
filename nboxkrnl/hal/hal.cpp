@@ -7,6 +7,9 @@
 #include "..\rtl\rtl.hpp"
 
 
+ // Global list of routines executed during a reboot
+static LIST_ENTRY ShutdownRoutineList = { &ShutdownRoutineList , &ShutdownRoutineList };
+
 VOID HalInitSystem()
 {
 	HalpInitPIC();
@@ -34,4 +37,41 @@ VOID HalInitSystem()
 	}
 
 	// TODO: this should also setup the SMC
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(47) VOID XBOXAPI HalRegisterShutdownNotification
+(
+	PHAL_SHUTDOWN_REGISTRATION ShutdownRegistration,
+	BOOLEAN Register
+)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+
+	if (Register) {
+		PLIST_ENTRY ListEntry = ShutdownRoutineList.Flink;
+		while (ListEntry != &ShutdownRoutineList) {
+			if (ShutdownRegistration->Priority > CONTAINING_RECORD(ListEntry, HAL_SHUTDOWN_REGISTRATION, ListEntry)->Priority) {
+				InsertTailList(ListEntry, &ShutdownRegistration->ListEntry);
+				break;
+			}
+			ListEntry = ListEntry->Flink;
+		}
+
+		if (ListEntry == &ShutdownRoutineList) {
+			InsertTailList(ListEntry, &ShutdownRegistration->ListEntry);
+		}
+	}
+	else {
+		PLIST_ENTRY ListEntry = ShutdownRoutineList.Flink;
+		while (ListEntry != &ShutdownRoutineList) {
+			if (ShutdownRegistration == CONTAINING_RECORD(ListEntry, HAL_SHUTDOWN_REGISTRATION, ListEntry)) {
+				RemoveEntryList(&ShutdownRegistration->ListEntry);
+				break;
+			}
+			ListEntry = ListEntry->Flink;
+		}
+	}
+
+	KfLowerIrql(OldIrql);
 }
