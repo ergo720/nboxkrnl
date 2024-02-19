@@ -459,6 +459,11 @@ extern "C" {
 	ULONG_PTR BugCheckParameter4
 );
 
+EXPORTNUM(98) DLLEXPORT BOOLEAN XBOXAPI KeConnectInterrupt
+(
+	PKINTERRUPT  InterruptObject
+);
+
 EXPORTNUM(99) DLLEXPORT NTSTATUS XBOXAPI KeDelayExecutionThread
 (
 	KPROCESSOR_MODE WaitMode,

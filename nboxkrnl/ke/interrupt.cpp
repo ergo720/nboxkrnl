@@ -4,6 +4,7 @@
 
 #include "..\ki\ki.hpp"
 #include "..\hal\halp.hpp"
+#include "..\hal\hal.hpp"
 #include <string.h>
 #include <assert.h>
 
@@ -45,6 +46,28 @@ static_assert(offsetof(KINTERRUPT, Mode) == 0x12);
 static_assert(offsetof(KINTERRUPT, ServiceCount) == 0x14);
 static_assert(offsetof(KINTERRUPT, DispatchCode) == 0x18);
 
+
+EXPORTNUM(98) BOOLEAN XBOXAPI KeConnectInterrupt
+(
+	PKINTERRUPT  InterruptObject
+)
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	BOOLEAN Connected = FALSE;
+
+	if (InterruptObject->Connected == FALSE) {
+		if (KiIdt[IDT_INT_VECTOR_BASE + InterruptObject->BusInterruptLevel] == 0) {
+			KiIdt[IDT_INT_VECTOR_BASE + InterruptObject->BusInterruptLevel] =
+				((uint64_t)0x8 << 16) | ((uint64_t)&InterruptObject->DispatchCode[0] & 0x0000FFFF) | (((uint64_t)&InterruptObject->DispatchCode[0] & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
+			HalEnableSystemInterrupt(InterruptObject->BusInterruptLevel, (KINTERRUPT_MODE)InterruptObject->Mode);
+			InterruptObject->Connected = Connected = TRUE;
+		}
+	}
+
+	KiUnlockDispatcherDatabase(OldIrql);
+
+	return Connected;
+}
 
 EXPORTNUM(109) VOID XBOXAPI KeInitializeInterrupt
 (

@@ -118,7 +118,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&KeBugCheck),                              // 0x005F (95)
 	(ULONG)FUNC(&KeBugCheckEx),                            // 0x0060 (96)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeCancelTimer),                           // 0x0061 (97)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeConnectInterrupt),                      // 0x0062 (98)
+	(ULONG)FUNC(&KeConnectInterrupt),                      // 0x0062 (98)
 	(ULONG)FUNC(&KeDelayExecutionThread),                  // 0x0063 (99)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeDisconnectInterrupt),                   // 0x0064 (100
 	(ULONG)FUNC(&KeEnterCriticalRegion),                   // 0x0065 (101)
