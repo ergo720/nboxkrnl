@@ -188,7 +188,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&MmAllocateContiguousMemory),              // 0x00A5 (165)
 	(ULONG)FUNC(&MmAllocateContiguousMemoryEx),            // 0x00A6 (166)
 	(ULONG)FUNC(&MmAllocateSystemMemory),                  // 0x00A7 (167)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmClaimGpuInstanceMemory),                // 0x00A8 (168)
+	(ULONG)FUNC(&MmClaimGpuInstanceMemory),                // 0x00A8 (168)
 	(ULONG)FUNC(&MmCreateKernelStack),                     // 0x00A9 (169)
 	(ULONG)FUNC(&MmDeleteKernelStack),                     // 0x00AA (170)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmFreeContiguousMemory),                  // 0x00AB (171)

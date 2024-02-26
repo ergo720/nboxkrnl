@@ -172,6 +172,12 @@ EXPORTNUM(167) DLLEXPORT PVOID XBOXAPI MmAllocateSystemMemory
 	ULONG Protect
 );
 
+EXPORTNUM(168) DLLEXPORT PVOID XBOXAPI MmClaimGpuInstanceMemory
+(
+	SIZE_T NumberOfBytes,
+	SIZE_T *NumberOfPaddingBytes
+);
+
 EXPORTNUM(169) DLLEXPORT PVOID XBOXAPI MmCreateKernelStack
 (
 	ULONG NumberOfBytes,

@@ -161,6 +161,8 @@ inline PFN MiMaxContiguousPfn = XBOX_CONTIGUOUS_MEMORY_LIMIT;
 inline PFN MiHighestPage = XBOX_HIGHEST_PHYSICAL_PAGE;
 // First page of the nv2a instance memory
 inline PFN MiNV2AInstancePage = XBOX_INSTANCE_PHYSICAL_PAGE;
+// Number of allocated bytes for the nv2a instance memory
+inline size_t MiNV2AInstanceMemoryBytes = NV2A_INSTANCE_PAGE_COUNT << PAGE_SHIFT;
 // Array containing the number of pages in use per type
 inline PFN_COUNT MiPagesByUsage[Max] = { 0 };
 // Total physical free pages currently available (retail + devkit)

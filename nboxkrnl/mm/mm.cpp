@@ -368,6 +368,77 @@ EXPORTNUM(167) PVOID XBOXAPI MmAllocateSystemMemory
 	return MiAllocateSystemMemory(NumberOfBytes, Protect, SystemMemory, FALSE);
 }
 
+// Source: Cxbx-Reloaded
+EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
+(
+	SIZE_T NumberOfBytes,
+	SIZE_T *NumberOfPaddingBytes
+)
+{
+	// Note that, even though devkits have 128 MiB, there's no need to have a different case for those, since the instance
+	// memory is still located 0x10000 bytes from the top of memory just like retail consoles
+
+	if (MiLayoutChihiro) {
+		*NumberOfPaddingBytes = 0;
+	}
+	else {
+		*NumberOfPaddingBytes = ConvertPfnToContiguous(X64M_PHYSICAL_PAGE) - ConvertPfnToContiguous(XBOX_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT);
+	}
+
+	if (NumberOfBytes != MAXULONG_PTR) {
+		NumberOfBytes = ROUND_UP_4K(NumberOfBytes);
+
+		KIRQL OldIrql = MiLock();
+
+		// This check is necessary because some games (e.g. Halo) call this twice but they provide the same size, meaning that we don't need
+		// to change anything
+		if (NumberOfBytes != MiNV2AInstanceMemoryBytes) {
+			PFN Pfn = MiNV2AInstancePage + NV2A_INSTANCE_PAGE_COUNT - (ROUND_UP_4K(MiNV2AInstanceMemoryBytes) >> PAGE_SHIFT);
+			PFN PfnEnd = MiNV2AInstancePage + NV2A_INSTANCE_PAGE_COUNT - (NumberOfBytes >> PAGE_SHIFT) - 1;
+			PMMPTE Pte = GetPteAddress(ConvertPfnToContiguous(Pfn));
+			PMMPTE PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
+
+			// NOTE: subtract CONTIGUOUS_MEMORY_BASE from the found pfn because the instance memory uses physical addresses in the contiguous region
+			while (Pte <= PteEnd) {
+				assert(Pte->Hw & PTE_VALID_MASK);
+				PFN_NUMBER CurrentPfn = (Pte->Hw - CONTIGUOUS_MEMORY_BASE) >> PAGE_SHIFT;
+				WriteZeroPte(Pte);
+				MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
+				MiInsertPageInFreeList(CurrentPfn);
+				PXBOX_PFN Pf = GetPfnOfPt(Pte);
+				--Pf->PtPageFrame.PtesUsed;
+				++Pte;
+			}
+
+			if (MiLayoutDevkit) {
+				// Devkits have also another nv2a instance memory at the top of memory, so free also that
+				// 3fe0: nv2a; 3ff0: pfn; 4000 + 3fe0: nv2a; 4000 + 3fe0 + 10: free
+
+				Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+				PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+				Pte = GetPteAddress(ConvertPfnToContiguous(Pfn));
+				PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
+
+				while (Pte <= PteEnd) {
+					assert(Pte->Hw & PTE_VALID_MASK);
+					PFN_NUMBER CurrentPfn = (Pte->Hw - CONTIGUOUS_MEMORY_BASE) >> PAGE_SHIFT;
+					WriteZeroPte(Pte);
+					MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
+					MiInsertPageInFreeList(CurrentPfn);
+					PXBOX_PFN Pf = GetPfnOfPt(Pte);
+					--Pf->PtPageFrame.PtesUsed;
+					++Pte;
+				}
+			}
+		}
+		MiNV2AInstanceMemoryBytes = NumberOfBytes;
+
+		MiUnlock(OldIrql);
+	}
+
+	return ConvertPfnToContiguous(MiHighestPage + 1) - *NumberOfPaddingBytes;
+}
+
 EXPORTNUM(169) PVOID XBOXAPI MmCreateKernelStack
 (
 	ULONG NumberOfBytes,
