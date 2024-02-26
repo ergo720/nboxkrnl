@@ -386,9 +386,9 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 	}
 
 	if (NumberOfBytes != MAXULONG_PTR) {
-		NumberOfBytes = ROUND_UP_4K(NumberOfBytes);
-
 		KIRQL OldIrql = MiLock();
+
+		NumberOfBytes = ROUND_UP_4K(NumberOfBytes);
 
 		// This check is necessary because some games (e.g. Halo) call this twice but they provide the same size, meaning that we don't need
 		// to change anything
@@ -398,10 +398,12 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 			PMMPTE Pte = GetPteAddress(ConvertPfnToContiguous(Pfn));
 			PMMPTE PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
 
-			// NOTE: subtract CONTIGUOUS_MEMORY_BASE from the found pfn because the instance memory uses physical addresses in the contiguous region
+			// NOTE1: we use GetPfnFromContiguous for the found pfn because the instance memory uses physical addresses in the contiguous region
+			// NOTE2: it's not necessary to check if PtesUsed drops to zero here because in all systems, the PFN database is either before or
+			// after the instance memory, and it's never deallocated
 			while (Pte <= PteEnd) {
 				assert(Pte->Hw & PTE_VALID_MASK);
-				PFN_NUMBER CurrentPfn = (Pte->Hw - CONTIGUOUS_MEMORY_BASE) >> PAGE_SHIFT;
+				PFN_NUMBER CurrentPfn = GetPfnFromContiguous(Pte->Hw);
 				WriteZeroPte(Pte);
 				MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
 				MiInsertPageInFreeList(CurrentPfn);
@@ -421,17 +423,25 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 
 				while (Pte <= PteEnd) {
 					assert(Pte->Hw & PTE_VALID_MASK);
-					PFN_NUMBER CurrentPfn = (Pte->Hw - CONTIGUOUS_MEMORY_BASE) >> PAGE_SHIFT;
+					PFN_NUMBER CurrentPfn = GetPfnFromContiguous(Pte->Hw);
 					WriteZeroPte(Pte);
 					MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
 					MiInsertPageInFreeList(CurrentPfn);
 					PXBOX_PFN Pf = GetPfnOfPt(Pte);
 					--Pf->PtPageFrame.PtesUsed;
+					if (Pf->PtPageFrame.PtesUsed == 0) {
+						// If PtesUsed drops to zero, we can also free the page table and zero out the PDE for it
+						PMMPTE Pde = GetPteAddress(Pte);
+						PFN_NUMBER PtPfn = GetPfnFromContiguous(Pde->Hw);
+						WriteZeroPte(Pde);
+						MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pde));
+						MiInsertPageInFreeList(PtPfn);
+					}
 					++Pte;
 				}
 			}
+			MiNV2AInstanceMemoryBytes = NumberOfBytes;
 		}
-		MiNV2AInstanceMemoryBytes = NumberOfBytes;
 
 		MiUnlock(OldIrql);
 	}
