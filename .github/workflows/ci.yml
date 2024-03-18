@@ -1,0 +1,47 @@
+name: GitHub CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - '.github/*'
+      - '.github/*TEMPLATE/**'
+    branches:
+      - '**'
+  pull_request:
+    paths-ignore:
+      - '*.md'
+      - '.github/*'
+      - '.github/*TEMPLATE/**'
+env:
+  is_pr: ${{ startsWith(github.ref, 'refs/pull/') }}
+  repo_default: 'ergo720/nboxkrnl'
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} (${{ matrix.arch }}, ${{ matrix.configuration }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cmake-generator:
+          - -A Win32 # Visual Studio (latest IDE)
+        configuration: [Debug, Release]
+        include:
+          - cmake-generator: -A Win32
+            platform: Windows
+            os: windows-latest
+            arch: x86
+            cmake-build-param: -j $env:NUMBER_OF_PROCESSORS
+            folder: win
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Generate CMake Files
+        # NOTES:
+        # -Werror=dev is used to validate CMakeLists.txt for any faults.
+        # TODO: re-add -Werror=dev when submodule is updated to minimal requirement of CMake 3.5
+        run: cmake -B build ${{ matrix.cmake-generator }}
+      - name: Build
+        run: cmake --build build --config ${{ matrix.configuration }} ${{ matrix.cmake-build-param }}
