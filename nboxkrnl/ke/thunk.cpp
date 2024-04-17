@@ -66,7 +66,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&HalEnableSystemInterrupt),                // 0x002B (43)
 	(ULONG)FUNC(&HalGetInterruptVector),                   // 0x002C (44)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReadSMBusValue),                       // 0x002D (45)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReadWritePCISpace),                    // 0x002E (46)
+	(ULONG)FUNC(&HalReadWritePCISpace),                    // 0x002E (46)
 	(ULONG)FUNC(&HalRegisterShutdownNotification),         // 0x002F (47)
 	(ULONG)FUNC(&HalRequestSoftwareInterrupt),             // 0x0030 (48)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReturnToFirmware),                     // 0x0031 (49)

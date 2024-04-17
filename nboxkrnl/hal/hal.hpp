@@ -35,6 +35,16 @@ EXPORTNUM(44) DLLEXPORT ULONG XBOXAPI HalGetInterruptVector
 	PKIRQL Irql
 );
 
+EXPORTNUM(46) DLLEXPORT VOID XBOXAPI HalReadWritePCISpace
+(
+	ULONG BusNumber,
+	ULONG SlotNumber,
+	ULONG RegisterNumber,
+	PVOID Buffer,
+	ULONG Length,
+	BOOLEAN WritePCISpace
+);
+
 EXPORTNUM(47) DLLEXPORT VOID XBOXAPI HalRegisterShutdownNotification
 (
 	PHAL_SHUTDOWN_REGISTRATION ShutdownRegistration,

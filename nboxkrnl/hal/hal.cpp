@@ -39,6 +39,66 @@ VOID HalInitSystem()
 	// TODO: this should also setup the SMC
 }
 
+EXPORTNUM(46) VOID XBOXAPI HalReadWritePCISpace
+(
+	ULONG BusNumber,
+	ULONG SlotNumber,
+	ULONG RegisterNumber,
+	PVOID Buffer,
+	ULONG Length,
+	BOOLEAN WritePCISpace
+)
+{
+	disable();
+
+	ULONG BufferOffset = 0;
+	PBYTE Buffer1 = (PBYTE)Buffer;
+	ULONG SizeLeft = Length;
+	ULONG CfgAddr = 0x80000000 | ((BusNumber & 0xFF) << 16) | ((SlotNumber & 0x1F) << 11) | ((SlotNumber & 0xE0) << 3) | (RegisterNumber & 0xFC);
+	ULONG RegisterOffset = RegisterNumber % 4;
+
+	while (SizeLeft > 0) {
+		ULONG BytesToAccess = (SizeLeft > 4) ? 4 : (SizeLeft == 3) ? 2 : SizeLeft;
+		outl(PCI_CONFIG_ADDRESS, CfgAddr);
+
+		switch (BytesToAccess)
+		{
+		case 1:
+			if (WritePCISpace) {
+				outb(PCI_CONFIG_DATA + RegisterOffset, *(Buffer1 + BufferOffset));
+			}
+			else {
+				*(Buffer1 + BufferOffset) = inb(PCI_CONFIG_DATA + RegisterOffset);
+			}
+			break;
+
+		case 2:
+			if (WritePCISpace) {
+				outw(PCI_CONFIG_DATA + RegisterOffset, *PUSHORT(Buffer1 + BufferOffset));
+			}
+			else {
+				*PUSHORT(Buffer1 + BufferOffset) = inw(PCI_CONFIG_DATA + RegisterOffset);
+			}
+			break;
+
+		default:
+			if (WritePCISpace) {
+				outl(PCI_CONFIG_DATA + RegisterOffset, *PULONG(Buffer1 + BufferOffset));
+			}
+			else {
+				*PULONG(Buffer1 + BufferOffset) = inl(PCI_CONFIG_DATA + RegisterOffset);
+			}
+		}
+
+		CfgAddr += 4;
+		RegisterOffset = 0;
+		BufferOffset += BytesToAccess;
+		SizeLeft -= BytesToAccess;
+	}
+
+	enable();
+}
+
 // Source: Cxbx-Reloaded
 EXPORTNUM(47) VOID XBOXAPI HalRegisterShutdownNotification
 (

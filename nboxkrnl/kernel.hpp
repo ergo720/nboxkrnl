@@ -176,6 +176,15 @@ static inline VOID CDECL outl(USHORT Port, ULONG Value)
 	}
 }
 
+static inline VOID CDECL outw(USHORT Port, USHORT Value)
+{
+	__asm {
+		mov ax, Value
+		mov dx, Port
+		out dx, ax
+	}
+}
+
 static inline VOID CDECL outb(USHORT Port, BYTE Value)
 {
 	__asm {
@@ -190,6 +199,14 @@ static inline ULONG CDECL inl(USHORT Port)
 	__asm {
 		mov dx, Port
 		in eax, dx
+	}
+}
+
+static inline USHORT CDECL inw(USHORT Port)
+{
+	__asm {
+		mov dx, Port
+		in ax, dx
 	}
 }
 
