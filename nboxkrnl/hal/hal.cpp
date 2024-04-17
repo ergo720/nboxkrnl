@@ -55,10 +55,10 @@ EXPORTNUM(46) VOID XBOXAPI HalReadWritePCISpace
 	PBYTE Buffer1 = (PBYTE)Buffer;
 	ULONG SizeLeft = Length;
 	ULONG CfgAddr = 0x80000000 | ((BusNumber & 0xFF) << 16) | ((SlotNumber & 0x1F) << 11) | ((SlotNumber & 0xE0) << 3) | (RegisterNumber & 0xFC);
-	ULONG RegisterOffset = RegisterNumber % 4;
 
 	while (SizeLeft > 0) {
 		ULONG BytesToAccess = (SizeLeft > 4) ? 4 : (SizeLeft == 3) ? 2 : SizeLeft;
+		ULONG RegisterOffset = RegisterNumber % 4;
 		outl(PCI_CONFIG_ADDRESS, CfgAddr);
 
 		switch (BytesToAccess)
@@ -90,8 +90,8 @@ EXPORTNUM(46) VOID XBOXAPI HalReadWritePCISpace
 			}
 		}
 
-		CfgAddr += 4;
-		RegisterOffset = 0;
+		RegisterNumber += BytesToAccess;
+		CfgAddr = (CfgAddr & ~0xFF) | (RegisterNumber >> 2);
 		BufferOffset += BytesToAccess;
 		SizeLeft -= BytesToAccess;
 	}
