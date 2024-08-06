@@ -13,7 +13,9 @@
 #define XISO_VOLUME_FILE                0x80000000
 
 NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT XisoDriverObject = {
 	nullptr,                            // DriverStartIo
@@ -21,7 +23,7 @@ static DRIVER_OBJECT XisoDriverObject = {
 	nullptr,                            // DriverDismountVolume
 	{
 		XisoIrpCreate,                  // IRP_MJ_CREATE
-		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
+		XisoIrpClose,                   // IRP_MJ_CLOSE
 		XisoIrpRead,                    // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
@@ -33,7 +35,7 @@ static DRIVER_OBJECT XisoDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
-		IoInvalidDeviceRequest,         // IRP_MJ_CLEANUP
+		XisoIrpCleanup,                 // IRP_MJ_CLEANUP
 	}
 };
 
@@ -94,6 +96,30 @@ static VOID XisoInsertFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_IN
 static VOID XisoRemoveFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
 {
 	RemoveEntryList(&FileInfo->ListEntry);
+}
+
+static VOID XisoDeleteVolume(PDEVICE_OBJECT DeviceObject)
+{
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+
+	// NOTE: we never delete the HDD TargetDeviceObject
+	PDEVICE_OBJECT CdRomDeviceObject = VolumeExtension->TargetDeviceObject;
+	ULONG DeviceObjectHasName = DeviceObject->Flags & DO_DEVICE_HAS_NAME;
+	assert(VolumeExtension->Dismounted);
+	assert(VolumeExtension->TargetDeviceObject);
+
+	// Set DeletePending flag so that new open requests in IoParseDevice will now fail
+	IoDeleteDevice(DeviceObject);
+
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	CdRomDeviceObject->MountedOrSelfDevice = nullptr;
+	KfLowerIrql(OldIrql);
+
+	// Dereference DeviceObject because IoCreateDevice creates the object with a ref counter biased by one. Only do this if the device doesn't have a name, because IoDeleteDevice
+	// internally calls ObMakeTemporaryObject for named devices, which dereferences the DeviceObject already
+	if (!DeviceObjectHasName) {
+		ObfDereferenceObject(DeviceObject);
+	}
 }
 
 NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
@@ -394,6 +420,42 @@ ByPassPathCheck:
 	return XisoCompleteRequest(Irp, Status, VolumeExtension);
 }
 
+NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	XisoVolumeLockExclusive(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
+
+	if (--FileInfo->RefCounter == 0) {
+		SubmitIoRequestToHost(
+			DEV_TYPE(DEV_CDROM) | IoRequestType::Close,
+			0,
+			0,
+			0,
+			FileInfo->HostHandle
+		);
+		XisoRemoveFile(VolumeExtension, FileInfo);
+		ExFreePool(FileInfo);
+		FileObject->FsContext2 = nullptr;
+	}
+
+	if ((--VolumeExtension->FileObjectCount == 0) && (VolumeExtension->Dismounted)) {
+		XisoVolumeUnlock(VolumeExtension);
+		XisoDeleteVolume(DeviceObject);
+	}
+	else {
+		XisoVolumeUnlock(VolumeExtension);
+	}
+
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
+
+	return STATUS_SUCCESS;
+}
+
 NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
@@ -468,4 +530,14 @@ NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	Irp->IoStatus.Information = InfoBlock.Info;
 	return XisoCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	// We cannot delete a file because xiso is read-only media, so only set FO_CLEANUP_COMPLETE to make other irp request fail
+
+	IoGetCurrentIrpStackLocation(Irp)->FileObject->Flags |= FO_CLEANUP_COMPLETE;
+	Irp->IoStatus.Status = STATUS_INVALID_DEVICE_REQUEST;
+	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
+	return STATUS_INVALID_DEVICE_REQUEST;
 }
