@@ -65,7 +65,9 @@
 #define FILE_READ_DATA         0x0001
 #define FILE_LIST_DIRECTORY    0x0001
 #define FILE_WRITE_DATA        0x0002
+#define FILE_ADD_FILE          0x0002
 #define FILE_APPEND_DATA       0x0004
+#define FILE_ADD_SUBDIRECTORY  0x0004
 #define FILE_EXECUTE           0x0020
 #define FILE_TRAVERSE          0x0020
 #define FILE_DELETE_CHILD      0x0040

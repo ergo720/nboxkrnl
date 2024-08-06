@@ -55,7 +55,7 @@
 #define DEV_TYPE(n)    ((n) << 23)
 
 // Special host handles
-#define UNUSED_HANDLE
+#define CDROM_HANDLE      DEV_CDROM
 #define EEPROM_HANDLE     DEV_EEPROM
 #define PARTITION0_HANDLE DEV_PARTITION0
 #define PARTITION1_HANDLE DEV_PARTITION1
