@@ -4,7 +4,6 @@
 
 #include "cdrom.hpp"
 #include "xiso.hpp"
-#include "..\..\ex\ex.hpp"
 #include "..\..\ob\obp.hpp"
 #include <string.h>
 #include <assert.h>
@@ -14,6 +13,7 @@
 #define XISO_VOLUME_FILE                0x80000000
 
 NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT XisoDriverObject = {
 	nullptr,                            // DriverStartIo
@@ -22,7 +22,7 @@ static DRIVER_OBJECT XisoDriverObject = {
 	{
 		XisoIrpCreate,                  // IRP_MJ_CREATE
 		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
-		IoInvalidDeviceRequest,         // IRP_MJ_READ
+		XisoIrpRead,                    // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
@@ -37,21 +37,27 @@ static DRIVER_OBJECT XisoDriverObject = {
 	}
 };
 
-static INITIALIZE_GLOBAL_CRITICAL_SECTION(XisoMutex);
-
-static VOID XisoVolumeLockExclusive()
+static VOID XisoVolumeLockExclusive(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
-	RtlEnterCriticalSectionAndRegion(&XisoMutex);
+	KeEnterCriticalRegion();
+	ExAcquireReadWriteLockExclusive(&VolumeExtension->VolumeMutex);
 }
 
-static VOID XisoVolumeUnlock()
+static VOID XisoVolumeLockShared(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
-	RtlLeaveCriticalSectionAndRegion(&XisoMutex);
+	KeEnterCriticalRegion();
+	ExAcquireReadWriteLockShared(&VolumeExtension->VolumeMutex);
 }
 
-static NTSTATUS XisoCompleteRequest(PIRP Irp, NTSTATUS Status)
+static VOID XisoVolumeUnlock(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
-	XisoVolumeUnlock();
+	ExReleaseReadWriteLock(&VolumeExtension->VolumeMutex);
+	KeLeaveCriticalRegion();
+}
+
+static NTSTATUS XisoCompleteRequest(PIRP Irp, NTSTATUS Status, PXISO_VOLUME_EXTENSION VolumeExtension)
+{
+	XisoVolumeUnlock(VolumeExtension);
 	Irp->IoStatus.Status = Status;
 	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
 	return Status;
@@ -59,8 +65,6 @@ static NTSTATUS XisoCompleteRequest(PIRP Irp, NTSTATUS Status)
 
 static PXISO_FILE_INFO XisoFindOpenFile(PXISO_VOLUME_EXTENSION VolumeExtension, POBJECT_STRING Name)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
-
 	PXISO_FILE_INFO FileInfo = nullptr;
 	PLIST_ENTRY Entry = VolumeExtension->OpenFileList.Blink;
 	while (Entry != &VolumeExtension->OpenFileList) {
@@ -79,23 +83,17 @@ static PXISO_FILE_INFO XisoFindOpenFile(PXISO_VOLUME_EXTENSION VolumeExtension, 
 		Entry = Entry->Blink;
 	}
 
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
-
 	return FileInfo;
 }
 
 static VOID XisoInsertFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
 	InsertTailList(&VolumeExtension->OpenFileList, &FileInfo->ListEntry);
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
 static VOID XisoRemoveFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
 	RemoveEntryList(&FileInfo->ListEntry);
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
 NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
@@ -134,7 +132,7 @@ NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->VolumeInfo.HostHandle = CDROM_HANDLE;
 	VolumeExtension->VolumeInfo.Flags = XISO_VOLUME_FILE;
 	InitializeListHead(&VolumeExtension->OpenFileList);
-	RtlInitializeCriticalSection(&VolumeExtension->FileInfoLock);
+	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
 
 	XisoDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
@@ -145,7 +143,8 @@ NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
 
 NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
-	XisoVolumeLockExclusive();
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	XisoVolumeLockExclusive(VolumeExtension);
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
@@ -155,28 +154,27 @@ NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
 	ULONG CreateOptions = IrpStackPointer->Parameters.Create.Options & 0xFFFFFF;
 	ULONG InitialSize = Irp->Overlay.AllocationSize.LowPart;
-	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 
 	if (VolumeExtension->Dismounted) {
-		return XisoCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED);
+		return XisoCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}
 
 	if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename directories (xiso is read-only media)
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED);
+		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	if (DesiredAccess & (FILE_WRITE_ATTRIBUTES | FILE_WRITE_DATA | // don't allow any write access (xiso is read-only media)
 		FILE_WRITE_EA | FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY |
 		FILE_APPEND_DATA | FILE_DELETE_CHILD | DELETE | WRITE_DAC)) {
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED);
+		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	if (CreateOptions & FILE_OPEN_BY_FILE_ID) { // not supported on xiso
-		return XisoCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED);
+		return XisoCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
 	}
 
 	if ((Disposition != FILE_OPEN) && (Disposition != FILE_OPEN_IF)) { // only allow open operations (xiso is read-only media)
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED);
+		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	PXISO_FILE_INFO FileInfo;
@@ -187,7 +185,7 @@ NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FileInfo = (PXISO_FILE_INFO)RelatedFileObject->FsContext2;
 
 		if (!(FileInfo->Flags & XISO_DIRECTORY_FILE)) {
-			return XisoCompleteRequest(Irp, STATUS_INVALID_PARAMETER);
+			return XisoCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 		}
 
 		if (RemainingName->Length == 0) {
@@ -203,7 +201,7 @@ NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		// Special case: open the volume itself
 
 		if (CreateOptions & FILE_DIRECTORY_FILE) { // volume is not a directory
-			return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY);
+			return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 		}
 
 		SHARE_ACCESS ShareAccess;
@@ -213,7 +211,7 @@ NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 		// No host I/O required for opening a volume
 		Irp->IoStatus.Information = FILE_OPENED;
-		return XisoCompleteRequest(Irp, STATUS_SUCCESS);
+		return XisoCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
 	if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
@@ -238,7 +236,7 @@ NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			// NOTE: ObpParseName discards the backslash from a name, so LocalRemainingName must be checked separately
 			if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 				// Another delimiter in the name is invalid
-				return XisoCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID);
+				return XisoCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 			}
 
 			if (LocalRemainingName.Length == 0) {
@@ -287,7 +285,7 @@ ByPassPathCheck:
 			// Allocate enough space for the resolved link and the remaining path name. e.g. D: -> \Device\CdRom0 and path is D:\default.xbe, then strlen(\Device\CdRom0) + strlen(default.xbe) + 1
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength + RemainingName->Length + 1);
 			if (FullPathBuffer == nullptr) {
-				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES);
+				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			// Copy the resolved sym link name, and then the remaining part of the path too
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
@@ -299,7 +297,7 @@ ByPassPathCheck:
 			// FullPath consists only of the sym link, allocate enough space for the resolved link
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength);
 			if (FullPathBuffer == nullptr) {
-				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES);
+				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
 		}
@@ -319,7 +317,7 @@ ByPassPathCheck:
 				if (FullPathBufferAllocated) {
 					ExFreePool(FullPathBuffer);
 				}
-				return XisoCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY);
+				return XisoCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
 			}
 		}
 		else {
@@ -327,7 +325,7 @@ ByPassPathCheck:
 				if (FullPathBufferAllocated) {
 					ExFreePool(FullPathBuffer);
 				}
-				return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY);
+				return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 			}
 		}
 		++FileInfo->RefCounter;
@@ -338,7 +336,7 @@ ByPassPathCheck:
 			if (FullPathBufferAllocated) {
 				ExFreePool(FullPathBuffer);
 			}
-			return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES);
+			return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfoCreated = TRUE;
 		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
@@ -393,5 +391,81 @@ ByPassPathCheck:
 		ExFreePool(FullPathBuffer);
 	}
 
-	return XisoCompleteRequest(Irp, Status);
+	return XisoCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	XisoVolumeLockShared(VolumeExtension);
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	ULONG Length = IrpStackPointer->Parameters.Read.Length;
+	LARGE_INTEGER FileOffset = IrpStackPointer->Parameters.Read.ByteOffset;
+	PVOID Buffer = Irp->UserBuffer;
+	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
+
+	if (VolumeExtension->Dismounted) {
+		return XisoCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	// Don't allow to operate on the file after all its handles are closed
+	if (FileObject->Flags & FO_CLEANUP_COMPLETE) {
+		return XisoCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
+	}
+
+	// Cannot read from a directory
+	if (FileInfo->Flags & XISO_DIRECTORY_FILE) {
+		return XisoCompleteRequest(Irp, STATUS_INVALID_DEVICE_REQUEST, VolumeExtension);
+	}
+
+	if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
+		// NOTE: for the dvd drive, SectorSize is 2048
+		if ((FileOffset.LowPart & (DeviceObject->SectorSize - 1)) || (Length & (DeviceObject->SectorSize - 1))) {
+			return XisoCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		}
+	}
+
+	if (Length == 0) {
+		Irp->IoStatus.Information = 0;
+		return XisoCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
+	}
+
+	if (FileInfo->Flags & XISO_VOLUME_FILE) {
+		// We can't support the volume itself, because there's no dvd image on the host side
+
+		return XisoCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+	}
+	else {
+		// Cannot read past the end of the file
+		if (FileOffset.HighPart || (FileOffset.LowPart >= FileInfo->FileSize)) {
+			return XisoCompleteRequest(Irp, STATUS_END_OF_FILE, VolumeExtension);
+		}
+
+		if ((FileOffset.LowPart + Length) > FileInfo->FileSize) {
+			// Reduce the number of bytes transferred to avoid reading past the end of the file
+			Length = FileInfo->FileSize - FileOffset.LowPart;
+		}
+	}
+
+	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
+		DEV_TYPE(DEV_CDROM) | IoRequestType::Read,
+		FileOffset.LowPart,
+		Length,
+		(ULONG_PTR)Buffer,
+		FileInfo->HostHandle
+	);
+
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	if (Status == STATUS_PENDING) {
+		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
+		RIP_API_MSG("Asynchronous IO is not supported");
+	}
+	else if (NT_SUCCESS(Status)) {
+		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
+	}
+
+	Irp->IoStatus.Information = InfoBlock.Info;
+	return XisoCompleteRequest(Irp, Status, VolumeExtension);
 }

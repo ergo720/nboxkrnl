@@ -6,6 +6,7 @@
 
 #include "..\..\io\io.hpp"
 #include "..\..\rtl\rtl.hpp"
+#include "..\..\ex\ex.hpp"
 
 
 struct XISO_FILE_INFO {
@@ -27,7 +28,7 @@ struct XISO_VOLUME_EXTENSION {
 	ULONG FileObjectCount;
 	ULARGE_INTEGER PartitionLength;
 	BOOLEAN Dismounted;
-	RTL_CRITICAL_SECTION FileInfoLock;
+	ERWLOCK VolumeMutex;
 	LIST_ENTRY OpenFileList;
 };
 using PXISO_VOLUME_EXTENSION = XISO_VOLUME_EXTENSION *;
