@@ -12,10 +12,10 @@
 #define XISO_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
 #define XISO_VOLUME_FILE                0x80000000
 
-NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT XisoDriverObject = {
 	nullptr,                            // DriverStartIo
@@ -167,7 +167,7 @@ NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 	XisoVolumeLockExclusive(VolumeExtension);
@@ -420,7 +420,7 @@ ByPassPathCheck:
 	return XisoCompleteRequest(Irp, Status, VolumeExtension);
 }
 
-NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 	XisoVolumeLockExclusive(VolumeExtension);
@@ -456,7 +456,7 @@ NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 	XisoVolumeLockShared(VolumeExtension);
@@ -532,7 +532,7 @@ NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return XisoCompleteRequest(Irp, Status, VolumeExtension);
 }
 
-NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	// We cannot delete a file because xiso is read-only media, so only set FO_CLEANUP_COMPLETE to make other irp request fail
 
