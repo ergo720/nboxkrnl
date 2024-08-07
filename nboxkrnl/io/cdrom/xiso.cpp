@@ -525,6 +525,7 @@ static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
+		// NOTE: despite the addition not being atomic, this is ok because on xiso the file size limit is 4 GiB, which means the high dword will always be zero with no carry to add to it
 		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 	}
 

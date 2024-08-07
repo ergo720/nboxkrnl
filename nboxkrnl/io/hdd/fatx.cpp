@@ -714,8 +714,12 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
+		// NOTE: despite the addition not being atomic, this is ok because on fatx the file size limit is 4 GiB, which means the high dword will always be zero with no carry to add to it
 		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
-		KeQuerySystemTime(&FileInfo->LastAccessTime);
+		// NOTE: FileInfo->LastAccessTime must be updated atomically because FatxIrpRead acquires a shared lock, which means it can be concurrenly updated
+		LARGE_INTEGER LastAccessTime;
+		KeQuerySystemTime(&LastAccessTime);
+		atomic_store64(&FileInfo->LastAccessTime.QuadPart, LastAccessTime.QuadPart);
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
@@ -850,8 +854,11 @@ static NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIR
 
 	case FileNetworkOpenInformation: {
 		PFILE_NETWORK_OPEN_INFORMATION NetworkOpenInformation = (PFILE_NETWORK_OPEN_INFORMATION)Irp->UserBuffer;
+		// NOTE: FileInfo->LastAccessTime must be read atomically because FatxIrpRead acquires a shared lock, which means it can update it while we are trying to write it here
+		LARGE_INTEGER LastAccessTime;
+		atomic_load64(&LastAccessTime.QuadPart, &FileInfo->LastAccessTime.QuadPart);
 		NetworkOpenInformation->CreationTime = FileInfo->CreationTime;
-		NetworkOpenInformation->LastAccessTime = FileInfo->LastAccessTime;
+		NetworkOpenInformation->LastAccessTime = LastAccessTime;
 		NetworkOpenInformation->LastWriteTime = FileInfo->LastWriteTime;
 		NetworkOpenInformation->ChangeTime = FileInfo->LastWriteTime;
 		if (FileInfo->Flags & FILE_DIRECTORY_FILE) {
