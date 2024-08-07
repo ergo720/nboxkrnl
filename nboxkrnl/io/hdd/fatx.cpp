@@ -657,8 +657,8 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
-	ULONG Length = IrpStackPointer->Parameters.Write.Length;
-	LARGE_INTEGER FileOffset = IrpStackPointer->Parameters.Write.ByteOffset;
+	ULONG Length = IrpStackPointer->Parameters.Read.Length;
+	LARGE_INTEGER FileOffset = IrpStackPointer->Parameters.Read.ByteOffset;
 	PVOID Buffer = Irp->UserBuffer;
 	PFATX_FILE_INFO FileInfo = (PFATX_FILE_INFO)FileObject->FsContext2;
 
@@ -723,12 +723,7 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
-		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
 		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
-		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
-			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
-		}
-		KfLowerIrql(OldIrql);
 		KeQuerySystemTime(&FileInfo->LastAccessTime);
 	}
 
@@ -808,12 +803,10 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
-		KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
 		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
 			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
 		}
-		KfLowerIrql(OldIrql);
 		LARGE_INTEGER CurrentTime;
 		KeQuerySystemTime(&CurrentTime);
 		FileInfo->LastAccessTime = CurrentTime;
