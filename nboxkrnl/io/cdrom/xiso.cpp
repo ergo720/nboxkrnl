@@ -373,10 +373,10 @@ ByPassPathCheck:
 		FileInfo->RefCounter = 1;
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		XisoInsertFile(VolumeExtension, FileInfo);
-		SHARE_ACCESS ShareAccess;
-		IoSetShareAccess(DesiredAccess, 0, FileObject, &ShareAccess);
 	}
 
+	SHARE_ACCESS ShareAccess;
+	IoSetShareAccess(DesiredAccess, 0, FileObject, &ShareAccess);
 	FileObject->FsContext2 = FileInfo;
 
 	// Finally submit the I/O request to the host to do the actual work
