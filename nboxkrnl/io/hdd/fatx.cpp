@@ -127,8 +127,6 @@ static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 
 static PFATX_FILE_INFO FatxFindOpenFile(PFAT_VOLUME_EXTENSION VolumeExtension, POBJECT_STRING Name)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
-
 	PFATX_FILE_INFO FileInfo = nullptr;
 	PLIST_ENTRY Entry = VolumeExtension->OpenFileList.Blink;
 	while (Entry != &VolumeExtension->OpenFileList) {
@@ -147,23 +145,17 @@ static PFATX_FILE_INFO FatxFindOpenFile(PFAT_VOLUME_EXTENSION VolumeExtension, P
 		Entry = Entry->Blink;
 	}
 
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
-
 	return FileInfo;
 }
 
 static VOID FatxInsertFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INFO FileInfo)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
 	InsertTailList(&VolumeExtension->OpenFileList, &FileInfo->ListEntry);
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
 static VOID FatxRemoveFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INFO FileInfo)
 {
-	RtlEnterCriticalSection(&VolumeExtension->FileInfoLock);
 	RemoveEntryList(&FileInfo->ListEntry);
-	RtlLeaveCriticalSection(&VolumeExtension->FileInfoLock);
 }
 
 static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, PPARTITION_INFORMATION PartitionInformation)
@@ -288,7 +280,6 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
 	InitializeListHead(&VolumeExtension->OpenFileList);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
-	RtlInitializeCriticalSection(&VolumeExtension->FileInfoLock);
 
 	if (Status = FatxSetupVolumeExtension(VolumeExtension, &PartitionInformation); !NT_SUCCESS(Status)) {
 		VolumeExtension->Flags |= FATX_VOLUME_DISMOUNTED;

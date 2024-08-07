@@ -6,7 +6,6 @@
 
 #include "..\..\io\io.hpp"
 #include "..\..\ex\ex.hpp"
-#include "..\..\rtl\rtl.hpp"
 
 #define FATX_VOLUME_DISMOUNTED 2
 #define FATX_MAX_FILE_NAME_LENGTH 42
@@ -48,7 +47,6 @@ struct FAT_VOLUME_EXTENSION {
 	ERWLOCK VolumeMutex;
 	ULONG VolumeID;
 	ULONG FileObjectCount;
-	RTL_CRITICAL_SECTION FileInfoLock;
 	LIST_ENTRY OpenFileList;
 };
 using PFAT_VOLUME_EXTENSION = FAT_VOLUME_EXTENSION *;
