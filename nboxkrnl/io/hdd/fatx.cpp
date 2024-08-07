@@ -299,10 +299,6 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 	FatxVolumeLockExclusive(VolumeExtension);
 
-	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
-		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
-	}
-
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
@@ -312,6 +308,11 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
 	ULONG CreateOptions = IrpStackPointer->Parameters.Create.Options & 0xFFFFFF;
 	ULONG InitialSize = Irp->Overlay.AllocationSize.LowPart;
+	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
 
 	if (CreateOptions & FILE_OPEN_BY_FILE_ID) { // not supported on FAT
 		return FatxCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
@@ -319,6 +320,10 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	if (Irp->Overlay.AllocationSize.HighPart) { // 4 GiB file size limit on FAT
 		return FatxCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+	}
+
+	if (ObjectAttributes->ObjectName->Length > FATX_PATH_NAME_LENGTH) { // 250 characters path limit on fatx
+		return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 	}
 
 	PFATX_FILE_INFO FileInfo;
@@ -441,9 +446,7 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	ByPassPathCheck:
 
-	constexpr USHORT DevicePathLength = sizeof("\\Device\\Harddisk0\\PartitionX") - 1;
-	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH + DevicePathLength];
-	POBJECT_ATTRIBUTES ObjectAttributes = POBJECT_ATTRIBUTES(Irp->Tail.Overlay.DriverContext[0]);
+	CHAR FullPathBuffer[FATX_PATH_NAME_LENGTH * 2];
 	OBJECT_STRING FullPath = *ObjectAttributes->ObjectName;
 	if ((FullPath.Length < 7) || (strncmp(FullPath.Buffer, "\\Device", 7))) {
 		// If the path doesn't start with "\\Device", then there's a sym link in the path. Note that it's not enough to check for RelatedFileObject, because the sym link
@@ -474,32 +477,18 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 				Offset = 1;
 			}
 			// Copy the resolved sym link name, and then the remaining part of the path too
-			if ((ResolvedSymbolicLinkLength - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
-				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-			}
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
 			USHORT RemainingPathLength = FullPath.Length - SymbolicLinkLength - Offset;
-			if (((ResolvedSymbolicLinkLength + RemainingPathLength) - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
-				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-			}
 			strncpy(&FullPathBuffer[ResolvedSymbolicLinkLength], &FullPath.Buffer[SymbolicLinkLength + Offset], RemainingPathLength);
 			Offset = RemainingPathLength;
 		}
 		else {
 			// FullPath consists only of the sym link
-			if ((ResolvedSymbolicLinkLength - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
-				return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-			}
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
 		}
 		FullPath.Buffer = FullPathBuffer;
 		FullPath.Length = ResolvedSymbolicLinkLength + Offset;
 		ObfDereferenceObject(SymbolicLink);
-	}
-	else {
-		if ((FullPath.Length - DevicePathLength) > FATX_PATH_NAME_LENGTH) {
-			return FatxCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
-		}
 	}
 
 	// The optional creation of FileInfo must be the last thing to happen before SubmitIoRequestToHost. This, because if the IO fails, then IoParseDevice sets FileObject->DeviceObject
