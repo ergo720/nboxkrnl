@@ -231,18 +231,25 @@ static inline VOID CDECL disable()
 static inline VOID CDECL atomic_store64(LONGLONG *dst, LONGLONG val)
 {
 	__asm {
-		mov eax, dword ptr [dst]
-		fild val
-		fistp qword ptr [eax]
+		pushfd
+		cli
 	}
+
+	*dst = val;
+
+	__asm popfd
 }
 
-static inline VOID CDECL atomic_load64(LONGLONG *dst, LONGLONG *src)
+static inline LONGLONG CDECL atomic_load64(LONGLONG *src)
 {
 	__asm {
-		mov eax, dword ptr [dst]
-		mov ecx, dword ptr [src]
-		fild qword ptr [ecx]
-		fistp qword ptr [eax]
+		pushfd
+		cli
 	}
+
+	LONGLONG val = *src;
+
+	__asm popfd
+
+	return val;
 }

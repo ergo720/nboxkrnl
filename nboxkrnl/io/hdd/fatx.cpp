@@ -844,10 +844,8 @@ static NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIR
 	case FileNetworkOpenInformation: {
 		PFILE_NETWORK_OPEN_INFORMATION NetworkOpenInformation = (PFILE_NETWORK_OPEN_INFORMATION)Irp->UserBuffer;
 		// NOTE: FileInfo->LastAccessTime must be read atomically because FatxIrpRead acquires a shared lock, which means it can update it while we are trying to write it here
-		LARGE_INTEGER LastAccessTime;
-		atomic_load64(&LastAccessTime.QuadPart, &FileInfo->LastAccessTime.QuadPart);
 		NetworkOpenInformation->CreationTime = FileInfo->CreationTime;
-		NetworkOpenInformation->LastAccessTime = LastAccessTime;
+		NetworkOpenInformation->LastAccessTime.QuadPart = atomic_load64(&FileInfo->LastAccessTime.QuadPart);
 		NetworkOpenInformation->LastWriteTime = FileInfo->LastWriteTime;
 		NetworkOpenInformation->ChangeTime = FileInfo->LastWriteTime;
 		if (FileInfo->Flags & FILE_DIRECTORY_FILE) {
