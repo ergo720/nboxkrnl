@@ -548,12 +548,13 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	// Finally submit the I/O request to the host to do the actual work
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
+	ULONG IsDirectory = (CreateOptions & FILE_DIRECTORY_FILE) || HasBackslashAtEnd ? IoFlags::IsDirectory : 0;
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::IsDirectory : 0) | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+		IsDirectory | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
 		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
 		(Disposition & 7) | IoRequestType::Open,
 		InitialSize,
-		FullPath.Length,
+		HasBackslashAtEnd ? FullPath.Length - 1 : FullPath.Length,
 		FileInfo->HostHandle,
 		(ULONG_PTR)(FullPath.Buffer)
 	);
