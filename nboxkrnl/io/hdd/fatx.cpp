@@ -391,6 +391,9 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		}
 
 		// No host I/O required for opening a volume
+		FileInfo->RefCounter++;
+		FileObject->FsContext2 = FileInfo;
+		FatxInsertFile(VolumeExtension, FileInfo);
 		Irp->IoStatus.Information = FILE_OPENED;
 		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
@@ -613,7 +616,9 @@ static NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			FileInfo->HostHandle
 		);
 		FatxRemoveFile(VolumeExtension, FileInfo);
-		ExFreePool(FileInfo);
+		if (!(FileInfo->Flags & FATX_VOLUME_FILE)) {
+			ExFreePool(FileInfo);
+		}
 		FileObject->FsContext2 = nullptr;
 	}
 

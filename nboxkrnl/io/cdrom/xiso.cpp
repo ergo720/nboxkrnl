@@ -232,10 +232,13 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 		SHARE_ACCESS ShareAccess;
 		IoSetShareAccess(DesiredAccess, 0, FileObject, &ShareAccess);
-		VolumeExtension->VolumeInfo.RefCounter++;
 		FileObject->Flags |= FO_NO_INTERMEDIATE_BUFFERING;
 
 		// No host I/O required for opening a volume
+		PXISO_FILE_INFO FileInfo = &VolumeExtension->VolumeInfo;
+		FileInfo->RefCounter++;
+		FileObject->FsContext2 = FileInfo;
+		XisoInsertFile(VolumeExtension, FileInfo);
 		Irp->IoStatus.Information = FILE_OPENED;
 		return XisoCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
@@ -439,7 +442,9 @@ static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			FileInfo->HostHandle
 		);
 		XisoRemoveFile(VolumeExtension, FileInfo);
-		ExFreePool(FileInfo);
+		if (!(FileInfo->Flags & XISO_VOLUME_FILE)) {
+			ExFreePool(FileInfo);
+		}
 		FileObject->FsContext2 = nullptr;
 	}
 
