@@ -3,8 +3,8 @@
  */
 
 #include "cdrom.hpp"
-#include "..\io.hpp"
-#include "..\..\ob\obp.hpp"
+#include "io.hpp"
+#include "obp.hpp"
 
 
 static DRIVER_OBJECT CdromDriverObject = {

@@ -2,7 +2,7 @@
  * ergo720                Copyright (c) 2024
  */
 
-#include "..\ex\ex.hpp"
+#include "ex.hpp"
 
 
 EXPORTNUM(16) OBJECT_TYPE ExEventObjectType = {

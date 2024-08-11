@@ -5,7 +5,7 @@
 #pragma once
 
 #include "xbe.hpp"
-#include "..\ob\ob.hpp"
+#include "ob.hpp"
 
 
 struct LAUNCH_DATA_HEADER {

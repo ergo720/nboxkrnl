@@ -5,7 +5,7 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ke\ke.hpp"
+#include "ke.hpp"
 #include "..\kernel.hpp"
 
 #define EXCEPTION_CHAIN_END2 0xFFFFFFFF

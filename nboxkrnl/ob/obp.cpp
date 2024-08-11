@@ -3,9 +3,9 @@
  */
 
 #include "obp.hpp"
-#include "..\ex\ex.hpp"
-#include "..\nt\nt.hpp"
-#include "..\rtl\rtl.hpp"
+#include "ex.hpp"
+#include "nt.hpp"
+#include "rtl.hpp"
 #include <string.h>
 
 

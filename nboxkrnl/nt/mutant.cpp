@@ -3,7 +3,7 @@
  */
 
 #include "nt.hpp"
-#include "..\ex\ex.hpp"
+#include "ex.hpp"
 
 
 EXPORTNUM(192) DLLEXPORT NTSTATUS XBOXAPI NtCreateMutant

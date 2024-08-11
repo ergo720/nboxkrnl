@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "..\..\io\io.hpp"
-#include "..\..\rtl\rtl.hpp"
-#include "..\..\ex\ex.hpp"
+#include "io.hpp"
+#include "rtl.hpp"
+#include "ex.hpp"
 
 
 struct XISO_FILE_INFO {

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ob.hpp"
-#include "..\ke\ke.hpp"
+#include "ke.hpp"
 
 // Object attributes specified in OBJECT_ATTRIBUTES
 #define OBJ_PERMANENT         0x00000010L

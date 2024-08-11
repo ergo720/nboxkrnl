@@ -4,8 +4,8 @@
  */
 
 #include "ke.hpp"
-#include "..\ki\ki.hpp"
-#include "..\hal\hal.hpp"
+#include "ki.hpp"
+#include "hal.hpp"
 
 
 // Source: Cxbx-Reloaded

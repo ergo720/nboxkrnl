@@ -4,7 +4,7 @@
 
 
 #include "ex.hpp"
-#include "..\rtl\rtl.hpp"
+#include "rtl.hpp"
 
 
 VOID XBOXAPI ExpDeleteMutant(PVOID Object)

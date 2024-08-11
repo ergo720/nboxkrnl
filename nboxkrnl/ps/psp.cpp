@@ -4,9 +4,9 @@
 
 #include "ps.hpp"
 #include "psp.hpp"
-#include "..\ki\seh.hpp"
-#include "..\dbg\dbg.hpp"
-#include "..\mm\mm.hpp"
+#include "seh.hpp"
+#include "dbg.hpp"
+#include "mm.hpp"
 #include <assert.h>
 
 

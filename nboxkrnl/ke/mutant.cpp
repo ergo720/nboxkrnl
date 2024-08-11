@@ -2,8 +2,8 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "..\ki\ki.hpp"
-#include "..\ex\ex.hpp"
+#include "ki.hpp"
+#include "ex.hpp"
 
 
 EXPORTNUM(110) VOID XBOXAPI KeInitializeMutant

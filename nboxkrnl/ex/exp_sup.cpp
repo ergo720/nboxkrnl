@@ -3,8 +3,8 @@
  */
 
 #include "ex.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\rtl\exp_sup.hpp"
+#include "rtl.hpp"
+#include "exp_sup.hpp"
 
 
 EXPORTNUM(26) __declspec(naked) VOID XBOXAPI ExRaiseException

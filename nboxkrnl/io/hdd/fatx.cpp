@@ -3,9 +3,9 @@
  */
 
 #include "hdd.hpp"
-#include "..\..\io\fsc.hpp"
-#include "..\..\ob\obp.hpp"
-#include "..\..\dbg\dbg.hpp"
+#include "fsc.hpp"
+#include "obp.hpp"
+#include "dbg.hpp"
 #include <string.h>
 #include <assert.h>
 

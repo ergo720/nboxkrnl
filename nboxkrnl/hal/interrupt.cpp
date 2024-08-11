@@ -4,7 +4,7 @@
 
 #include "hal.hpp"
 #include "halp.hpp"
-#include "..\rtl\rtl.hpp"
+#include "rtl.hpp"
 #include <assert.h>
 
 

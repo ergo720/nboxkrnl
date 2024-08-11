@@ -4,8 +4,8 @@
 
 #include "ob.hpp"
 #include "obp.hpp"
-#include "..\ex\ex.hpp"
-#include "..\ps\ps.hpp"
+#include "ex.hpp"
+#include "ps.hpp"
 #include <string.h>
 
 

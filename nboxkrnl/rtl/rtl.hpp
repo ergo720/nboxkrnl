@@ -5,8 +5,8 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ki\seh.hpp"
-#include "..\io\io.hpp"
+#include "seh.hpp"
+#include "io.hpp"
 
 
 struct RTL_CRITICAL_SECTION {

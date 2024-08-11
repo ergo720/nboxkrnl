@@ -5,7 +5,7 @@
  */
 
 #include "seh.hpp"
-#include "..\rtl\rtl.hpp"
+#include "rtl.hpp"
 
 
 EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionRecord, EXCEPTION_REGISTRATION_SEH *pRegistrationFrame,

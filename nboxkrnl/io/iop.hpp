@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\ob\ob.hpp"
-#include "..\ke\ke.hpp"
+#include "ob.hpp"
+#include "ke.hpp"
 
 
 #define OPEN_PACKET_PATTERN              0xbeaa0251

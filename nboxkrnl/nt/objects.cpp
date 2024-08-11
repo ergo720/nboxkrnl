@@ -3,8 +3,8 @@
  */
 
 #include "nt.hpp"
-#include "..\ob\obp.hpp"
-#include "..\rtl\rtl.hpp"
+#include "obp.hpp"
+#include "rtl.hpp"
 #include <string.h>
 
 

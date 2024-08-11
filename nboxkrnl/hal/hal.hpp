@@ -5,7 +5,7 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ke\ke.hpp"
+#include "ke.hpp"
 
 
 using PHAL_SHUTDOWN_NOTIFICATION = VOID(XBOXAPI *)(

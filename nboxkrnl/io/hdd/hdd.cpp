@@ -3,11 +3,11 @@
  */
 
 #include "hdd.hpp"
-#include "..\..\ob\obp.hpp"
-#include "..\..\ex\ex.hpp"
-#include "..\..\nt\nt.hpp"
-#include "..\..\rtl\rtl.hpp"
-#include "..\..\dbg\dbg.hpp"
+#include "obp.hpp"
+#include "ex.hpp"
+#include "nt.hpp"
+#include "rtl.hpp"
+#include "dbg.hpp"
 #include <assert.h>
 #include <string.h>
 

@@ -3,8 +3,8 @@
  */
 
 #include "ke.hpp"
-#include "..\hal\halp.hpp"
-#include "..\dbg\dbg.hpp"
+#include "halp.hpp"
+#include "dbg.hpp"
 
 
 EXPORTNUM(95) VOID XBOXAPI KeBugCheck

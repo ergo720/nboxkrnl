@@ -5,7 +5,7 @@
 #pragma once
 
 #include "iop.hpp"
-#include "..\ob\ob.hpp"
+#include "ob.hpp"
 
 
 #define IoLock() KeRaiseIrqlToDpcLevel()

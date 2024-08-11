@@ -5,8 +5,8 @@
 #pragma once
 
 #include "..\kernel.hpp"
-#include "..\ke\ke.hpp"
-#include "..\rtl\rtl.hpp"
+#include "ke.hpp"
+#include "rtl.hpp"
 #include "mm.hpp"
 
  // Pte protection masks

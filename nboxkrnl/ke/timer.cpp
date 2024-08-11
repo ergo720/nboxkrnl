@@ -3,9 +3,9 @@
  * PatrickvL              Copyright (c) 2016
  */
 
-#include "..\ki\ki.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\hal\hal.hpp"
+#include "ki.hpp"
+#include "rtl.hpp"
+#include "hal.hpp"
 #include "..\kernel.hpp"
 #include "assert.h"
 

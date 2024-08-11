@@ -4,9 +4,9 @@
  */
 
 #include "ex.hpp"
-#include "..\ke\ke.hpp"
-#include "..\ob\ob.hpp"
-#include "..\rtl\rtl.hpp"
+#include "ke.hpp"
+#include "ob.hpp"
+#include "rtl.hpp"
 #include <string.h>
 
 #define XC_END_MARKER (XC_VALUE_INDEX)-1

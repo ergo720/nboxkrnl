@@ -4,12 +4,12 @@
 
 #include "ki.hpp"
 #include "hw_exp.hpp"
-#include "..\mm\mm.hpp"
-#include "..\ob\ob.hpp"
+#include "mm.hpp"
+#include "ob.hpp"
 #include "..\kernel.hpp"
-#include "..\hal\hal.hpp"
-#include "..\ps\ps.hpp"
-#include "..\io\io.hpp"
+#include "hal.hpp"
+#include "ps.hpp"
+#include "io.hpp"
 #include <string.h>
 
 

@@ -4,7 +4,7 @@
 
 #include "cdrom.hpp"
 #include "xiso.hpp"
-#include "..\..\ob\obp.hpp"
+#include "obp.hpp"
 #include <string.h>
 #include <assert.h>
 

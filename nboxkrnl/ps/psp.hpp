@@ -5,7 +5,7 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ke\ke.hpp"
+#include "ke.hpp"
 
 #define PSP_MAX_CREATE_THREAD_NOTIFY 8
 

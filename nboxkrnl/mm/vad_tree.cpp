@@ -3,7 +3,7 @@
  */
 
 #include "vad_tree.hpp"
-#include "..\ex\ex.hpp"
+#include "ex.hpp"
 #include <assert.h>
 
 

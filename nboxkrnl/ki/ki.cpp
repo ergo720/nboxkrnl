@@ -4,7 +4,7 @@
 
 #include "ki.hpp"
 #include "..\kernel.hpp"
-#include "..\rtl\rtl.hpp"
+#include "rtl.hpp"
 
 
 KPCR KiPcr = { 0 };

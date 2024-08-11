@@ -5,8 +5,8 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ki\ki.hpp"
-#include "..\ki\seh.hpp"
+#include "ki.hpp"
+#include "seh.hpp"
 
 
 BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord);

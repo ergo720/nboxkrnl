@@ -3,8 +3,8 @@
  */
 
 #include "nt.hpp"
-#include "..\ex\ex.hpp"
-#include "..\rtl\rtl.hpp"
+#include "ex.hpp"
+#include "rtl.hpp"
 
 
 EXPORTNUM(190) NTSTATUS XBOXAPI NtCreateFile

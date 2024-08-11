@@ -5,8 +5,8 @@
  */
 
 #include "rtl.hpp"
+#include "dbg.hpp"
 #include "..\winerror.hpp"
-#include "..\dbg\dbg.hpp"
 
 
 struct error_table {

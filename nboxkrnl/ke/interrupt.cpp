@@ -2,9 +2,9 @@
  * ergo720                Copyright (c) 2024
  */
 
-#include "..\ki\ki.hpp"
-#include "..\hal\halp.hpp"
-#include "..\hal\hal.hpp"
+#include "ki.hpp"
+#include "halp.hpp"
+#include "hal.hpp"
 #include <string.h>
 #include <assert.h>
 

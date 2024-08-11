@@ -5,10 +5,10 @@
 #include "ps.hpp"
 #include "psp.hpp"
 #include "..\kernel.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\mm\mm.hpp"
-#include "..\nt\nt.hpp"
-#include "..\xe\xe.hpp"
+#include "rtl.hpp"
+#include "mm.hpp"
+#include "nt.hpp"
+#include "xe.hpp"
 #include <string.h>
 
 

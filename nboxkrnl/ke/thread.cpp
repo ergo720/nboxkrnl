@@ -4,13 +4,13 @@
  */
 
 #include "ke.hpp"
-#include "..\ki\ki.hpp"
+#include "ki.hpp"
 #include "..\kernel.hpp"
-#include "..\mm\mm.hpp"
-#include "..\hal\halp.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\ps\ps.hpp"
-#include "..\hal\hal.hpp"
+#include "mm.hpp"
+#include "halp.hpp"
+#include "rtl.hpp"
+#include "ps.hpp"
+#include "hal.hpp"
 #include <string.h>
 #include <assert.h>
 

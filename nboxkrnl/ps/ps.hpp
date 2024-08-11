@@ -5,9 +5,9 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ke\ke.hpp"
-#include "..\ob\ob.hpp"
-#include "..\ex\ex.hpp"
+#include "ke.hpp"
+#include "ob.hpp"
+#include "ex.hpp"
 
 
 #ifdef __cplusplus

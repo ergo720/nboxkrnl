@@ -4,7 +4,7 @@
  * Fisherman166           Copyright (c) 2020
  */
 
-#include "..\ex\ex.hpp"
+#include "ex.hpp"
 
 
 // Source: Cxbx-Reloaded

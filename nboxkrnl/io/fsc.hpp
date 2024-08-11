@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\mm\mi.hpp"
-#include "..\io\hdd\fatx.hpp"
+#include "mi.hpp"
+#include "hdd\fatx.hpp"
 
 
 struct FSCACHE_ELEMENT {

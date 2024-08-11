@@ -3,12 +3,12 @@
  * LukeUsher              Copyright (c) 2017
  */
 
-#include "..\ke\ke.hpp"
-#include "..\xe\xe.hpp"
-#include "..\ex\ex.hpp"
-#include "..\nt\nt.hpp"
-#include "..\mm\mi.hpp"
-#include "..\ob\obp.hpp"
+#include "ke.hpp"
+#include "xe.hpp"
+#include "ex.hpp"
+#include "nt.hpp"
+#include "mi.hpp"
+#include "obp.hpp"
 #include <string.h>
 
 #define XBE_BASE_ADDRESS 0x10000

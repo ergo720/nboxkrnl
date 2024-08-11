@@ -5,7 +5,7 @@
 
 #include "ke.hpp"
 #include "..\kernel.hpp"
-#include "..\ex\ex.hpp"
+#include "ex.hpp"
 
 
 // Source: Cxbx-Reloaded

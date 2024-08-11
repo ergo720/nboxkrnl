@@ -5,7 +5,7 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ki\seh.hpp"
+#include "seh.hpp"
 
 
 VOID XBOXAPI ZwContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert);

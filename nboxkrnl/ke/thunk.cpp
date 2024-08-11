@@ -2,18 +2,18 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "..\dbg\dbg.hpp"
-#include "..\ex\ex.hpp"
-#include "..\io\fsc.hpp"
-#include "..\hal\hal.hpp"
-#include "..\ke\ke.hpp"
-#include "..\mm\mm.hpp"
-#include "..\nt\nt.hpp"
-#include "..\ob\ob.hpp"
-#include "..\ps\ps.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\xc\xc.hpp"
-#include "..\xe\xe.hpp"
+#include "dbg.hpp"
+#include "ex.hpp"
+#include "fsc.hpp"
+#include "hal.hpp"
+#include "ke.hpp"
+#include "mm.hpp"
+#include "nt.hpp"
+#include "ob.hpp"
+#include "ps.hpp"
+#include "rtl.hpp"
+#include "xc.hpp"
+#include "xe.hpp"
 
 #define FUNC(f) (f)
 #define VARIABLE(v) (v)

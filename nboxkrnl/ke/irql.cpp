@@ -3,9 +3,9 @@
  */
 
 #include "ke.hpp"
-#include "..\ki\ki.hpp"
-#include "..\hal\hal.hpp"
-#include "..\hal\halp.hpp"
+#include "ki.hpp"
+#include "hal.hpp"
+#include "halp.hpp"
 
 
 EXPORTNUM(103) KIRQL XBOXAPI KeGetCurrentIrql()

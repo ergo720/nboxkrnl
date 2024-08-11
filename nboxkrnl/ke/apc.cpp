@@ -4,8 +4,8 @@
  */
 
 #include "ke.hpp"
-#include "..\hal\hal.hpp"
-#include "..\rtl\rtl.hpp"
+#include "hal.hpp"
+#include "rtl.hpp"
 
 
 static BOOLEAN KiInsertQueueApc(PKAPC Apc, KPRIORITY Increment)

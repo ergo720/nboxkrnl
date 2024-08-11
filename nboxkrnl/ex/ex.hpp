@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\nt\zw.hpp"
-#include "..\ob\ob.hpp"
+#include "zw.hpp"
+#include "ob.hpp"
 
 #define TIME_ZONE_NAME_LENGTH 4
 

@@ -5,8 +5,8 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\ki\ki.hpp"
-#include "..\ki\hw_exp.hpp"
+#include "ki.hpp"
+#include "hw_exp.hpp"
 
  // PIC i/o ports
 #define PIC_MASTER_CMD          0x20

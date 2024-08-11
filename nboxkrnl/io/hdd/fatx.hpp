@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "..\..\io\io.hpp"
-#include "..\..\ex\ex.hpp"
+#include "io.hpp"
+#include "ex.hpp"
 
 #define FATX_VOLUME_DISMOUNTED 2
 #define FATX_MAX_FILE_NAME_LENGTH 42

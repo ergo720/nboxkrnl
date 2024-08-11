@@ -2,9 +2,9 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "..\mm\mm.hpp"
-#include "..\mm\mi.hpp"
-#include "..\ex\ex.hpp"
+#include "mm.hpp"
+#include "mi.hpp"
+#include "ex.hpp"
 #include <assert.h>
 
 

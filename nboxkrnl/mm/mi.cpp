@@ -3,8 +3,8 @@
  */
 
 #include "mi.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\dbg\dbg.hpp"
+#include "rtl.hpp"
+#include "dbg.hpp"
 #include <assert.h>
 
 

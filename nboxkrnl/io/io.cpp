@@ -2,10 +2,10 @@
  * ergo720                Copyright (c) 2023
  */
 
-#include "..\ex\ex.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\ob\obp.hpp"
-#include "..\nt\nt.hpp"
+#include "ex.hpp"
+#include "rtl.hpp"
+#include "obp.hpp"
+#include "nt.hpp"
 #include "cdrom\cdrom.hpp"
 #include "hdd\hdd.hpp"
 #include <string.h>

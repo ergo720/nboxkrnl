@@ -5,7 +5,7 @@
 #pragma once
 
 #include "..\types.hpp"
-#include "..\io\io.hpp"
+#include "io.hpp"
 
 
 #ifdef __cplusplus

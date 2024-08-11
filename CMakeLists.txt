@@ -41,6 +41,19 @@ add_compile_options(
 include_directories(
  "${NBOXKRNL_ROOT_DIR}/import/pdclib/include"
  "${NBOXKRNL_ROOT_DIR}/import/pdclib/platform/xbox/include"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ke"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ob"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ps"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/rtl"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe"
 )
 
 link_directories(

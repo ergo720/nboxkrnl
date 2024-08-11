@@ -4,7 +4,7 @@
  */
 
 #include "ke.hpp"
-#include "..\rtl\rtl.hpp"
+#include "rtl.hpp"
 
 
 EXPORTNUM(108) VOID XBOXAPI KeInitializeEvent

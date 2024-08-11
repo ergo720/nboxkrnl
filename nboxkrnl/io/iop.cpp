@@ -5,7 +5,7 @@
 #include "iop.hpp"
 #include "hdd\fatx.hpp"
 #include "cdrom\xiso.hpp"
-#include "..\nt\nt.hpp"
+#include "nt.hpp"
 
 
 const UCHAR IopValidFsInformationQueries[] = {

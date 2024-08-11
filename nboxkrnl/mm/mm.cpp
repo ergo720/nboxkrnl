@@ -3,9 +3,9 @@
  */
 
 #include "..\kernel.hpp"
-#include "..\ke\ke.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\io\fsc.hpp"
+#include "ke.hpp"
+#include "rtl.hpp"
+#include "fsc.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
 #include "vad_tree.hpp"

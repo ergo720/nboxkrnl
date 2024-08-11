@@ -3,9 +3,9 @@
  * LukeUsher              Copyright (c) 2018
  */
 
-#include "..\ki\ki.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\ex\ex.hpp"
+#include "ki.hpp"
+#include "rtl.hpp"
+#include "ex.hpp"
 
 
 // Source: Cxbx-Reloaded

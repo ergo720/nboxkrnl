@@ -4,8 +4,8 @@
 
 #include "nt.hpp"
 #include "..\ntstatus.hpp"
-#include "..\mm\mi.hpp"
-#include "..\mm\vad_tree.hpp"
+#include "mi.hpp"
+#include "vad_tree.hpp"
 #include <assert.h>
 
 

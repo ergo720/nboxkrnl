@@ -4,10 +4,10 @@
 
 #include "ki.hpp"
 #include "hw_exp.hpp"
-#include "..\rtl\rtl.hpp"
-#include "..\rtl\exp_sup.hpp"
-#include "..\mm\mi.hpp"
-#include "..\dbg\dbg.hpp"
+#include "rtl.hpp"
+#include "exp_sup.hpp"
+#include "mi.hpp"
+#include "dbg.hpp"
 #include <string.h>
 
 

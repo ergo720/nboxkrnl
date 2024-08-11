@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "..\ki\ki.hpp"
+#include "ki.hpp"
 #include "..\kernel.hpp"
 #include <assert.h>
 
