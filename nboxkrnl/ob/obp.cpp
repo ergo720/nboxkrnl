@@ -279,9 +279,14 @@ NTSTATUS ObpResolveRootHandlePath(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_D
 NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, PVOID ParseContext, PVOID *ReturnedObject)
 {
 	*ReturnedObject = nullptr;
+	BOOLEAN HasBackslashAtEnd = FALSE;
 	OBJECT_STRING OriName = { 0, 0, nullptr };
 	if (ObjectAttributes->ObjectName) {
 		OriName = *ObjectAttributes->ObjectName;
+	}
+
+	if (OriName.Length && (OriName.Buffer[OriName.Length - 1] == OB_PATH_DELIMITER)) {
+		HasBackslashAtEnd = TRUE;
 	}
 
 	KIRQL OldIrql = ObLock();
@@ -349,6 +354,13 @@ NTSTATUS ObpReferenceObjectByName(POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_T
 		CallParseProcedure:
 			++Obj->PointerCount;
 			ObUnlock(OldIrql);
+
+			if (HasBackslashAtEnd && (RemainingName.Length == 0)) {
+				// Preserve the terminating backslash so that we can open the root directory of a volume
+				RemainingName.Buffer = &ObjectAttributes->ObjectName->Buffer[ObjectAttributes->ObjectName->Length - 1];
+				RemainingName.Length = 1;
+				RemainingName.MaximumLength = 1;
+			}
 
 			PVOID ParsedObject = nullptr;
 			NTSTATUS Status = Obj->Type->ParseProcedure(FoundObject, ObjectType,
