@@ -253,3 +253,17 @@ static inline LONGLONG CDECL atomic_load64(LONGLONG *src)
 
 	return val;
 }
+
+static inline VOID CDECL atomic_add64(LONGLONG *dst, LONGLONG val)
+{
+	__asm {
+		pushfd
+		cli
+	}
+
+	LONGLONG temp = *dst;
+	temp += val;
+	*dst = temp;
+
+	__asm popfd
+}
