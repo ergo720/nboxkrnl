@@ -742,7 +742,8 @@ NTSTATUS XBOXAPI IoParseDevice(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG
 	PDEVICE_OBJECT MountedDeviceObject = ParsedDeviceObject->MountedOrSelfDevice;
 	while (MountedDeviceObject == nullptr) {
 		IoUnlock(OldIrql);
-		if (NTSTATUS Status = IopMountDevice(ParsedDeviceObject); !NT_SUCCESS(Status)) {
+		// Raw device access can only be supported if the access is not relative to another file/dir and there isn't more path to process
+		if (NTSTATUS Status = IopMountDevice(ParsedDeviceObject, (RemainingName->Length == 0) && !OpenPacket->RelatedFileObject); !NT_SUCCESS(Status)) {
 			OpenPacket->FinalStatus = Status;
 			return Status;
 		}

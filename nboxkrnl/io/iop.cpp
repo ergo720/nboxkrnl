@@ -5,6 +5,7 @@
 #include "iop.hpp"
 #include "hdd\fatx.hpp"
 #include "cdrom\xiso.hpp"
+#include "raw/raw.hpp"
 #include "nt.hpp"
 
 
@@ -126,15 +127,16 @@ static VOID XBOXAPI IopCompletionRoutine(PKAPC Apc, PKNORMAL_ROUTINE *NormalRout
 	IopRundownRoutine(Apc);
 }
 
-NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject)
+NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject, BOOLEAN AllowRawAccess)
 {
 	// Thread safety: acquire a device-specific lock
 	KeWaitForSingleObject(&DeviceObject->DeviceLock, Executive, KernelMode, FALSE, nullptr);
 
 	NTSTATUS Status = STATUS_SUCCESS;
 	if (DeviceObject->MountedOrSelfDevice == nullptr) {
-		if (DeviceObject->Flags & DO_RAW_MOUNT_ONLY) {
-			RIP_API_MSG("Mounting raw devices is not supported");
+		if ((DeviceObject->Flags & DO_RAW_MOUNT_ONLY) && AllowRawAccess) {
+			// This should only happen for the partition zero of the HDD or the media board
+			Status = RawCreateVolume(DeviceObject);
 		}
 		else {
 			switch (DeviceObject->DeviceType)

@@ -669,7 +669,7 @@ extern const ULONG IopQueryFsOperationAccess[];
 extern const UCHAR IopQueryOperationLength[];
 extern const ULONG IopQueryOperationAccess[];
 
-NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject);
+NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject, BOOLEAN AllowRawAccess);
 VOID IopDereferenceDeviceObject(PDEVICE_OBJECT DeviceObject);
 VOID IopQueueThreadIrp(PIRP Irp);
 VOID IopDequeueThreadIrp(PIRP Irp);
