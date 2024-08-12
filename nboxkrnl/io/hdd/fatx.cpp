@@ -709,9 +709,11 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
-		// NOTE: despite the addition not being atomic, this is ok because on fatx the file size limit is 4 GiB, which means the high dword will always be zero with no carry to add to it
-		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
-		// NOTE: FileInfo->LastAccessTime must be updated atomically because FatxIrpRead acquires a shared lock, which means it can be concurrenly updated
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			// NOTE: despite the addition not being atomic, this is ok because on fatx the file size limit is 4 GiB, which means the high dword will always be zero with no carry to add to it
+			FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
+		}
+		// NOTE: FileInfo->LastAccessTime must be updated atomically because FatxIrpRead acquires a shared lock, which means it can be concurrently updated
 		LARGE_INTEGER LastAccessTime;
 		KeQuerySystemTime(&LastAccessTime);
 		atomic_store64(&FileInfo->LastAccessTime.QuadPart, LastAccessTime.QuadPart);
@@ -793,9 +795,11 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		RIP_API_MSG("Asynchronous IO is not supported");
 	}
 	else if (NT_SUCCESS(Status)) {
-		FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
-		if (FileObject->CurrentByteOffset.LowPart > FileInfo->FileSize) {
-			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart;
+		if ((FileObject->CurrentByteOffset.LowPart + InfoBlock.Info) > FileInfo->FileSize) {
+			FileInfo->FileSize = FileObject->CurrentByteOffset.QuadPart + InfoBlock.Info;
+		}
+		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+			FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		}
 		LARGE_INTEGER CurrentTime;
 		KeQuerySystemTime(&CurrentTime);
