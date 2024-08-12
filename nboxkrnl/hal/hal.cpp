@@ -39,6 +39,8 @@ VOID HalInitSystem()
 	// TODO: this should also setup the SMC
 }
 
+EXPORTNUM(40) ULONG HalDiskCachePartitionCount = 3;
+
 EXPORTNUM(46) VOID XBOXAPI HalReadWritePCISpace
 (
 	ULONG BusNumber,

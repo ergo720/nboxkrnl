@@ -23,6 +23,8 @@ using PHAL_SHUTDOWN_REGISTRATION = HAL_SHUTDOWN_REGISTRATION *;
 extern "C" {
 #endif
 
+EXPORTNUM(40) DLLEXPORT extern ULONG HalDiskCachePartitionCount;
+
 EXPORTNUM(43) DLLEXPORT VOID XBOXAPI HalEnableSystemInterrupt
 (
 	ULONG BusInterruptLevel,
