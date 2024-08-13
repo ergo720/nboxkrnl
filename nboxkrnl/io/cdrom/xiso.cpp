@@ -434,15 +434,18 @@ static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
 
 	if (--FileInfo->RefCounter == 0) {
-		SubmitIoRequestToHost(
-			DEV_TYPE(DEV_CDROM) | IoRequestType::Close,
-			0,
-			0,
-			0,
-			FileInfo->HostHandle
-		);
-		XisoRemoveFile(VolumeExtension, FileInfo);
-		if (!(FileInfo->Flags & XISO_VOLUME_FILE)) {
+		if (FileInfo->Flags & XISO_VOLUME_FILE) {
+			XisoRemoveFile(VolumeExtension, FileInfo);
+		}
+		else {
+			SubmitIoRequestToHost(
+				DEV_TYPE(DEV_CDROM) | IoRequestType::Close,
+				0,
+				0,
+				0,
+				FileInfo->HostHandle
+			);
+			XisoRemoveFile(VolumeExtension, FileInfo);
 			ExFreePool(FileInfo);
 		}
 		FileObject->FsContext2 = nullptr;

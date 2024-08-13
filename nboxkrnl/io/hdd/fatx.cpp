@@ -608,15 +608,18 @@ static NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	// NOTE: it's not viable to check for FileInfo->ShareAccess.OpenCount here, because it's possible to use a file handle with no access rights granted, which would
 	// mean that OpenCount is zero and yet the handle is still in use
 	if (--FileInfo->RefCounter == 0) {
-		SubmitIoRequestToHost(
-			DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
-			0,
-			0,
-			0,
-			FileInfo->HostHandle
-		);
-		FatxRemoveFile(VolumeExtension, FileInfo);
-		if (!(FileInfo->Flags & FATX_VOLUME_FILE)) {
+		if (FileInfo->Flags & FATX_VOLUME_FILE) {
+			FatxRemoveFile(VolumeExtension, FileInfo);
+		}
+		else {
+			SubmitIoRequestToHost(
+				DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
+				0,
+				0,
+				0,
+				FileInfo->HostHandle
+			);
+			FatxRemoveFile(VolumeExtension, FileInfo);
 			ExFreePool(FileInfo);
 		}
 		FileObject->FsContext2 = nullptr;
@@ -796,7 +799,7 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else if (NT_SUCCESS(Status)) {
 		if ((FileObject->CurrentByteOffset.LowPart + InfoBlock.Info) > FileInfo->FileSize) {
-			FileInfo->FileSize = FileObject->CurrentByteOffset.QuadPart + InfoBlock.Info;
+			FileInfo->FileSize = FileObject->CurrentByteOffset.LowPart + InfoBlock.Info;
 		}
 		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
 			FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
