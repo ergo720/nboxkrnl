@@ -501,9 +501,10 @@ static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 
 	if (FileInfo->Flags & XISO_VOLUME_FILE) {
-		// We can't support the volume itself, because there's no dvd image on the host side
-
-		return XisoCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		// We can only support the volume itself if the user booted an xiso image
+		if (IoDvdInputType == 0) {
+			return XisoCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		}
 	}
 	else {
 		// Cannot read past the end of the file

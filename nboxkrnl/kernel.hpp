@@ -27,6 +27,8 @@
 #define IO_RETRY 0x207
 // Request the I/O request with the specified id
 #define IO_QUERY 0x208
+// Request the dvd type the user has booted
+#define DVD_MEDIA_TYPE 0x209
 // Check if a I/O request was submitted successfully
 #define IO_CHECK_ENQUEUE 0x20A
 // Request the path's length of the XBE to launch when no reboot occured
@@ -141,6 +143,7 @@ struct XBOX_HARDWARE_INFO {
 };
 
 inline SystemType XboxType;
+inline ULONG IoDvdInputType; // 0: xbe, 1: xiso
 inline ULONGLONG IoRequestId = 0;
 inline ULONGLONG IoHostFileHandle = FIRST_FREE_HANDLE;
 
