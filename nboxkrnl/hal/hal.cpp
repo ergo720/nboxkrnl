@@ -29,14 +29,19 @@ VOID HalInitSystem()
 	KiIdt[IDT_INT_VECTOR_BASE + 0] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpClockIsr & 0x0000FFFF) | (((uint64_t)&HalpClockIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
 	HalEnableSystemInterrupt(0, Edge);
 
+	// Connect SMBUS interrupt
+	KeInitializeEvent(&HalpSmbusLock, SynchronizationEvent, 1);
+	KeInitializeEvent(&HalpSmbusComplete, NotificationEvent, 0);
+	KeInitializeDpc(&HalpSmbusDpcObject, HalpSmbusDpcRoutine, nullptr);
+	KiIdt[IDT_INT_VECTOR_BASE + 11] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpSmbusIsr & 0x0000FFFF) | (((uint64_t)&HalpSmbusIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
+	HalEnableSystemInterrupt(11, LevelSensitive);
+
 	if (XboxType == SYSTEM_DEVKIT) {
 		XboxHardwareInfo.Flags |= 2;
 	}
 	else if (XboxType == SYSTEM_CHIHIRO) {
 		XboxHardwareInfo.Flags |= 8;
 	}
-
-	// TODO: this should also setup the SMC
 }
 
 EXPORTNUM(40) ULONG HalDiskCachePartitionCount = 3;

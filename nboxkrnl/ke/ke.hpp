@@ -26,6 +26,7 @@
 #define HIGH_LEVEL 31
 #define CLOCK_LEVEL 28
 #define SYNC_LEVEL CLOCK_LEVEL
+#define SMBUS_LEVEL 15
 #define DISPATCH_LEVEL 2
 #define APC_LEVEL 1
 #define PASSIVE_LEVEL 0
@@ -668,6 +669,7 @@ EXPORTNUM(321) DLLEXPORT extern XBOX_KEY_DATA XboxEEPROMKey;
 
 extern XBOX_KEY_DATA XboxCERTKey;
 extern ULONG KernelThunkTable[379];
+extern KDPC KeSmbusDpcObject;
 
 VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
 VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument);
@@ -681,3 +683,5 @@ VOID KiScheduleThread(PKTHREAD Thread);
 VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread);
 
 [[noreturn]] VOID CDECL KeBugCheckLogEip(ULONG BugCheckCode);
+
+VOID XBOXAPI KeSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);

@@ -599,6 +599,48 @@ VOID __declspec(naked) XBOXAPI HalpClockIsr()
 	}
 }
 
+VOID __declspec(naked) XBOXAPI HalpSmbusIsr()
+{
+	__asm {
+		CREATE_KTRAP_FRAME_FOR_INT;
+		mov al, OCW2_EOI_IRQ | 2
+		out PIC_MASTER_CMD, al // send eoi to master pic
+		movzx eax, byte ptr [KiPcr]KPCR.Irql
+		cmp eax, SMBUS_LEVEL
+		jge masked_int
+		mov byte ptr [KiPcr]KPCR.Irql, SMBUS_LEVEL // raise IRQL
+		push eax
+		sti
+		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
+		mov edx, SMBUS_STATUS
+		in al, dx
+		out dx, al // clear status bits on smbus to dismiss the interrupt
+		push 0
+		push 0
+		push offset HalpSmbusDpcObject
+		call KeInsertQueueDpc
+		cli
+		mov eax, 11 + OCW2_EOI_IRQ - 8
+		out PIC_SLAVE_CMD, al // send eoi to slave pic
+		pop eax
+		mov byte ptr [KiPcr]KPCR.Irql, al // lower IRQL
+		call HalpCheckUnmaskedInt
+		jmp end_isr
+	masked_int:
+		mov edx, 1
+		mov ecx, 11 + IRQL_OFFSET_FOR_IRQ // smbus IRQ is eleven
+		shl edx, cl
+		or HalpPendingInt, edx // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
+		mov ax, PicIRQMasksForIRQL[eax * 2]
+		or ax, HalpIntDisabled // mask all IRQs on the PIC with IRQL <= than current IRQL
+		out PIC_MASTER_DATA, al
+		shr ax, 8
+		out PIC_SLAVE_DATA, al
+	end_isr:
+		EXIT_INTERRUPT;
+	}
+}
+
 EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 (
 	ULONG BusInterruptLevel,

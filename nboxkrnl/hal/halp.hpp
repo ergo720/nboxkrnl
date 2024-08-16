@@ -43,6 +43,8 @@
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+// SMBUS ports
+#define SMBUS_STATUS 0xC000
 
 VOID XBOXAPI HalpSwIntApc();
 VOID XBOXAPI HalpSwIntDpc();
@@ -65,6 +67,7 @@ VOID XBOXAPI HalpHwInt15();
 
 VOID XBOXAPI HalpInterruptCommon();
 VOID XBOXAPI HalpClockIsr();
+VOID XBOXAPI HalpSmbusIsr();
 
 inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {
 	&KiUnexpectedInterrupt,
