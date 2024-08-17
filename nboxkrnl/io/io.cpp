@@ -7,6 +7,7 @@
 #include "obp.hpp"
 #include "nt.hpp"
 #include "dbg.hpp"
+#include "halp.hpp"
 #include "cdrom\cdrom.hpp"
 #include "hdd\hdd.hpp"
 #include <string.h>
@@ -34,16 +35,10 @@ EXPORTNUM(71) OBJECT_TYPE IoFileObjectType = {
 
 BOOLEAN IoInitSystem()
 {
-	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		IoRequestType::Read | DEV_TYPE(DEV_EEPROM),
-		0,
-		sizeof(XBOX_EEPROM),
-		(ULONG_PTR)&CachedEeprom,
-		EEPROM_HANDLE
-	);
-
-	if (InfoBlock.Status != Success) {
-		return FALSE;
+	for (unsigned i = 0; i < 8; ++i) {
+		if (!NT_SUCCESS(HalpReadSMBusBlock(EEPROM_READ_ADDR, 32 * i, 32, (PBYTE)&CachedEeprom + i * 32))) {
+			return FALSE;
+		}
 	}
 
 	XboxFactoryGameRegion = CachedEeprom.EncryptedSettings.GameRegion;

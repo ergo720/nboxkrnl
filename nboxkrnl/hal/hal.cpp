@@ -57,12 +57,13 @@ EXPORTNUM(45) NTSTATUS HalReadSMBusValue
 	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
 	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
 
+	HalpBlockAmount = 0;
 	HalpExecuteReadSmbusCycle(SlaveAddress, CommandCode, ReadWordValue);
 
 	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
 
 	NTSTATUS Status = HalpSmbusStatus;
-	*DataValue = HalpSmbusWord;
+	*DataValue = *(PULONG)HalpSmbusData;
 
 	KeSetEvent(&HalpSmbusLock, 0, FALSE);
 	KeLeaveCriticalRegion();
@@ -178,6 +179,7 @@ EXPORTNUM(50) NTSTATUS XBOXAPI HalWriteSMBusValue
 	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
 	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
 
+	HalpBlockAmount = 0;
 	HalpExecuteWriteSmbusCycle(SlaveAddress, CommandCode, WriteWordValue, DataValue);
 
 	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc

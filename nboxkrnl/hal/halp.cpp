@@ -3,6 +3,7 @@
  */
 
 #include "halp.hpp"
+#include <string.h>
 
 // PIT i/o ports
 #define PIT_CHANNEL0_DATA  0x40
@@ -25,7 +26,8 @@
 
 KDPC HalpSmbusDpcObject;
 NTSTATUS HalpSmbusStatus;
-DWORD HalpSmbusWord;
+BYTE HalpSmbusData[32];
+UCHAR HalpBlockAmount;
 KEVENT HalpSmbusLock;
 KEVENT HalpSmbusComplete;
 
@@ -172,6 +174,25 @@ VOID HalpExecuteWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN W
 	}
 }
 
+VOID HalpExecuteBlockReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode)
+{
+	outb(SMBUS_ADDRESS, SlaveAddress | HA_RC);
+	outb(SMBUS_COMMAND, CommandCode);
+	outb(SMBUS_DATA, HalpBlockAmount);
+	outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BLOCK);
+}
+
+VOID HalpExecuteBlockWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, PBYTE Data)
+{
+	outb(SMBUS_ADDRESS, SlaveAddress & ~HA_RC);
+	outb(SMBUS_COMMAND, CommandCode);
+	outb(SMBUS_DATA, HalpBlockAmount);
+	for (unsigned i = 0; i < HalpBlockAmount; ++i) {
+		outb(SMBUS_FIFO, Data[i]);
+	}
+	outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BLOCK);
+}
+
 VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2)
 {
 	// NOTE: the smbus implementation in nxbx only sets GS_PRERR_STS or GS_HCYC_STS
@@ -179,12 +200,67 @@ VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemA
 	ULONG SmbusStatus = (ULONG)SystemArgument1;
 	if (SmbusStatus & GS_PRERR_STS) {
 		HalpSmbusStatus = STATUS_IO_DEVICE_ERROR;
-		HalpSmbusWord = 0;
+		memset(HalpSmbusData, 0, 32);
 	}
 	else {
 		HalpSmbusStatus = STATUS_SUCCESS;
-		HalpSmbusWord = inw(SMBUS_DATA);
+		if (HalpBlockAmount) {
+			for (unsigned i = 0; i < HalpBlockAmount; ++i) {
+				HalpSmbusData[i] = inb(SMBUS_FIFO);
+			}
+		}
+		else {
+			PULONG Buffer = (PULONG)HalpSmbusData;
+			*Buffer = inw(SMBUS_DATA);
+		}
 	}
 
 	KeSetEvent(&HalpSmbusComplete, 0, FALSE);
+}
+
+NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmount, BYTE *Buffer)
+{
+	if ((ReadAmount == 0) || (ReadAmount > 32)) {
+		return STATUS_IO_DEVICE_ERROR;
+	}
+
+	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
+	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+
+	HalpBlockAmount = ReadAmount;
+	HalpExecuteBlockReadSmbusCycle(SlaveAddress, CommandCode);
+
+	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+
+	NTSTATUS Status = HalpSmbusStatus;
+	for (unsigned i = 0; i < HalpBlockAmount; ++i) {
+		*Buffer = HalpSmbusData[i];
+	}
+
+	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeLeaveCriticalRegion();
+
+	return Status;
+}
+
+NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteAmount, BYTE *Buffer)
+{
+	if ((WriteAmount == 0) || (WriteAmount > 32)) {
+		return STATUS_IO_DEVICE_ERROR;
+	}
+
+	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
+	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+
+	HalpBlockAmount = WriteAmount;
+	HalpExecuteBlockWriteSmbusCycle(SlaveAddress, CommandCode, Buffer);
+
+	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+
+	NTSTATUS Status = HalpSmbusStatus;
+
+	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeLeaveCriticalRegion();
+
+	return Status;
 }

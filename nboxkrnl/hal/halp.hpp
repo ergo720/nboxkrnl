@@ -49,20 +49,27 @@
 #define SMBUS_ADDRESS 0xC004
 #define SMBUS_DATA 0xC006
 #define SMBUS_COMMAND 0xC008
+#define SMBUS_FIFO 0xC009
 
 // SMBUS constants
 #define GS_PRERR_STS (1 << 2) // cycle failed
 #define GS_HCYC_STS (1 << 4) // cycle succeeded
 #define GE_RW_BYTE 2
 #define GE_RW_WORD 3
+#define GE_RW_BLOCK 5
 #define GE_HOST_STC (1 << 3) // set to start a cycle
 #define GE_HCYC_EN (1 << 4) // set to enable interrupts
 #define HA_RC (1 << 0) // set to specify a read/receive cycle
 
+// SMBUS sw addresses
+#define EEPROM_WRITE_ADDR 0xA8
+#define EEPROM_READ_ADDR 0xA9
+
 
 extern KDPC HalpSmbusDpcObject;
 extern NTSTATUS HalpSmbusStatus;
-extern DWORD HalpSmbusWord;
+extern BYTE HalpSmbusData[32];
+extern UCHAR HalpBlockAmount;
 extern KEVENT HalpSmbusLock;
 extern KEVENT HalpSmbusComplete;
 
@@ -120,3 +127,7 @@ VOID HalpCheckUnmaskedInt();
 VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
 VOID HalpExecuteReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN ReadWordValue);
 VOID HalpExecuteWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN WriteWordValue, ULONG DataValue);
+VOID HalpExecuteBlockReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode);
+VOID HalpExecuteBlockWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, PBYTE Data);
+NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmount, BYTE *Buffer);
+NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteAmount, BYTE *Buffer);

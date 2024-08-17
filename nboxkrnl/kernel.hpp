@@ -44,7 +44,7 @@
 
 // Host device number
 #define DEV_CDROM      0
-#define DEV_EEPROM     1
+#define DEV_UNUSED     1
 #define DEV_PARTITION0 2
 #define DEV_PARTITION1 3
 #define DEV_PARTITION2 4
@@ -58,7 +58,7 @@
 
 // Special host handles
 #define CDROM_HANDLE      DEV_CDROM
-#define EEPROM_HANDLE     DEV_EEPROM
+#define UNUSED_HANDLE     DEV_UNUSED
 #define PARTITION0_HANDLE DEV_PARTITION0
 #define PARTITION1_HANDLE DEV_PARTITION1
 #define PARTITION2_HANDLE DEV_PARTITION2
