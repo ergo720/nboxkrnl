@@ -669,7 +669,6 @@ EXPORTNUM(321) DLLEXPORT extern XBOX_KEY_DATA XboxEEPROMKey;
 
 extern XBOX_KEY_DATA XboxCERTKey;
 extern ULONG KernelThunkTable[379];
-extern KDPC KeSmbusDpcObject;
 
 VOID XBOXAPI KiSuspendNop(PKAPC Apc, PKNORMAL_ROUTINE *NormalRoutine, PVOID *NormalContext, PVOID *SystemArgument1, PVOID *SystemArgument2);
 VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID SystemArgument);
@@ -683,5 +682,3 @@ VOID KiScheduleThread(PKTHREAD Thread);
 VOID FASTCALL KeAddThreadToTailOfReadyList(PKTHREAD Thread);
 
 [[noreturn]] VOID CDECL KeBugCheckLogEip(ULONG BugCheckCode);
-
-VOID XBOXAPI KeSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);

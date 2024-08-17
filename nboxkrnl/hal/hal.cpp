@@ -46,6 +46,30 @@ VOID HalInitSystem()
 
 EXPORTNUM(40) ULONG HalDiskCachePartitionCount = 3;
 
+EXPORTNUM(45) NTSTATUS HalReadSMBusValue
+(
+	UCHAR SlaveAddress,
+	UCHAR CommandCode,
+	BOOLEAN ReadWordValue,
+	ULONG *DataValue
+)
+{
+	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
+	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+
+	HalpExecuteReadSmbusCycle(SlaveAddress, CommandCode, ReadWordValue);
+
+	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+
+	NTSTATUS Status = HalpSmbusStatus;
+	*DataValue = HalpSmbusWord;
+
+	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeLeaveCriticalRegion();
+
+	return Status;
+}
+
 EXPORTNUM(46) VOID XBOXAPI HalReadWritePCISpace
 (
 	ULONG BusNumber,
@@ -141,4 +165,27 @@ EXPORTNUM(47) VOID XBOXAPI HalRegisterShutdownNotification
 	}
 
 	KfLowerIrql(OldIrql);
+}
+
+EXPORTNUM(50) NTSTATUS XBOXAPI HalWriteSMBusValue
+(
+	UCHAR SlaveAddress,
+	UCHAR CommandCode,
+	BOOLEAN WriteWordValue,
+	ULONG DataValue
+)
+{
+	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
+	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+
+	HalpExecuteWriteSmbusCycle(SlaveAddress, CommandCode, WriteWordValue, DataValue);
+
+	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+
+	NTSTATUS Status = HalpSmbusStatus;
+
+	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeLeaveCriticalRegion();
+
+	return Status;
 }

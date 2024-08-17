@@ -37,6 +37,14 @@ EXPORTNUM(44) DLLEXPORT ULONG XBOXAPI HalGetInterruptVector
 	PKIRQL Irql
 );
 
+EXPORTNUM(45) DLLEXPORT NTSTATUS HalReadSMBusValue
+(
+	UCHAR SlaveAddress,
+	UCHAR CommandCode,
+	BOOLEAN ReadWordValue,
+	ULONG *DataValue
+);
+
 EXPORTNUM(46) DLLEXPORT VOID XBOXAPI HalReadWritePCISpace
 (
 	ULONG BusNumber,
@@ -56,6 +64,14 @@ EXPORTNUM(47) DLLEXPORT VOID XBOXAPI HalRegisterShutdownNotification
 EXPORTNUM(48) DLLEXPORT VOID FASTCALL HalRequestSoftwareInterrupt
 (
 	KIRQL Request
+);
+
+EXPORTNUM(50) DLLEXPORT NTSTATUS XBOXAPI HalWriteSMBusValue
+(
+	UCHAR SlaveAddress,
+	UCHAR CommandCode,
+	BOOLEAN WriteWordValue,
+	ULONG DataValue
 );
 
 #ifdef __cplusplus

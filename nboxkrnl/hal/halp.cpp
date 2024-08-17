@@ -23,6 +23,12 @@
 #define CMOS_PORT_DATA 0x71
 
 
+KDPC HalpSmbusDpcObject;
+NTSTATUS HalpSmbusStatus;
+DWORD HalpSmbusWord;
+KEVENT HalpSmbusLock;
+KEVENT HalpSmbusComplete;
+
 VOID HalpInitPIC()
 {
 	__asm {
@@ -138,4 +144,47 @@ VOID HalpShutdownSystem()
 			hlt
 		}
 	}
+}
+
+VOID HalpExecuteReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN ReadWordValue)
+{
+	outb(SMBUS_ADDRESS, SlaveAddress | HA_RC);
+	outb(SMBUS_COMMAND, CommandCode);
+	if (ReadWordValue) {
+		outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_WORD);
+	}
+	else {
+		outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BYTE);
+	}
+}
+
+VOID HalpExecuteWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN WriteWordValue, ULONG DataValue)
+{
+	outb(SMBUS_ADDRESS, SlaveAddress & ~HA_RC);
+	outb(SMBUS_COMMAND, CommandCode);
+	if (WriteWordValue) {
+		outb(SMBUS_DATA, DataValue);
+		outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_WORD);
+	}
+	else {
+		outw(SMBUS_DATA, DataValue);
+		outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BYTE);
+	}
+}
+
+VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2)
+{
+	// NOTE: the smbus implementation in nxbx only sets GS_PRERR_STS or GS_HCYC_STS
+
+	ULONG SmbusStatus = (ULONG)SystemArgument1;
+	if (SmbusStatus & GS_PRERR_STS) {
+		HalpSmbusStatus = STATUS_IO_DEVICE_ERROR;
+		HalpSmbusWord = 0;
+	}
+	else {
+		HalpSmbusStatus = STATUS_SUCCESS;
+		HalpSmbusWord = inw(SMBUS_DATA);
+	}
+
+	KeSetEvent(&HalpSmbusComplete, 0, FALSE);
 }

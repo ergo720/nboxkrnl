@@ -612,11 +612,12 @@ VOID __declspec(naked) XBOXAPI HalpSmbusIsr()
 		push eax
 		sti
 		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
+		xor eax, eax
 		mov edx, SMBUS_STATUS
 		in al, dx
 		out dx, al // clear status bits on smbus to dismiss the interrupt
 		push 0
-		push 0
+		push eax
 		push offset HalpSmbusDpcObject
 		call KeInsertQueueDpc
 		cli

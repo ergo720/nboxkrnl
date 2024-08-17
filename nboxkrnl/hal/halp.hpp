@@ -45,6 +45,26 @@
 
 // SMBUS ports
 #define SMBUS_STATUS 0xC000
+#define SMBUS_CONTROL 0xC002
+#define SMBUS_ADDRESS 0xC004
+#define SMBUS_DATA 0xC006
+#define SMBUS_COMMAND 0xC008
+
+// SMBUS constants
+#define GS_PRERR_STS (1 << 2) // cycle failed
+#define GS_HCYC_STS (1 << 4) // cycle succeeded
+#define GE_RW_BYTE 2
+#define GE_RW_WORD 3
+#define GE_HOST_STC (1 << 3) // set to start a cycle
+#define GE_HCYC_EN (1 << 4) // set to enable interrupts
+#define HA_RC (1 << 0) // set to specify a read/receive cycle
+
+
+extern KDPC HalpSmbusDpcObject;
+extern NTSTATUS HalpSmbusStatus;
+extern DWORD HalpSmbusWord;
+extern KEVENT HalpSmbusLock;
+extern KEVENT HalpSmbusComplete;
 
 VOID XBOXAPI HalpSwIntApc();
 VOID XBOXAPI HalpSwIntDpc();
@@ -97,3 +117,6 @@ VOID HalpInitPIC();
 VOID HalpInitPIT();
 VOID HalpReadCmosTime(PTIME_FIELDS TimeFields);
 VOID HalpCheckUnmaskedInt();
+VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
+VOID HalpExecuteReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN ReadWordValue);
+VOID HalpExecuteWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN WriteWordValue, ULONG DataValue);
