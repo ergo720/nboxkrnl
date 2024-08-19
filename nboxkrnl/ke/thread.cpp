@@ -250,11 +250,13 @@ static PKTHREAD XBOXAPI KiFindAndRemoveHighestPriorityThread(KPRIORITY LowPriori
 {
 	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
 
+	if (KiReadyThreadMask == 0) {
+		return nullptr;
+	}
+
 	KPRIORITY HighestPriority;
 	__asm {
 		bsr eax, KiReadyThreadMask
-		mov ecx, -1
-		cmovz eax, ecx
 		mov HighestPriority, eax
 	}
 

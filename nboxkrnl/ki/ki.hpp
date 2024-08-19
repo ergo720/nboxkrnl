@@ -134,7 +134,7 @@ inline uint8_t alignas(4) KiIdleThreadStack[KERNEL_STACK_SIZE];
 inline LIST_ENTRY KiReadyThreadLists[NUM_OF_THREAD_PRIORITIES];
 
 // Bitmask of KiReadyThreadLists -> bit position is one if there is at least one ready thread at that priority
-inline DWORD KiReadyThreadMask = 1;
+inline DWORD KiReadyThreadMask = 0;
 
 inline LIST_ENTRY KiWaitInListHead;
 
