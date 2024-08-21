@@ -64,6 +64,18 @@
 // SMBUS sw addresses
 #define EEPROM_WRITE_ADDR 0xA8
 #define EEPROM_READ_ADDR 0xA9
+#define SMC_WRITE_ADDR 0x20
+#define SMC_READ_ADDR 0x21
+
+// SMC video mode values
+#define SMC_VIDEO_MODE_COMMAND   0x04
+#define SMC_VIDEO_MODE_SCART     0x00
+#define SMC_VIDEO_MODE_HDTV      0x01
+#define SMC_VIDEO_MODE_VGA       0x02
+#define SMC_VIDEO_MODE_RFU       0x03
+#define SMC_VIDEO_MODE_SVIDEO    0x04
+#define SMC_VIDEO_MODE_STANDARD  0x06
+#define SMC_VIDEO_MODE_NONE      0x07
 
 
 extern KDPC HalpSmbusDpcObject;
@@ -122,6 +134,7 @@ inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {
 [[noreturn]] VOID HalpShutdownSystem();
 VOID HalpInitPIC();
 VOID HalpInitPIT();
+VOID HalpInitSMCstate();
 VOID HalpReadCmosTime(PTIME_FIELDS TimeFields);
 VOID HalpCheckUnmaskedInt();
 VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);

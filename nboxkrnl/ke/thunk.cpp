@@ -376,7 +376,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxLANKey),                          // 0x0161 (353)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxAlternateSignatureKeys),          // 0x0162 (354)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XePublicKeyData),                     // 0x0163 (355)
-	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&HalBootSMCVideoMode),                 // 0x0164 (356)
+	(ULONG)VARIABLE(&HalBootSMCVideoMode),                 // 0x0164 (356)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&IdexChannelObject),                   // 0x0165 (357)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalIsResetOrShutdownPending),             // 0x0166 (358)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IoMarkIrpMustComplete),                   // 0x0167 (359)

@@ -2,6 +2,7 @@
  * ergo720                Copyright (c) 2023
  */
 
+#include "hal.hpp"
 #include "halp.hpp"
 #include <string.h>
 
@@ -65,6 +66,14 @@ VOID HalpInitPIT()
 		out PIT_CHANNEL0_DATA, al
 		shr ax, 8
 		out PIT_CHANNEL0_DATA, al
+	}
+}
+
+VOID HalpInitSMCstate()
+{
+	ULONG BootVideoMode;
+	if (NT_SUCCESS(HalReadSMBusValue(SMC_READ_ADDR, SMC_VIDEO_MODE_COMMAND, FALSE, &BootVideoMode))) {
+		HalBootSMCVideoMode = BootVideoMode;
 	}
 }
 

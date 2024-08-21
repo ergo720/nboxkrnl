@@ -74,6 +74,8 @@ EXPORTNUM(50) DLLEXPORT NTSTATUS XBOXAPI HalWriteSMBusValue
 	ULONG DataValue
 );
 
+EXPORTNUM(356) DLLEXPORT extern ULONG HalBootSMCVideoMode;
+
 #ifdef __cplusplus
 }
 #endif

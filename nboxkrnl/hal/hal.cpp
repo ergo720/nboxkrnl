@@ -29,12 +29,14 @@ VOID HalInitSystem()
 	KiIdt[IDT_INT_VECTOR_BASE + 0] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpClockIsr & 0x0000FFFF) | (((uint64_t)&HalpClockIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
 	HalEnableSystemInterrupt(0, Edge);
 
-	// Connect SMBUS interrupt
+	// Connect the SMBUS interrupt
 	KeInitializeEvent(&HalpSmbusLock, SynchronizationEvent, 1);
 	KeInitializeEvent(&HalpSmbusComplete, NotificationEvent, 0);
 	KeInitializeDpc(&HalpSmbusDpcObject, HalpSmbusDpcRoutine, nullptr);
 	KiIdt[IDT_INT_VECTOR_BASE + 11] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpSmbusIsr & 0x0000FFFF) | (((uint64_t)&HalpSmbusIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
 	HalEnableSystemInterrupt(11, LevelSensitive);
+
+	HalpInitSMCstate();
 
 	if (XboxType == SYSTEM_DEVKIT) {
 		XboxHardwareInfo.Flags |= 2;
@@ -191,3 +193,5 @@ EXPORTNUM(50) NTSTATUS XBOXAPI HalWriteSMBusValue
 
 	return Status;
 }
+
+EXPORTNUM(356) ULONG HalBootSMCVideoMode = SMC_VIDEO_MODE_NONE;
