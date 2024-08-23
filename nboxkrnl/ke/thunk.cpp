@@ -344,7 +344,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)VARIABLE(&XboxEEPROMKey),                       // 0x0141 (321)
 	(ULONG)VARIABLE(&XboxHardwareInfo),                    // 0x0142 (322)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxHDKey),                           // 0x0143 (323)
-	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxKrnlVersion),                     // 0x0144 (324)
+	(ULONG)VARIABLE(&XboxKrnlVersion),                     // 0x0144 (324)
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxSignatureKey),                    // 0x0145 (325)
 	(ULONG)VARIABLE(&XeImageFileName),                     // 0x0146 (326)
 	(ULONG)FUNC(&XeLoadSection),                           // 0x0147 (327)

@@ -33,6 +33,14 @@ EXPORTNUM(322) XBOX_HARDWARE_INFO XboxHardwareInfo =
 	0      // unknown
 };
 
+EXPORTNUM(324) XBOX_KRNL_VERSION XboxKrnlVersion =
+{
+	1,
+	0,
+	5838, // kernel build 5838
+	1
+};
+
 // Source: Cxbx-Reloaded
 EXPORTNUM(125) ULONGLONG XBOXAPI KeQueryInterruptTime()
 {

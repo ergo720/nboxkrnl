@@ -142,6 +142,13 @@ struct XBOX_HARDWARE_INFO {
 	UCHAR Unknown4;
 };
 
+struct XBOX_KRNL_VERSION {
+	USHORT Major;
+	USHORT Minor;
+	USHORT Build;
+	USHORT Qfe;
+};
+
 inline SystemType XboxType;
 inline ULONG IoDvdInputType; // 0: xbe, 1: xiso
 inline ULONGLONG IoRequestId = 0;
@@ -152,6 +159,8 @@ extern "C" {
 #endif
 
 EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
+
+EXPORTNUM(324) DLLEXPORT extern XBOX_KRNL_VERSION XboxKrnlVersion;
 
 #ifdef __cplusplus
 }
