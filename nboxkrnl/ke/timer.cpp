@@ -30,8 +30,9 @@ VOID FASTCALL KiCheckExpiredTimers(DWORD OldKeTickCount)
 		if (IsListEmpty(&KiTimerTableListHead[Index]) == FALSE) {
 			PLIST_ENTRY NextEntry = KiTimerTableListHead[Index].Flink;
 			PKTIMER Timer = CONTAINING_RECORD(NextEntry, KTIMER, TimerListEntry);
-			if (((ULONG)KeInterruptTime.HighTime <= Timer->DueTime.HighPart) &&
-				(KeInterruptTime.LowTime < Timer->DueTime.LowPart)) {
+			if (((ULONG)KeInterruptTime.HighTime < Timer->DueTime.HighPart) ||
+				(((ULONG)KeInterruptTime.HighTime == Timer->DueTime.HighPart) &&
+				(KeInterruptTime.LowTime < Timer->DueTime.LowPart))) {
 				continue;
 			}
 
