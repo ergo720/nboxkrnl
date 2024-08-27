@@ -25,6 +25,11 @@
 		xor ebp, ebp
 		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)
 
+		// Update cr0
+		mov eax, cr0
+		or eax, CR0_NE
+		mov cr0, eax
+
 		// Initialize the CRT of the kernel executable
 		call InitializeCrt
 
