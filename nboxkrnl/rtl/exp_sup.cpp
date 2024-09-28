@@ -88,27 +88,27 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 	PEXCEPTION_RECORD ExceptionRecord
 )
 {
-	__asm {
-		push ebp
-		mov ebp, esp
-		sub esp, SIZE CONTEXT
-		push esp
-		call RtlCaptureContext
-		add [esp]CONTEXT.Esp, 4 // pop ExceptionRecord argument
-		mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS // set ContextFlags member of CONTEXT
-		mov eax, [ebp + 8]
-		mov ecx, [ebp + 4]
-		mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx // set ExceptionAddress member of ExceptionRecord argument to caller's eip
-		mov ecx, esp
-		push TRUE
-		push ecx
-		push [ebp + 8]
-		call ZwRaiseException
+	ASM_BEGIN
+		ASM(push ebp);
+		ASM(mov ebp, esp);
+		ASM(sub esp, SIZE CONTEXT);
+		ASM(push esp);
+		ASM(call RtlCaptureContext);
+		ASM(add [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
+		ASM(mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
+		ASM(mov eax, [ebp + 8]);
+		ASM(mov ecx, [ebp + 4]);
+		ASM(mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		ASM(mov ecx, esp);
+		ASM(push TRUE);
+		ASM(push ecx);
+		ASM(push [ebp + 8]);
+		ASM(call ZwRaiseException);
 		// ZwRaiseException should never return. It would only be possible if KiRaiseException fails before copying the CONTEXT to the KTRAP_FRAME, but the
 		// function right now always succeeds
-		push NORETURN_FUNCTION_RETURNED
-		call KeBugCheckLogEip // won't return
-	}
+		ASM(push NORETURN_FUNCTION_RETURNED);
+		ASM(call KeBugCheckLogEip); // won't return
+	ASM_END
 }
 
 BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
@@ -204,10 +204,10 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		ExceptionRecord->ExceptionFlags = 0;
 		ExceptionRecord->ExceptionRecord = nullptr;
 		ExceptionRecord->NumberParameters = 0;
-		__asm {
-			mov eax, dword ptr [ebp + 4]
-			mov dword ptr [LocalExceptionRecord].ExceptionAddress, eax
-		}
+		ASM_BEGIN
+			ASM(mov eax, dword ptr [ebp + 4]);
+			ASM(mov dword ptr [LocalExceptionRecord].ExceptionAddress, eax);
+		ASM_END
 	}
 
 	ExceptionRecord->ExceptionFlags |= EXCEPTION_UNWINDING;
@@ -280,11 +280,11 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		}
 		}
 
-		__asm {
-			mov eax, [RegistrationPointer]
-			mov eax, [eax]
-			mov dword ptr [KiPcr].NtTib.ExceptionList, eax
-		}
+		ASM_BEGIN
+			ASM(mov eax, [RegistrationPointer]);
+			ASM(mov eax, [eax]);
+			ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax);
+		ASM_END
 
 		RegistrationPointer = RegistrationPointer->Prev;
 	}

@@ -49,7 +49,7 @@ EXPORTNUM(264) VOID XBOXAPI RtlAssert
 	// NOTE: this should check for the presence of a guest debugger on the host side (such as lib86dbg) and, if present, communicate that it should hook
 	// the breakpoint exception handler that int3 generates, so that it can take over us and start a debugging session
 
-	__asm int 3
+	ASM(int 3);
 }
 
 EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
@@ -59,33 +59,33 @@ EXPORTNUM(265) __declspec(naked) VOID XBOXAPI RtlCaptureContext
 {
 	// NOTE: this function sets esp and ebp to the values they had in the caller's caller. For example, when called from RtlUnwind, it will set them to
 	// the values used in _global_unwind2. To achieve this effect, the caller must use __declspec(noinline) and #pragma optimize("y", off)
-	__asm {
-		push ebx
-		mov ebx, [esp + 8]        // ebx = ContextRecord;
+	ASM_BEGIN
+		ASM(push ebx);
+		ASM(mov ebx, [esp + 8]);        // ebx = ContextRecord;
 
-		mov [ebx]CONTEXT.Eax, eax // ContextRecord->Eax = eax;
-		mov eax, [esp]            // eax = original value of ebx
-		mov [ebx]CONTEXT.Ebx, eax // ContextRecord->Ebx = original value of ebx
-		mov [ebx]CONTEXT.Ecx, ecx // ContextRecord->Ecx = ecx;
-		mov [ebx]CONTEXT.Edx, edx // ContextRecord->Edx = edx;
-		mov [ebx]CONTEXT.Esi, esi // ContextRecord->Esi = esi;
-		mov [ebx]CONTEXT.Edi, edi // ContextRecord->Edi = edi;
+		ASM(mov [ebx]CONTEXT.Eax, eax); // ContextRecord->Eax = eax;
+		ASM(mov eax, [esp]);            // eax = original value of ebx
+		ASM(mov [ebx]CONTEXT.Ebx, eax); // ContextRecord->Ebx = original value of ebx
+		ASM(mov [ebx]CONTEXT.Ecx, ecx); // ContextRecord->Ecx = ecx;
+		ASM(mov [ebx]CONTEXT.Edx, edx); // ContextRecord->Edx = edx;
+		ASM(mov [ebx]CONTEXT.Esi, esi); // ContextRecord->Esi = esi;
+		ASM(mov [ebx]CONTEXT.Edi, edi); // ContextRecord->Edi = edi;
 
-		mov word ptr [ebx]CONTEXT.SegCs, cs // ContextRecord->SegCs = cs;
-		mov word ptr [ebx]CONTEXT.SegSs, ss // ContextRecord->SegSs = ss;
-		pushfd
-		pop [ebx]CONTEXT.EFlags   // ContextRecord->EFlags = flags;
+		ASM(mov word ptr [ebx]CONTEXT.SegCs, cs); // ContextRecord->SegCs = cs;
+		ASM(mov word ptr [ebx]CONTEXT.SegSs, ss); // ContextRecord->SegSs = ss;
+		ASM(pushfd);
+		ASM(pop [ebx]CONTEXT.EFlags);   // ContextRecord->EFlags = flags;
 
-		mov eax, [ebp]            // eax = old ebp;
-		mov [ebx]CONTEXT.Ebp, eax // ContextRecord->Ebp = ebp;
-		mov eax, [ebp + 4]        // eax = return address;
-		mov [ebx]CONTEXT.Eip, eax // ContextRecord->Eip = return address;
-		lea eax, [ebp + 8]
-		mov [ebx]CONTEXT.Esp, eax // ContextRecord->Esp = original esp value;
+		ASM(mov eax, [ebp]);            // eax = old ebp;
+		ASM(mov [ebx]CONTEXT.Ebp, eax); // ContextRecord->Ebp = ebp;
+		ASM(mov eax, [ebp + 4]);        // eax = return address;
+		ASM(mov [ebx]CONTEXT.Eip, eax); // ContextRecord->Eip = return address;
+		ASM(lea eax, [ebp + 8]);
+		ASM(mov [ebx]CONTEXT.Esp, eax); // ContextRecord->Esp = original esp value;
 
-		pop ebx
-		ret 4
-	}
+		ASM(pop ebx);
+		ASM(ret 4);
+	ASM_END
 }
 
 // Source: Cxbx-Reloaded
@@ -148,31 +148,31 @@ EXPORTNUM(277) VOID XBOXAPI RtlEnterCriticalSection
 {
 	// This function must update the members of CriticalSection atomically, so we use assembly
 
-	__asm {
-		mov ecx, CriticalSection
-		mov eax, [KiPcr]KPCR.PrcbData.CurrentThread
-		inc [ecx]RTL_CRITICAL_SECTION.LockCount
-		jnz already_owned
-		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, eax
-		mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1
-		jmp end_func
+	ASM_BEGIN
+		ASM(mov ecx, CriticalSection);
+		ASM(mov eax, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(inc [ecx]RTL_CRITICAL_SECTION.LockCount);
+		ASM(jnz already_owned);
+		ASM(mov [ecx]RTL_CRITICAL_SECTION.OwningThread, eax);
+		ASM(mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1);
+		ASM(jmp end_func);
 	already_owned:
-		cmp [ecx]RTL_CRITICAL_SECTION.OwningThread, eax
-		jz owned_by_self
-		push eax
-		push 0
-		push FALSE
-		push KernelMode
-		push WrExecutive
-		push ecx
-		call KeWaitForSingleObject
-		pop [ecx]RTL_CRITICAL_SECTION.OwningThread
-		mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1
-		jmp end_func
+		ASM(cmp [ecx]RTL_CRITICAL_SECTION.OwningThread, eax);
+		ASM(jz owned_by_self);
+		ASM(push eax);
+		ASM(push 0);
+		ASM(push FALSE);
+		ASM(push KernelMode);
+		ASM(push WrExecutive);
+		ASM(push ecx);
+		ASM(call KeWaitForSingleObject);
+		ASM(pop [ecx]RTL_CRITICAL_SECTION.OwningThread);
+		ASM(mov [ecx]RTL_CRITICAL_SECTION.RecursionCount, 1);
+		ASM(jmp end_func);
 	owned_by_self:
-		inc [ecx]RTL_CRITICAL_SECTION.RecursionCount
+		ASM(inc [ecx]RTL_CRITICAL_SECTION.RecursionCount);
 	end_func:
-	}
+	ASM_END
 }
 
 EXPORTNUM(278) VOID XBOXAPI RtlEnterCriticalSectionAndRegion
@@ -282,22 +282,22 @@ EXPORTNUM(294) VOID XBOXAPI RtlLeaveCriticalSection
 {
 	// This function must update the members of CriticalSection atomically, so we use assembly
 
-	__asm {
-		mov ecx, CriticalSection
-		dec [ecx]RTL_CRITICAL_SECTION.RecursionCount
-		jnz dec_count
-		dec [ecx]RTL_CRITICAL_SECTION.LockCount
-		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0
-		jl end_func
-		push FALSE
-		push PRIORITY_BOOST_EVENT
-		push ecx
-		call KeSetEvent
-		jmp end_func
+	ASM_BEGIN
+		ASM(mov ecx, CriticalSection);
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.RecursionCount);
+		ASM(jnz dec_count);
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
+		ASM(mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0);
+		ASM(jl end_func);
+		ASM(push FALSE);
+		ASM(push PRIORITY_BOOST_EVENT);
+		ASM(push ecx);
+		ASM(call KeSetEvent);
+		ASM(jmp end_func);
 	dec_count:
-		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
 	end_func:
-	}
+	ASM_END
 }
 
 EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
@@ -308,24 +308,24 @@ EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 	// NOTE: this must check RecursionCount only once, so that it can unconditionally call KeLeaveCriticalRegion if the counter is zero regardless of
 	// its current value. This, to guard against the case where a thread switch happens after the counter is updated but before KeLeaveCriticalRegion is called
 
-	__asm {
-		mov ecx, CriticalSection
-		dec [ecx]RTL_CRITICAL_SECTION.RecursionCount
-		jnz dec_count
-		dec [ecx]RTL_CRITICAL_SECTION.LockCount
-		mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0
-		jl not_signalled
-		push FALSE
-		push PRIORITY_BOOST_EVENT
-		push ecx
-		call KeSetEvent
+	ASM_BEGIN
+		ASM(mov ecx, CriticalSection);
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.RecursionCount);
+		ASM(jnz dec_count);
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
+		ASM(mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0);
+		ASM(jl not_signalled);
+		ASM(push FALSE);
+		ASM(push PRIORITY_BOOST_EVENT);
+		ASM(push ecx);
+		ASM(call KeSetEvent);
 	not_signalled:
-		call KeLeaveCriticalRegion
-		jmp end_func
+		ASM(call KeLeaveCriticalRegion);
+		ASM(jmp end_func);
 	dec_count:
-		dec [ecx]RTL_CRITICAL_SECTION.LockCount
+		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
 	end_func:
-	}
+	ASM_END
 }
 
 // Source: Cxbx-Reloaded
@@ -496,7 +496,7 @@ EXPORTNUM(319) ULONG XBOXAPI RtlWalkFrameChain
 
 	ULONG_PTR Stack;
 	/* Get current EBP */
-	__asm mov Stack, ebp
+	ASM(mov Stack, ebp);
 
 	/* Get the actual stack limits */
 	PKTHREAD Thread = KeGetCurrentThread();
@@ -635,5 +635,5 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 
 ULONG RtlpBitScanForward(ULONG Value)
 {
-	__asm bsf eax, Value
+	ASM(bsf eax, Value);
 }

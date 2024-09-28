@@ -4,6 +4,12 @@
 
 #pragma once
 
+// Workaround fix for using clang-format with WhitespaceSensitiveMacros option
+// However, clang-format will not format inside the parentheses bracket.
+#define ASM(...) __asm __VA_ARGS__
+#define ASM_BEGIN __asm {
+#define ASM_END }
+
 #include <stdint.h>
 #include <stddef.h>
 #include "bug_codes.hpp"

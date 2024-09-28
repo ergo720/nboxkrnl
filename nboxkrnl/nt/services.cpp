@@ -7,19 +7,19 @@
 
 VOID XBOXAPI ZwContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert)
 {
-	__asm {
-		mov ecx, ContextRecord
-		movzx edx, TestAlert
-		int IDT_SERVICE_VECTOR_BASE + 8 // calls KiContinueService
-	}
+	ASM_BEGIN
+		ASM(mov ecx, ContextRecord);
+		ASM(movzx edx, TestAlert);
+		ASM(int IDT_SERVICE_VECTOR_BASE + 8); // calls KiContinueService
+	ASM_END
 }
 
 VOID XBOXAPI ZwRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance)
 {
-	__asm {
-		mov ecx, ExceptionRecord
-		mov edx, ContextRecord
-		movzx eax, FirstChance
-		int IDT_SERVICE_VECTOR_BASE + 9 // calls KiRaiseExceptionService
-	}
+	ASM_BEGIN
+		ASM(mov ecx, ExceptionRecord);
+		ASM(mov edx, ContextRecord);
+		ASM(movzx eax, FirstChance);
+		ASM(int IDT_SERVICE_VECTOR_BASE + 9); // calls KiRaiseExceptionService
+	ASM_END
 }

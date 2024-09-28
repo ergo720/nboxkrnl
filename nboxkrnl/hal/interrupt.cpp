@@ -110,228 +110,196 @@ VOID XBOXAPI HalpSwIntApc()
 {
 	// On entry, interrupts must be disabled
 
-	__asm {
-		movzx eax, byte ptr[KiPcr]KPCR.Irql
-		mov byte ptr[KiPcr]KPCR.Irql, APC_LEVEL // raise IRQL
-		and HalpPendingInt, ~(1 << APC_LEVEL)
-		push eax
-		sti
-		call KiExecuteApcQueue
-		cli
-		pop eax
-		mov byte ptr[KiPcr]KPCR.Irql, al // lower IRQL
-		call HalpCheckUnmaskedInt
-	}
+	ASM_BEGIN
+		ASM(movzx eax, byte ptr[KiPcr]KPCR.Irql);
+		ASM(mov byte ptr[KiPcr]KPCR.Irql, APC_LEVEL); // raise IRQL
+		ASM(and HalpPendingInt, ~(1 << APC_LEVEL));
+		ASM(push eax);
+		ASM(sti);
+		ASM(call KiExecuteApcQueue);
+		ASM(cli);
+		ASM(pop eax);
+		ASM(mov byte ptr[KiPcr]KPCR.Irql, al); // lower IRQL
+		ASM(call HalpCheckUnmaskedInt);
+	ASM_END
 }
 
 VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
 {
 	// On entry, interrupts must be disabled
 
-	__asm {
-		movzx eax, byte ptr [KiPcr]KPCR.Irql
-		mov byte ptr [KiPcr]KPCR.Irql, DISPATCH_LEVEL // raise IRQL
-		and HalpPendingInt, ~(1 << DISPATCH_LEVEL)
-		push eax
-		lea eax, [KiPcr]KPCR.PrcbData.DpcListHead
-		cmp eax, [eax]LIST_ENTRY.Flink
-		jz no_dpc
-		push [KiPcr]KPCR.NtTib.ExceptionList
-		mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2 // dword ptr required or else MSVC will aceess ExceptionList as a byte
-		mov eax, esp
-		mov esp, [KiPcr]KPCR.PrcbData.DpcStack // switch to DPC stack
-		push eax
-		call KiExecuteDpcQueue
-		pop esp
-		pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList // dword ptr required or else MSVC will aceess ExceptionList as a byte
+	ASM_BEGIN
+		ASM(movzx eax, byte ptr [KiPcr]KPCR.Irql);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, DISPATCH_LEVEL); // raise IRQL
+		ASM(and HalpPendingInt, ~(1 << DISPATCH_LEVEL));
+		ASM(push eax);
+		ASM(lea eax, [KiPcr]KPCR.PrcbData.DpcListHead);
+		ASM(cmp eax, [eax]LIST_ENTRY.Flink);
+		ASM(jz no_dpc);
+		ASM(push [KiPcr]KPCR.NtTib.ExceptionList);
+		ASM(mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2); // dword ptr required or else MSVC will aceess ExceptionList as a byte
+		ASM(mov eax, esp);
+		ASM(mov esp, [KiPcr]KPCR.PrcbData.DpcStack); // switch to DPC stack
+		ASM(push eax);
+		ASM(call KiExecuteDpcQueue);
+		ASM(pop esp);
+		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // dword ptr required or else MSVC will aceess ExceptionList as a byte
 	no_dpc:
-		sti
-		cmp [KiPcr]KPCR.PrcbData.QuantumEnd, 0
-		jnz quantum_end
-		mov eax, [KiPcr]KPCR.PrcbData.NextThread
-		test eax, eax
-		jnz thread_switch
-		jmp end_func
+		ASM(sti);
+		ASM(cmp [KiPcr]KPCR.PrcbData.QuantumEnd, 0);
+		ASM(jnz quantum_end);
+		ASM(mov eax, [KiPcr]KPCR.PrcbData.NextThread);
+		ASM(test eax, eax);
+		ASM(jnz thread_switch);
+		ASM(jmp end_func);
 	thread_switch:
-		push esi
-		push edi
-		push ebx
-		push ebp
-		mov edi, eax
-		mov esi, [KiPcr]KPCR.PrcbData.CurrentThread
-		mov ecx, esi
-		call KeAddThreadToTailOfReadyList
-		mov [KiPcr]KPCR.PrcbData.CurrentThread, edi
-		mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0 // dword ptr required or else MSVC will aceess NextThread as a byte
-		mov ebx, 1
-		call KiSwapThreadContext // when this returns, it means this thread was switched back again
-		pop ebp
-		pop ebx
-		pop edi
-		pop esi
-		jmp end_func
+		ASM(push esi);
+		ASM(push edi);
+		ASM(push ebx);
+		ASM(push ebp);
+		ASM(mov edi, eax);
+		ASM(mov esi, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov ecx, esi);
+		ASM(call KeAddThreadToTailOfReadyList);
+		ASM(mov [KiPcr]KPCR.PrcbData.CurrentThread, edi);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will aceess NextThread as a byte
+		ASM(mov ebx, 1);
+		ASM(call KiSwapThreadContext); // when this returns, it means this thread was switched back again
+		ASM(pop ebp);
+		ASM(pop ebx);
+		ASM(pop edi);
+		ASM(pop esi);
+		ASM(jmp end_func);
 	quantum_end:
-		mov [KiPcr]KPCR.PrcbData.QuantumEnd, 0
-		call KiQuantumEnd
-		test eax, eax
-		jnz thread_switch
+		ASM(mov [KiPcr]KPCR.PrcbData.QuantumEnd, 0);
+		ASM(call KiQuantumEnd);
+		ASM(test eax, eax);
+		ASM(jnz thread_switch);
 	end_func:
-		cli
-		pop eax
-		mov byte ptr [KiPcr]KPCR.Irql, al // lower IRQL
-		call HalpCheckUnmaskedInt
-		ret
-	}
+		ASM(cli);
+		ASM(pop eax);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, al); // lower IRQL
+		ASM(call HalpCheckUnmaskedInt);
+		ASM(ret);
+	ASM_END
 }
 
 VOID XBOXAPI HalpHwInt0()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 0
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 0);
 }
 
 VOID XBOXAPI HalpHwInt1()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 1
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 1);
 }
 
 VOID XBOXAPI HalpHwInt2()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 2
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 2);
 }
 
 VOID XBOXAPI HalpHwInt3()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 3
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 3);
 }
 
 VOID XBOXAPI HalpHwInt4()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 4
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 4);
 }
 
 VOID XBOXAPI HalpHwInt5()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 5
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 5);
 }
 
 VOID XBOXAPI HalpHwInt6()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 6
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 6);
 }
 
 VOID XBOXAPI HalpHwInt7()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 7
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 7);
 }
 
 VOID XBOXAPI HalpHwInt8()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 8
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 8);
 }
 
 VOID XBOXAPI HalpHwInt9()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 9
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 9);
 }
 
 VOID XBOXAPI HalpHwInt10()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 10
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 10);
 }
 
 VOID XBOXAPI HalpHwInt11()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 11
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 11);
 }
 
 VOID XBOXAPI HalpHwInt12()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 12
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 12);
 }
 
 VOID XBOXAPI HalpHwInt13()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 13
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 13);
 }
 
 VOID XBOXAPI HalpHwInt14()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 14
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 14);
 }
 
 VOID XBOXAPI HalpHwInt15()
 {
-	__asm {
-		int IDT_INT_VECTOR_BASE + 15
-	}
+	ASM(int IDT_INT_VECTOR_BASE + 15);
 }
 
 VOID __declspec(naked) HalpCheckUnmaskedInt()
 {
 	// On entry, interrupts must be disabled
 
-	__asm {
+	ASM_BEGIN
 	check_int:
-		movzx ecx, byte ptr [KiPcr]KPCR.Irql
-		mov edx, HalpPendingInt
-		and edx, HalpIrqlMasks[ecx * 4] // if not zero, then there are one or more pending interrupts that have become unmasked
-		jnz unmasked_int
-		jmp exit_func
+		ASM(movzx ecx, byte ptr [KiPcr]KPCR.Irql);
+		ASM(mov edx, HalpPendingInt);
+		ASM(and edx, HalpIrqlMasks[ecx * 4]); // if not zero, then there are one or more pending interrupts that have become unmasked
+		ASM(jnz unmasked_int);
+		ASM(jmp exit_func);
 	unmasked_int:
-		test HalpIntInProgress, ACTIVE_IRQ_MASK // make sure we complete the active IRQ first
-		jnz exit_func
-		bsr ecx, edx
-		cmp ecx, DISPATCH_LEVEL
-		jg hw_int
-		call SwIntHandlers[ecx * 4]
-		jmp check_int
+		ASM(test HalpIntInProgress, ACTIVE_IRQ_MASK); // make sure we complete the active IRQ first
+		ASM(jnz exit_func);
+		ASM(bsr ecx, edx);
+		ASM(cmp ecx, DISPATCH_LEVEL);
+		ASM(jg hw_int);
+		ASM(call SwIntHandlers[ecx * 4]);
+		ASM(jmp check_int);
 	hw_int:
-		mov ax, HalpIntDisabled
-		out PIC_MASTER_DATA, al
-		shr ax, 8
-		out PIC_SLAVE_DATA, al
-		mov edx, 1
-		shl edx, cl
-		test HalpIntInProgress, edx // check again HalpIntInProgress because if a sw/hw int comes, it re-enables interrupts, and a hw int could come again
-		jnz exit_func
-		or HalpIntInProgress, edx
-		xor HalpPendingInt, edx
-		call SwIntHandlers[ecx * 4]
-		xor HalpIntInProgress, edx
-		jmp check_int
+		ASM(mov ax, HalpIntDisabled);
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(shr ax, 8);
+		ASM(out PIC_SLAVE_DATA, al);
+		ASM(mov edx, 1);
+		ASM(shl edx, cl);
+		ASM(test HalpIntInProgress, edx); // check again HalpIntInProgress because if a sw/hw int comes, it re-enables interrupts, and a hw int could come again
+		ASM(jnz exit_func);
+		ASM(or HalpIntInProgress, edx);
+		ASM(xor HalpPendingInt, edx);
+		ASM(call SwIntHandlers[ecx * 4]);
+		ASM(xor HalpIntInProgress, edx);
+		ASM(jmp check_int);
 	exit_func:
-		ret
-	}
+		ASM(ret);
+	ASM_END
 }
 
 static ULONG FASTCALL HalpCheckMaskedIntAtIRQLLevelNonSpurious(ULONG BusInterruptLevel, ULONG Irql)
@@ -473,173 +441,173 @@ VOID __declspec(naked) XBOXAPI HalpInterruptCommon()
 	// This function uses a custom calling convention, so never call it from C++ code
 	// esi -> Interrupt
 
-	__asm {
-		mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2
-		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
-		movzx ebx, byte ptr [KiPcr]KPCR.Irql
-		movzx eax, byte ptr [esi]KINTERRUPT.Mode
-		shl eax, 6
-		mov ecx, [esi]KINTERRUPT.BusInterruptLevel
-		mov edx, [esi]KINTERRUPT.Irql
-		call HalpCheckMaskedIntAtIRQL[eax + ecx * 4]
-		test eax, eax
-		jz valid_int
-		cli
-		jmp end_isr
+	ASM_BEGIN
+		ASM(mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2);
+		ASM(inc [KiPcr]KPCR.PrcbData.InterruptCount); // InterruptCount: number of interrupts that have occurred
+		ASM(movzx ebx, byte ptr [KiPcr]KPCR.Irql);
+		ASM(movzx eax, byte ptr [esi]KINTERRUPT.Mode);
+		ASM(shl eax, 6);
+		ASM(mov ecx, [esi]KINTERRUPT.BusInterruptLevel);
+		ASM(mov edx, [esi]KINTERRUPT.Irql);
+		ASM(call HalpCheckMaskedIntAtIRQL[eax + ecx * 4]);
+		ASM(test eax, eax);
+		ASM(jz valid_int);
+		ASM(cli);
+		ASM(jmp end_isr);
 	valid_int:
-		push [esi]KINTERRUPT.ServiceContext
-		push esi
-		call [esi]KINTERRUPT.ServiceRoutine // call ISR of the interrupt
-		cli
-		movzx eax, byte ptr [esi]KINTERRUPT.Mode
-		test eax, eax
-		jnz check_unmasked_int // only send eoi if level-triggered
-		mov eax, [esi]KINTERRUPT.BusInterruptLevel
-		cmp eax, 8
-		jae eoi_to_slave
-		or eax, OCW2_EOI_IRQ
-		out PIC_MASTER_CMD, al
-		jmp check_unmasked_int
+		ASM(push [esi]KINTERRUPT.ServiceContext);
+		ASM(push esi);
+		ASM(call [esi]KINTERRUPT.ServiceRoutine); // call ISR of the interrupt
+		ASM(cli);
+		ASM(movzx eax, byte ptr [esi]KINTERRUPT.Mode);
+		ASM(test eax, eax);
+		ASM(jnz check_unmasked_int); // only send eoi if level-triggered
+		ASM(mov eax, [esi]KINTERRUPT.BusInterruptLevel);
+		ASM(cmp eax, 8);
+		ASM(jae eoi_to_slave);
+		ASM(or eax, OCW2_EOI_IRQ);
+		ASM(out PIC_MASTER_CMD, al);
+		ASM(jmp check_unmasked_int);
 	eoi_to_slave:
-		add eax, OCW2_EOI_IRQ - 8
-		out PIC_SLAVE_CMD, al
+		ASM(add eax, OCW2_EOI_IRQ - 8);
+		ASM(out PIC_SLAVE_CMD, al);
 	check_unmasked_int:
-		mov byte ptr [KiPcr]KPCR.Irql, bl // lower IRQL
-		call HalpCheckUnmaskedInt
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, bl); // lower IRQL
+		ASM(call HalpCheckUnmaskedInt);
 	end_isr:
 		EXIT_INTERRUPT;
-	}
+	ASM_END
 }
 
 VOID __declspec(naked) XBOXAPI HalpClockIsr()
 {
-	__asm {
+	ASM_BEGIN
 		CREATE_KTRAP_FRAME_FOR_INT;
-		movzx eax, byte ptr [KiPcr]KPCR.Irql
-		cmp eax, CLOCK_LEVEL
-		jge masked_int
-		mov byte ptr [KiPcr]KPCR.Irql, CLOCK_LEVEL // raise IRQL
-		push eax
-		mov al, OCW2_EOI_IRQ
-		out PIC_MASTER_CMD, al // send eoi to master pic
+		ASM(movzx eax, byte ptr [KiPcr]KPCR.Irql);
+		ASM(cmp eax, CLOCK_LEVEL);
+		ASM(jge masked_int);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, CLOCK_LEVEL); // raise IRQL
+		ASM(push eax);
+		ASM(mov al, OCW2_EOI_IRQ);
+		ASM(out PIC_MASTER_CMD, al); // send eoi to master pic
 		// Query the total execution time and clock increment. If we instead just increment the time with the xbox increment, if the host
 		// doesn't manage to call this every ms, then the time will start to lag behind the system clock time read from the CMOS, which in turn is synchronized
 		// with the current host time
-		mov edx, KE_CLOCK_INCREMENT_LOW
-		in eax, dx
-		mov esi, eax
-		inc edx
-		in eax, dx
-		mov edi, eax
-		inc edx
-		in eax, dx
-		sti
-		mov ecx, [KeInterruptTime]KSYSTEM_TIME.LowTime
-		mov edx, [KeInterruptTime]KSYSTEM_TIME.HighTime
-		add ecx, esi
-		adc edx, edi
-		mov [KeInterruptTime]KSYSTEM_TIME.High2Time, edx
-		mov [KeInterruptTime]KSYSTEM_TIME.LowTime, ecx
-		mov [KeInterruptTime]KSYSTEM_TIME.HighTime, edx
-		mov ecx, [KeSystemTime]KSYSTEM_TIME.LowTime
-		mov edx, [KeSystemTime]KSYSTEM_TIME.HighTime
-		add ecx, esi
-		adc edx, edi
-		mov [KeSystemTime]KSYSTEM_TIME.High2Time, edx
-		mov [KeSystemTime]KSYSTEM_TIME.LowTime, ecx
-		mov [KeSystemTime]KSYSTEM_TIME.HighTime, edx
-		mov ebx, KeTickCount
-		mov KeTickCount, eax
-		mov edi, eax
-		mov ecx, ebx
-		call KiCheckExpiredTimers
-		sub edi, ebx // ms elapsed since the last clock interrupt
-		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
-		mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread
-		cmp byte ptr [esp], DISPATCH_LEVEL
-		jb kernel_time
-		ja interrupt_time
-		cmp [KiPcr]KPCR.PrcbData.DpcRoutineActive, 0
-		jz kernel_time
-		add [KiPcr]KPCR.PrcbData.DpcTime, edi // DpcTime: time spent executing DPCs, in ms
-		jmp quantum
+		ASM(mov edx, KE_CLOCK_INCREMENT_LOW);
+		ASM(in eax, dx);
+		ASM(mov esi, eax);
+		ASM(inc edx);
+		ASM(in eax, dx);
+		ASM(mov edi, eax);
+		ASM(inc edx);
+		ASM(in eax, dx);
+		ASM(sti);
+		ASM(mov ecx, [KeInterruptTime]KSYSTEM_TIME.LowTime);
+		ASM(mov edx, [KeInterruptTime]KSYSTEM_TIME.HighTime);
+		ASM(add ecx, esi);
+		ASM(adc edx, edi);
+		ASM(mov [KeInterruptTime]KSYSTEM_TIME.High2Time, edx);
+		ASM(mov [KeInterruptTime]KSYSTEM_TIME.LowTime, ecx);
+		ASM(mov [KeInterruptTime]KSYSTEM_TIME.HighTime, edx);
+		ASM(mov ecx, [KeSystemTime]KSYSTEM_TIME.LowTime);
+		ASM(mov edx, [KeSystemTime]KSYSTEM_TIME.HighTime);
+		ASM(add ecx, esi);
+		ASM(adc edx, edi);
+		ASM(mov [KeSystemTime]KSYSTEM_TIME.High2Time, edx);
+		ASM(mov [KeSystemTime]KSYSTEM_TIME.LowTime, ecx);
+		ASM(mov [KeSystemTime]KSYSTEM_TIME.HighTime, edx);
+		ASM(mov ebx, KeTickCount);
+		ASM(mov KeTickCount, eax);
+		ASM(mov edi, eax);
+		ASM(mov ecx, ebx);
+		ASM(call KiCheckExpiredTimers);
+		ASM(sub edi, ebx); // ms elapsed since the last clock interrupt
+		ASM(inc [KiPcr]KPCR.PrcbData.InterruptCount); // InterruptCount: number of interrupts that have occurred
+		ASM(mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(cmp byte ptr [esp], DISPATCH_LEVEL);
+		ASM(jb kernel_time);
+		ASM(ja interrupt_time);
+		ASM(cmp [KiPcr]KPCR.PrcbData.DpcRoutineActive, 0);
+		ASM(jz kernel_time);
+		ASM(add [KiPcr]KPCR.PrcbData.DpcTime, edi); // DpcTime: time spent executing DPCs, in ms
+		ASM(jmp quantum);
 	interrupt_time:
-		add [KiPcr]KPCR.PrcbData.InterruptTime, edi // InterruptTime: time spent executing code at IRQL > 2, in ms
-		jmp quantum
+		ASM(add [KiPcr]KPCR.PrcbData.InterruptTime, edi); // InterruptTime: time spent executing code at IRQL > 2, in ms
+		ASM(jmp quantum);
 	kernel_time:
-		add [ecx]KTHREAD.KernelTime, edi // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
+		ASM(add [ecx]KTHREAD.KernelTime, edi); // KernelTime: per-thread time spent executing code at IRQL < 2, in ms
 	quantum:
-		mov eax, CLOCK_QUANTUM_DECREMENT
-		mul edi // scale ms with the clock decrement
-		sub [ecx]KTHREAD.Quantum, eax
-		jg not_expired
-		cmp ecx, offset KiIdleThread // if it's the idle thread, then don't switch
-		jz not_expired
-		mov [KiPcr]KPCR.PrcbData.QuantumEnd, 1
-		mov cl, DISPATCH_LEVEL
-		call HalRequestSoftwareInterrupt
+		ASM(mov eax, CLOCK_QUANTUM_DECREMENT);
+		ASM(mul edi); // scale ms with the clock decrement
+		ASM(sub [ecx]KTHREAD.Quantum, eax);
+		ASM(jg not_expired);
+		ASM(cmp ecx, offset KiIdleThread); // if it's the idle thread, then don't switch
+		ASM(jz not_expired);
+		ASM(mov [KiPcr]KPCR.PrcbData.QuantumEnd, 1);
+		ASM(mov cl, DISPATCH_LEVEL);
+		ASM(call HalRequestSoftwareInterrupt);
 	not_expired:
-		cli
-		pop ecx
-		mov byte ptr [KiPcr]KPCR.Irql, cl // lower IRQL
-		call HalpCheckUnmaskedInt
-		jmp end_isr
+		ASM(cli);
+		ASM(pop ecx);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, cl); // lower IRQL
+		ASM(call HalpCheckUnmaskedInt);
+		ASM(jmp end_isr);
 	masked_int:
-		mov edx, 1
-		mov ecx, IRQL_OFFSET_FOR_IRQ // clock IRQ is zero
-		shl edx, cl
-		or HalpPendingInt, edx // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
-		mov ax, PicIRQMasksForIRQL[eax * 2]
-		or ax, HalpIntDisabled // mask all IRQs on the PIC with IRQL <= than current IRQL
-		out PIC_MASTER_DATA, al
-		shr ax, 8
-		out PIC_SLAVE_DATA, al
+		ASM(mov edx, 1);
+		ASM(mov ecx, IRQL_OFFSET_FOR_IRQ); // clock IRQ is zero
+		ASM(shl edx, cl);
+		ASM(or HalpPendingInt, edx); // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
+		ASM(mov ax, PicIRQMasksForIRQL[eax * 2]);
+		ASM(or ax, HalpIntDisabled); // mask all IRQs on the PIC with IRQL <= than current IRQL
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(shr ax, 8);
+		ASM(out PIC_SLAVE_DATA, al);
 	end_isr:
 		EXIT_INTERRUPT;
-	}
+	ASM_END
 }
 
 VOID __declspec(naked) XBOXAPI HalpSmbusIsr()
 {
-	__asm {
+	ASM_BEGIN
 		CREATE_KTRAP_FRAME_FOR_INT;
-		mov al, OCW2_EOI_IRQ | 2
-		out PIC_MASTER_CMD, al // send eoi to master pic
-		movzx eax, byte ptr [KiPcr]KPCR.Irql
-		cmp eax, SMBUS_LEVEL
-		jge masked_int
-		mov byte ptr [KiPcr]KPCR.Irql, SMBUS_LEVEL // raise IRQL
-		push eax
-		sti
-		inc [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
-		xor eax, eax
-		mov edx, SMBUS_STATUS
-		in al, dx
-		out dx, al // clear status bits on smbus to dismiss the interrupt
-		push 0
-		push eax
-		push offset HalpSmbusDpcObject
-		call KeInsertQueueDpc
-		cli
-		mov eax, 11 + OCW2_EOI_IRQ - 8
-		out PIC_SLAVE_CMD, al // send eoi to slave pic
-		pop eax
-		mov byte ptr [KiPcr]KPCR.Irql, al // lower IRQL
-		call HalpCheckUnmaskedInt
-		jmp end_isr
+		ASM(mov al, OCW2_EOI_IRQ | 2);
+		ASM(out PIC_MASTER_CMD, al); // send eoi to master pic
+		ASM(movzx eax, byte ptr [KiPcr]KPCR.Irql);
+		ASM(cmp eax, SMBUS_LEVEL);
+		ASM(jge masked_int);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, SMBUS_LEVEL); // raise IRQL
+		ASM(push eax);
+		ASM(sti);
+		ASM(inc [KiPcr]KPCR.PrcbData.InterruptCount); // InterruptCount: number of interrupts that have occurred
+		ASM(xor eax, eax);
+		ASM(mov edx, SMBUS_STATUS);
+		ASM(in al, dx);
+		ASM(out dx, al); // clear status bits on smbus to dismiss the interrupt
+		ASM(push 0);
+		ASM(push eax);
+		ASM(push offset HalpSmbusDpcObject);
+		ASM(call KeInsertQueueDpc);
+		ASM(cli);
+		ASM(mov eax, 11 + OCW2_EOI_IRQ - 8);
+		ASM(out PIC_SLAVE_CMD, al); // send eoi to slave pic
+		ASM(pop eax);
+		ASM(mov byte ptr [KiPcr]KPCR.Irql, al); // lower IRQL
+		ASM(call HalpCheckUnmaskedInt);
+		ASM(jmp end_isr);
 	masked_int:
-		mov edx, 1
-		mov ecx, 11 + IRQL_OFFSET_FOR_IRQ // smbus IRQ is eleven
-		shl edx, cl
-		or HalpPendingInt, edx // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
-		mov ax, PicIRQMasksForIRQL[eax * 2]
-		or ax, HalpIntDisabled // mask all IRQs on the PIC with IRQL <= than current IRQL
-		out PIC_MASTER_DATA, al
-		shr ax, 8
-		out PIC_SLAVE_DATA, al
+		ASM(mov edx, 1);
+		ASM(mov ecx, 11 + IRQL_OFFSET_FOR_IRQ); // smbus IRQ is eleven
+		ASM(shl edx, cl);
+		ASM(or HalpPendingInt, edx); // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
+		ASM(mov ax, PicIRQMasksForIRQL[eax * 2]);
+		ASM(or ax, HalpIntDisabled); // mask all IRQs on the PIC with IRQL <= than current IRQL
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(shr ax, 8);
+		ASM(out PIC_SLAVE_DATA, al);
 	end_isr:
 		EXIT_INTERRUPT;
-	}
+	ASM_END
 }
 
 EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
@@ -666,11 +634,11 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 		PicImr = HalpIntDisabled & 0xFF;
 	}
 
-	__asm {
-		mov edx, ElcrPort
-		in al, dx
-		mov CurrElcr, al
-	}
+	ASM_BEGIN
+		ASM(mov edx, ElcrPort);
+		ASM(in al, dx);
+		ASM(mov CurrElcr, al);
+	ASM_END
 
 	if (InterruptMode == Edge) {
 		CurrElcr &= ~ElcrMask;
@@ -679,15 +647,15 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 		CurrElcr |= ElcrMask;
 	}
 
-	__asm {
-		mov edx, ElcrPort
-		mov al, CurrElcr
-		out dx, al
-		mov al, PicImr
-		mov edx, DataPort
-		out dx, al
-		sti
-	}
+	ASM_BEGIN
+		ASM(mov edx, ElcrPort);
+		ASM(mov al, CurrElcr);
+		ASM(out dx, al);
+		ASM(mov al, PicImr);
+		ASM(mov edx, DataPort);
+		ASM(out dx, al);
+		ASM(sti);
+	ASM_END
 }
 
 EXPORTNUM(44) ULONG XBOXAPI HalGetInterruptVector
@@ -712,15 +680,15 @@ EXPORTNUM(48) VOID FASTCALL HalRequestSoftwareInterrupt
 {
 	assert((Request == APC_LEVEL) || (Request == DISPATCH_LEVEL));
 
-	__asm {
-		pushfd
-		cli
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+	ASM_END
 
 	HalpPendingInt |= (1 << Request);
 	if (HalpIrqlMasks[KiPcr.Irql] & (1 << Request)) { // is the requested IRQL unmasked at the current IRQL?
 		SwIntHandlers[Request]();
 	}
 
-	__asm popfd
+	ASM(popfd);
 }

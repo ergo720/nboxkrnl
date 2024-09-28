@@ -181,101 +181,101 @@ PLIST_ENTRY RemoveHeadList(PLIST_ENTRY pListHead);
 
 static inline VOID CDECL outl(USHORT Port, ULONG Value)
 {
-	__asm {
-		mov eax, Value
-		mov dx, Port
-		out dx, eax
-	}
+	ASM_BEGIN
+		ASM(mov eax, Value);
+		ASM(mov dx, Port);
+		ASM(out dx, eax);
+	ASM_END
 }
 
 static inline VOID CDECL outw(USHORT Port, USHORT Value)
 {
-	__asm {
-		mov ax, Value
-		mov dx, Port
-		out dx, ax
-	}
+	ASM_BEGIN
+		ASM(mov ax, Value);
+		ASM(mov dx, Port);
+		ASM(out dx, ax);
+	ASM_END
 }
 
 static inline VOID CDECL outb(USHORT Port, BYTE Value)
 {
-	__asm {
-		mov al, Value
-		mov dx, Port
-		out dx, al
-	}
+	ASM_BEGIN
+		ASM(mov al, Value);
+		ASM(mov dx, Port);
+		ASM(out dx, al);
+	ASM_END
 }
 
 static inline ULONG CDECL inl(USHORT Port)
 {
-	__asm {
-		mov dx, Port
-		in eax, dx
-	}
+	ASM_BEGIN
+		ASM(mov dx, Port);
+		ASM(in eax, dx);
+	ASM_END
 }
 
 static inline USHORT CDECL inw(USHORT Port)
 {
-	__asm {
-		mov dx, Port
-		in ax, dx
-	}
+	ASM_BEGIN
+		ASM(mov dx, Port);
+		ASM(in ax, dx);
+	ASM_END
 }
 
 static inline BYTE CDECL inb(USHORT Port)
 {
-	__asm {
-		mov dx, Port
-		in al, dx
-	}
+	ASM_BEGIN
+		ASM(mov dx, Port);
+		ASM(in al, dx);
+	ASM_END
 }
 
 static inline VOID CDECL enable()
 {
-	__asm sti
+	ASM(sti);
 }
 
 static inline VOID CDECL disable()
 {
-	__asm cli
+	ASM(cli);
 }
 
 static inline VOID CDECL atomic_store64(LONGLONG *dst, LONGLONG val)
 {
-	__asm {
-		pushfd
-		cli
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+	ASM_END
 
 	*dst = val;
 
-	__asm popfd
+	ASM(popfd);
 }
 
 static inline LONGLONG CDECL atomic_load64(LONGLONG *src)
 {
-	__asm {
-		pushfd
-		cli
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+	ASM_END
 
 	LONGLONG val = *src;
 
-	__asm popfd
+	ASM(popfd);
 
 	return val;
 }
 
 static inline VOID CDECL atomic_add64(LONGLONG *dst, LONGLONG val)
 {
-	__asm {
-		pushfd
-		cli
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+	ASM_END
 
 	LONGLONG temp = *dst;
 	temp += val;
 	*dst = temp;
 
-	__asm popfd
+	ASM(popfd);
 }

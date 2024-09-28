@@ -60,18 +60,18 @@ EXPORTNUM(125) ULONGLONG XBOXAPI KeQueryInterruptTime()
 
 EXPORTNUM(126) ULONGLONG XBOXAPI KeQueryPerformanceCounter()
 {
-	__asm {
-		pushfd
-		cli
-		mov edx, KE_ACPI_TIME_LOW
-		in eax, dx
-		mov ecx, eax
-		inc edx
-		in eax, dx
-		mov edx, eax
-		mov eax, ecx
-		popfd
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+		ASM(mov edx, KE_ACPI_TIME_LOW);
+		ASM(in eax, dx);
+		ASM(mov ecx, eax);
+		ASM(inc edx);
+		ASM(in eax, dx);
+		ASM(mov edx, eax);
+		ASM(mov eax, ecx);
+		ASM(popfd);
+	ASM_END
 }
 
 EXPORTNUM(127) ULONGLONG XBOXAPI KeQueryPerformanceFrequency()
@@ -218,17 +218,17 @@ IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG OffsetOrInitialSize, ULON
 
 ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)
 {
-	__asm {
-		pushfd
-		cli
-		mov eax, [ecx]
-		mov edx, [ecx + 4]
-		add eax, 1
-		adc edx, 0
-		mov [ecx], eax
-		mov [ecx + 4], edx
-		popfd
-	}
+	ASM_BEGIN
+		ASM(pushfd);
+		ASM(cli);
+		ASM(mov eax, [ecx]);
+		ASM(mov edx, [ecx + 4]);
+		ASM(add eax, 1);
+		ASM(adc edx, 0);
+		ASM(mov [ecx], eax);
+		ASM(mov [ecx + 4], edx);
+		ASM(popfd);
+	ASM_END
 }
 
 NTSTATUS HostToNtStatus(IoStatus Status)

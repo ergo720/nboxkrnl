@@ -73,10 +73,10 @@ inline PEXCEPTION_POINTERS __declspec(naked) GetExceptionInformation()
 	// Retrieves excptPtrs written by _except_handler3 right below EXCEPTION_REGISTRATION_SEH
 	// This function must be naked because it needs to use the ebp of its caller, not the ebp of this function
 
-	__asm {
-		mov eax, dword ptr [ebp - 20]
-		ret
-	}
+	ASM_BEGIN
+		ASM(mov eax, dword ptr [ebp - 20]);
+		ASM(ret);
+	ASM_END
 }
 
 inline NTSTATUS __declspec(naked) GetExceptionCode()
@@ -84,10 +84,10 @@ inline NTSTATUS __declspec(naked) GetExceptionCode()
 	// Retrieves the ExceptionCode member of EXCEPTION_RECORD pointed by ExceptionRecord of excptPtrs
 	// This function must be naked because it needs to use the ebp of its caller, not the ebp of this function
 
-	__asm {
-		mov eax, dword ptr [ebp - 20]
-		mov eax, [eax]
-		mov eax, [eax]
-		ret
-	}
+	ASM_BEGIN
+		ASM(mov eax, dword ptr [ebp - 20]);
+		ASM(mov eax, [eax]);
+		ASM(mov eax, [eax]);
+		ASM(ret);
+	ASM_END
 }

@@ -11,59 +11,59 @@
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
 	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0
 
-	__asm {
+	ASM_BEGIN
 		// Load the eeprom and certificate keys. The host should have passed them in the stack
-		mov esi, esp
-		mov edi, offset XboxEEPROMKey
-		mov ecx, 4
-		rep movsd
-		mov edi, offset XboxCERTKey
-		mov ecx, 4
-		rep movsd
+		ASM(mov esi, esp);
+		ASM(mov edi, offset XboxEEPROMKey);
+		ASM(mov ecx, 4);
+		ASM(rep movsd);
+		ASM(mov edi, offset XboxCERTKey);
+		ASM(mov ecx, 4);
+		ASM(rep movsd);
 
 		// Use the global KiIdleThreadStack as the stack of the startup thread
-		xor ebp, ebp
-		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)
+		ASM(xor ebp, ebp);
+		ASM(mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME));
 
 		// Update cr0
-		mov eax, cr0
-		or eax, CR0_NE
-		mov cr0, eax
+		ASM(mov eax, cr0);
+		ASM(or eax, CR0_NE);
+		ASM(mov cr0, eax);
 
 		// Initialize the CRT of the kernel executable
-		call InitializeCrt
+		ASM(call InitializeCrt);
 
 		// Load the GDT from the hardcoded KiGdt
-		sub esp, 8
-		mov ax, KiGdtLimit
-		mov word ptr [esp], ax
-		mov dword ptr [esp + 2], offset KiGdt
-		lgdt [esp]
+		ASM(sub esp, 8);
+		ASM(mov ax, KiGdtLimit);
+		ASM(mov word ptr [esp], ax);
+		ASM(mov dword ptr [esp + 2], offset KiGdt);
+		ASM(lgdt [esp]);
 
 		// Load the segment selectors
-		push 0x8
-		push reload_CS
-		_emit 0xCB
+		ASM(push 0x8);
+		ASM(push reload_CS);
+		ASM(_emit 0xCB);
 
 	reload_CS:
-		mov ax, 0x10
-		mov ds, ax
-		mov es, ax
-		mov ss, ax
-		mov gs, ax
-		mov ax, 0x18
-		mov fs, ax
+		ASM(mov ax, 0x10);
+		ASM(mov ds, ax);
+		ASM(mov es, ax);
+		ASM(mov ss, ax);
+		ASM(mov gs, ax);
+		ASM(mov ax, 0x18);
+		ASM(mov fs, ax);
 
 		// Load the tss from the hardcoded KiTss
-		mov ax, 0x20
-		ltr ax
+		ASM(mov ax, 0x20);
+		ASM(ltr ax);
 
 		// Load the IDT from the hardcoded KiIdt
-		mov ax, KiIdtLimit
-		mov word ptr [esp], ax
-		mov dword ptr [esp + 2], offset KiIdt
-		lidt [esp]
-	}
+		ASM(mov ax, KiIdtLimit);
+		ASM(mov word ptr [esp], ax);
+		ASM(mov dword ptr [esp + 2], offset KiIdt);
+		ASM(lidt [esp]);
+	ASM_END
 
 	KiInitializeKernel(); // won't return
 }

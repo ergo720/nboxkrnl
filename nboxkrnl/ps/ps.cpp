@@ -161,7 +161,7 @@ EXPORTNUM(258) DLLEXPORT VOID XBOXAPI PsTerminateSystemThread
 	}
 
 	KeEnterCriticalRegion();
-	__asm mov byte ptr [kThread]KTHREAD.ApcState.ApcQueueable, FALSE
+	ASM(mov byte ptr [kThread]KTHREAD.ApcState.ApcQueueable, FALSE);
 	// TODO: resume thread if it was suspended
 	KeLeaveCriticalRegion();
 

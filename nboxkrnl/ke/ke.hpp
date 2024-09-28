@@ -47,46 +47,46 @@
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
 // the accesses are atomic and thus thread-safe
 #define KeGetStackBase(var) \
-	__asm { \
-		__asm mov eax, [KiPcr].NtTib.StackBase \
-		__asm mov var, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, [KiPcr].NtTib.StackBase); \
+		ASM(mov var, eax); \
+	ASM_END
 
 #define KeGetStackLimit(var) \
-	__asm { \
-		__asm mov eax, [KiPcr].NtTib.StackLimit \
-		__asm mov var, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, [KiPcr].NtTib.StackLimit); \
+		ASM(mov var, eax); \
+	ASM_END
 
 #define KeGetExceptionHead(var) \
-	__asm { \
-		__asm mov eax, [KiPcr].NtTib.ExceptionList \
-		__asm mov dword ptr var, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, [KiPcr].NtTib.ExceptionList); \
+		ASM(mov dword ptr var, eax); \
+	ASM_END
 
 #define KeSetExceptionHead(var) \
-	__asm { \
-		__asm mov eax, dword ptr var \
-		__asm mov [KiPcr].NtTib.ExceptionList, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, dword ptr var); \
+		ASM(mov [KiPcr].NtTib.ExceptionList, eax); \
+	ASM_END
 
 #define KeResetExceptionHead(var) \
-	__asm { \
-		__asm mov eax, dword ptr var \
-		__asm mov [KiPcr].NtTib.ExceptionList, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, dword ptr var); \
+		ASM(mov [KiPcr].NtTib.ExceptionList, eax); \
+	ASM_END
 
 #define KeGetDpcStack(var) \
-	__asm { \
-		__asm mov eax, [KiPcr].PrcbData.DpcStack \
-		__asm mov var, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, [KiPcr].PrcbData.DpcStack); \
+		ASM(mov var, eax); \
+	ASM_END
 
 #define KeGetDpcActive(var) \
-	__asm { \
-		__asm mov eax, [KiPcr].PrcbData.DpcRoutineActive \
-		__asm mov var, eax \
-	}
+	ASM_BEGIN \
+		ASM(mov eax, [KiPcr].PrcbData.DpcRoutineActive); \
+		ASM(mov var, eax); \
+	ASM_END
 
 #define INITIALIZE_GLOBAL_KEVENT(Event, Type, State) \
     KEVENT Event = {                                 \

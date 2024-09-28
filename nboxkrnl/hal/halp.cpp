@@ -34,39 +34,39 @@ KEVENT HalpSmbusComplete;
 
 VOID HalpInitPIC()
 {
-	__asm {
-		mov al, ICW1_ICW4_NEEDED | ICW1_CASCADE | ICW1_INTERVAL8 | ICW1_EDGE | ICW1_INIT
-		out PIC_MASTER_CMD, al
-		out PIC_SLAVE_CMD, al
-		mov al, PIC_MASTER_VECTOR_BASE
-		out PIC_MASTER_DATA, al
-		mov al, PIC_SLAVE_VECTOR_BASE
-		out PIC_SLAVE_DATA, al
-		mov al, 4
-		out PIC_MASTER_DATA, al
-		mov al, 2
-		out PIC_SLAVE_DATA, al
-		mov al, ICW4_8086 | ICW4_NORNAL_EOI | ICW4_NON_BUFFERED | ICW4_NOT_FULLY_NESTED
-		out PIC_MASTER_DATA, al
-		out PIC_SLAVE_DATA, al
+	ASM_BEGIN
+		ASM(mov al, ICW1_ICW4_NEEDED | ICW1_CASCADE | ICW1_INTERVAL8 | ICW1_EDGE | ICW1_INIT);
+		ASM(out PIC_MASTER_CMD, al);
+		ASM(out PIC_SLAVE_CMD, al);
+		ASM(mov al, PIC_MASTER_VECTOR_BASE);
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(mov al, PIC_SLAVE_VECTOR_BASE);
+		ASM(out PIC_SLAVE_DATA, al);
+		ASM(mov al, 4);
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(mov al, 2);
+		ASM(out PIC_SLAVE_DATA, al);
+		ASM(mov al, ICW4_8086 | ICW4_NORNAL_EOI | ICW4_NON_BUFFERED | ICW4_NOT_FULLY_NESTED);
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(out PIC_SLAVE_DATA, al);
 		// Mask all interrupts in the IMR (except for IRQ2 on the master)
-		mov al, 0xFB
-		out PIC_MASTER_DATA, al
-		add al, 4
-		out PIC_SLAVE_DATA, al
-	}
+		ASM(mov al, 0xFB);
+		ASM(out PIC_MASTER_DATA, al);
+		ASM(add al, 4);
+		ASM(out PIC_SLAVE_DATA, al);
+	ASM_END
 }
 
 VOID HalpInitPIT()
 {
-	__asm {
-		mov al, PIT_COUNT_BINARY | PIT_COUNT_MODE | PIT_COUNT_16BIT | PIT_COUNT_CHAN0
-		out PIT_PORT_CMD, al
-		mov ax, PIT_COUNTER_1MS
-		out PIT_CHANNEL0_DATA, al
-		shr ax, 8
-		out PIT_CHANNEL0_DATA, al
-	}
+	ASM_BEGIN
+		ASM(mov al, PIT_COUNT_BINARY | PIT_COUNT_MODE | PIT_COUNT_16BIT | PIT_COUNT_CHAN0);
+		ASM(out PIT_PORT_CMD, al);
+		ASM(mov ax, PIT_COUNTER_1MS);
+		ASM(out PIT_CHANNEL0_DATA, al);
+		ASM(shr ax, 8);
+		ASM(out PIT_CHANNEL0_DATA, al);
+	ASM_END
 }
 
 VOID HalpInitSMCstate()
@@ -150,10 +150,10 @@ VOID HalpShutdownSystem()
 	outl(KE_ABORT, 0);
 
 	while (true) {
-		__asm {
-			cli
-			hlt
-		}
+		ASM_BEGIN
+			ASM(cli);
+			ASM(hlt);
+		ASM_END
 	}
 }
 

@@ -141,10 +141,10 @@ EXPORTNUM(51) LONG FASTCALL InterlockedCompareExchange
 	LONG  Comparand
 )
 {
-	__asm {
-		mov eax, Comparand
-		cmpxchg [ecx], edx
-	}
+	ASM_BEGIN
+		ASM(mov eax, Comparand);
+		ASM(cmpxchg [ecx], edx);
+	ASM_END
 }
 
 EXPORTNUM(52) LONG FASTCALL InterlockedDecrement
@@ -152,11 +152,11 @@ EXPORTNUM(52) LONG FASTCALL InterlockedDecrement
 	volatile PLONG Addend
 )
 {
-	__asm {
-		or eax, 0xFFFFFFFF
-		xadd [ecx], eax
-		dec eax
-	}
+	ASM_BEGIN
+		ASM(or eax, 0xFFFFFFFF);
+		ASM(xadd [ecx], eax);
+		ASM(dec eax);
+	ASM_END
 }
 
 EXPORTNUM(53) LONG FASTCALL InterlockedIncrement
@@ -164,11 +164,11 @@ EXPORTNUM(53) LONG FASTCALL InterlockedIncrement
 	volatile PLONG Addend
 )
 {
-	__asm {
-		mov eax, 1
-		xadd [ecx], eax
-		inc eax
-	}
+	ASM_BEGIN
+		ASM(mov eax, 1);
+		ASM(xadd [ecx], eax);
+		ASM(inc eax);
+	ASM_END
 }
 
 EXPORTNUM(54) LONG FASTCALL InterlockedExchange
@@ -177,8 +177,8 @@ EXPORTNUM(54) LONG FASTCALL InterlockedExchange
 	LONG Value
 )
 {
-	__asm {
-		mov eax, Value
-		xchg [ecx], eax
-	}
+	ASM_BEGIN
+		ASM(mov eax, Value);
+		ASM(xchg [ecx], eax);
+	ASM_END
 }
