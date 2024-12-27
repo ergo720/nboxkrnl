@@ -36,6 +36,11 @@ EXPORTNUM(327) DLLEXPORT NTSTATUS XBOXAPI XeLoadSection
 	PXBE_SECTION Section
 );
 
+EXPORTNUM(328) DLLEXPORT NTSTATUS XBOXAPI XeUnloadSection
+(
+	PXBE_SECTION Section
+);
+
 #ifdef __cplusplus
 }
 #endif

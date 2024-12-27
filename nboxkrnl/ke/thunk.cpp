@@ -348,7 +348,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&XboxSignatureKey),                    // 0x0145 (325)
 	(ULONG)VARIABLE(&XeImageFileName),                     // 0x0146 (326)
 	(ULONG)FUNC(&XeLoadSection),                           // 0x0147 (327)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XeUnloadSection),                         // 0x0148 (328)
+	(ULONG)FUNC(&XeUnloadSection),                         // 0x0148 (328)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&READ_PORT_BUFFER_UCHAR),                  // 0x0149 (329)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&READ_PORT_BUFFER_USHORT),                 // 0x014A (330)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&READ_PORT_BUFFER_ULONG),                  // 0x014B (331)

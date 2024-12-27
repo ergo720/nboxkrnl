@@ -285,3 +285,52 @@ EXPORTNUM(327) NTSTATUS XBOXAPI XeLoadSection
 
 	return STATUS_SUCCESS;
 }
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(328) NTSTATUS XBOXAPI XeUnloadSection
+(
+	PXBE_SECTION Section
+)
+{
+	NTSTATUS Status = STATUS_INVALID_PARAMETER;
+	RtlEnterCriticalSectionAndRegion(&XepXbeLoaderLock);
+
+	// If the section was loaded, process it
+	if (Section->SectionReferenceCount > 0) {
+		// Decrement the reference count
+		Section->SectionReferenceCount -= 1;
+
+		// Free the section and the physical memory in use if necessary
+		if (Section->SectionReferenceCount == 0) {
+			// REMARK: the following can be tested with Broken Sword - The Sleeping Dragon, RalliSport Challenge, ...
+			// Test-case: Apex/Racing Evoluzione requires the memory NOT to be zeroed
+
+			ULONG BaseAddress = (ULONG)Section->VirtualAddress;
+			ULONG EndingAddress = (ULONG)Section->VirtualAddress + Section->VirtualSize;
+
+			// Decrement the head/tail page reference counters
+			(*Section->HeadReferenceCount)--;
+			(*Section->TailReferenceCount)--;
+
+			if ((*Section->TailReferenceCount) != 0) {
+				EndingAddress = ROUND_DOWN_4K(EndingAddress);
+			}
+
+			if ((*Section->HeadReferenceCount) != 0) {
+				BaseAddress = ROUND_UP_4K(BaseAddress);
+			}
+
+			if (EndingAddress > BaseAddress) {
+				PVOID BaseAddress2 = (PVOID)BaseAddress;
+				ULONG RegionSize = EndingAddress - BaseAddress;
+				NtFreeVirtualMemory(&BaseAddress2, &RegionSize, MEM_DECOMMIT);
+			}
+		}
+
+		Status = STATUS_SUCCESS;
+	}
+
+	RtlLeaveCriticalSectionAndRegion(&XepXbeLoaderLock);
+
+	return Status;
+}
