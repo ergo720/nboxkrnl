@@ -12,7 +12,6 @@
 #define EXCEPTION_CHAIN_END reinterpret_cast<EXCEPTION_REGISTRATION_RECORD *>(EXCEPTION_CHAIN_END2)
 
 // cr0 flags
-#define CR0_NE (1 << 5) // numeric error
 #define CR0_TS (1 << 3) // task switched
 #define CR0_EM (1 << 2) // emulation
 #define CR0_MP (1 << 1) // monitor coprocessor

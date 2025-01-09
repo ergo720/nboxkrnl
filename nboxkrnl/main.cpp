@@ -9,7 +9,7 @@
 [[noreturn]] __declspec(naked) VOID KernelEntry()
 {
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
-	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0
+	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0, ne=osfxsr=1
 
 	ASM_BEGIN
 		// Load the eeprom and certificate keys. The host should have passed them in the stack
@@ -24,11 +24,6 @@
 		// Use the global KiIdleThreadStack as the stack of the startup thread
 		ASM(xor ebp, ebp);
 		ASM(mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME));
-
-		// Update cr0
-		ASM(mov eax, cr0);
-		ASM(or eax, CR0_NE);
-		ASM(mov cr0, eax);
 
 		// Initialize the CRT of the kernel executable
 		ASM(call InitializeCrt);
