@@ -26,6 +26,7 @@ jobs:
       matrix:
         cmake-generator:
           - -A Win32 # Visual Studio (latest IDE)
+          - -A Win32 -T ClangCL # Visual Studio with clang compiler (latest IDE)
         configuration: [Debug, Release]
         include:
           - cmake-generator: -A Win32
@@ -34,6 +35,12 @@ jobs:
             arch: x86
             cmake-build-param: -j $env:NUMBER_OF_PROCESSORS
             folder: win
+          - cmake-generator: -A Win32 -T ClangCL
+            platform: Windows
+            os: windows-latest
+            arch: x86
+            cmake-build-param: -j $env:NUMBER_OF_PROCESSORS
+            folder: win-clang
     steps:
       - uses: actions/checkout@v4
         with:
