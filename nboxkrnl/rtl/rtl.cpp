@@ -632,8 +632,3 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 
 	HalpShutdownSystem();
 }
-
-ULONG RtlpBitScanForward(ULONG Value)
-{
-	ASM(bsf eax, Value);
-}

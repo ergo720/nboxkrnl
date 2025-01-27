@@ -547,6 +547,48 @@ struct _PDCLIB_imaxdiv_t
 /* Floating Point                                                             */
 /* -------------------------------------------------------------------------- */
 
+#if _MSC_VER
+#define __FLT_EVAL_METHOD__ 0
+#define __FLT_HAS_DENORM__ 1
+#define __DBL_HAS_DENORM__ 1
+#define __LDBL_HAS_DENORM__ __DBL_HAS_DENORM__
+#define __FLT_RADIX__ 2
+#define __FLT_MANT_DIG__ 24
+#define __DBL_MANT_DIG__ 53
+#define __LDBL_MANT_DIG__ __DBL_MANT_DIG__
+#define __FLT_DECIMAL_DIG__ 9
+#define __DBL_DECIMAL_DIG__ 17
+#define __LDBL_DECIMAL_DIG__ __DBL_DECIMAL_DIG__ // msvc doesn't define this macro in cfloat.h/cfloat?
+#define __DECIMAL_DIG__
+#define __FLT_DIG__ 6
+#define __DBL_DIG__ 15
+#define __LDBL_DIG__ __DBL_DIG__
+#define __FLT_MIN_EXP__ (-125)
+#define __DBL_MIN_EXP__ (-1021)
+#define __LDBL_MIN_EXP__ __DBL_MIN_EXP__
+#define __FLT_MIN_10_EXP__ (-37)
+#define __DBL_MIN_10_EXP__ (-307)
+#define __LDBL_MIN_10_EXP__ __DBL_MIN_10_EXP__
+#define __FLT_MAX_EXP__ 128
+#define __DBL_MAX_EXP__ 1024
+#define __LDBL_MAX_EXP__ __DBL_MAX_EXP__
+#define __FLT_MAX_10_EXP__ 38
+#define __DBL_MAX_10_EXP__ 308
+#define __LDBL_MAX_10_EXP__ __DBL_MAX_10_EXP__
+#define __FLT_MAX__ 3.402823466e38F
+#define __DBL_MAX__ 1.7976931348623158e308
+#define __LDBL_MAX__ __DBL_MAX__
+#define __FLT_EPSILON__ 1.192092896e-07F
+#define __DBL_EPSILON__ 2.2204460492503131e-016
+#define __LDBL_EPSILON__ __DBL_EPSILON__
+#define __FLT_MIN__ 1.175494351e-38F
+#define __DBL_MIN__ 2.2250738585072014e-308
+#define __LDBL_MIN__ __DBL_MIN__
+#define __FLT_DENORM_MIN__ 1.401298464e-45F
+#define __DBL_DENORM_MIN__ 4.9406564584124654e-324
+#define __LDBL_DENORM_MIN__ __DBL_DENORM_MIN__
+#endif
+
 /* Whether the implementation rounds toward zero (0), to nearest (1), toward  */
 /* positive infinity (2), or toward negative infinity (3). (-1) signifies     */
 /* indeterminable rounding, any other value implementation-specific rounding. */
@@ -699,7 +741,11 @@ struct _PDCLIB_imaxdiv_t
 typedef char * _PDCLIB_va_list;
 #define _PDCLIB_va_arg( ap, type ) ( (ap) += (_PDCLIB_va_round(type)), ( *(type*) ( (ap) - (_PDCLIB_va_round(type)) ) ) )
 #define _PDCLIB_va_copy( dest, src ) ( (dest) = (src), (void)0 )
-#define _PDCLIB_va_end( ap ) ( (ap) = (void *)0, (void)0 )
+#ifdef __cplusplus
+#define _PDCLIB_va_end( ap ) ( (ap) = (char *)0, (void)0 )
+#else
+#define _PDCLIB_va_end( ap ) ( (ap) = (char *)0, (void)0 )
+#endif
 #define _PDCLIB_va_start( ap, parmN ) ( (ap) = (char *) &parmN + ( _PDCLIB_va_round(parmN) ), (void)0 )
 
 #elif defined( __x86_64 ) || defined( __arm__ ) || defined( __ARM_NEON )

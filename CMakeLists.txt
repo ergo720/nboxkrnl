@@ -23,6 +23,7 @@ add_compile_definitions(
  __STDC_NO_THREADS__
  _HAS_EXCEPTIONS=0
  NANOPRINTF_IMPLEMENTATION
+ NANOPRINTF_VISIBILITY_STATIC
 )
 
 add_compile_options(
@@ -98,6 +99,9 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
 
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/float.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/limits.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/stdarg.h"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/stddef.h"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/stdint.h"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/string.h"

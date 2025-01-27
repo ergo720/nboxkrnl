@@ -193,8 +193,10 @@ static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, 
 		return STATUS_UNRECOGNIZED_VOLUME;
 	}
 
+	ULONG ClusterShift;
 	VolumeExtension->BytesPerCluster = Superblock->ClusterSize << VolumeExtension->SectorShift;
-	VolumeExtension->ClusterShift = RtlpBitScanForward(VolumeExtension->BytesPerCluster);
+	RtlpBitScanForward(&ClusterShift, VolumeExtension->BytesPerCluster);
+	VolumeExtension->ClusterShift = UCHAR(ClusterShift);
 	VolumeExtension->VolumeID = Superblock->VolumeID;
 	VolumeExtension->NumberOfClusters = ULONG((PartitionInformation->PartitionLength.QuadPart - sizeof(FATX_SUPERBLOCK)) >> VolumeExtension->ClusterShift);
 	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters;
@@ -274,10 +276,12 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 		FatxDeviceObject->Flags |= DO_SCATTER_GATHER_IO;
 	}
 
+	ULONG SectorShift;
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)FatxDeviceObject->DeviceExtension;
 	VolumeExtension->CacheExtension.TargetDeviceObject = DeviceObject;
 	VolumeExtension->CacheExtension.SectorSize = FatxDeviceObject->SectorSize;
-	VolumeExtension->SectorShift = RtlpBitScanForward(DiskGeometry.BytesPerSector);
+	RtlpBitScanForward(&SectorShift, DiskGeometry.BytesPerSector);
+	VolumeExtension->SectorShift = UCHAR(SectorShift);
 	InitializeListHead(&VolumeExtension->OpenFileList);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
 
