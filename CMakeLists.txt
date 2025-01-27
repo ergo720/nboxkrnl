@@ -32,11 +32,14 @@ add_compile_options(
  /Zc:preprocessor
  /wd4731
  /wd4733
+ /wd4804
  /wd26812
  /arch:SSE
 )
 
 include_directories(
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal"
@@ -92,6 +95,14 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/xc.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xbe.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.hpp"
+
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/stddef.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/stdint.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/string.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/pdclib/_PDCLIB_internal.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/pdclib/_PDCLIB_lib_ext1.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include/pdclib/_PDCLIB_config.h"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include/assert.h"
 )
 
 file (GLOB SOURCES
@@ -151,6 +162,13 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/crypto.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/sha.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
+
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/memcpy.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/memset.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strlen.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strncmp.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strncpy.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/functions/_PDCLIB/assert.c"
 )
 
 source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
