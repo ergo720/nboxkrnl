@@ -18,8 +18,6 @@ set(NBOXKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory("${NBOXKRNL_ROOT_DIR}/import/pdclib")
-
 add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
@@ -39,8 +37,6 @@ add_compile_options(
 )
 
 include_directories(
- "${NBOXKRNL_ROOT_DIR}/import/pdclib/include"
- "${NBOXKRNL_ROOT_DIR}/import/pdclib/platform/xbox/include"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal"
@@ -162,10 +158,7 @@ source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
 add_executable(nboxkrnl ${HEADERS} ${SOURCES})
 
-add_dependencies(nboxkrnl pdclib)
-
 target_link_libraries(nboxkrnl PUBLIC
- pdclib.lib
  debug libcmtd.lib
  optimized libcmt.lib
 )

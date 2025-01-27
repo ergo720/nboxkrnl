@@ -1,5 +1,0 @@
-[submodule "import/pdclib"]
-	path = import/pdclib
-	url = https://github.com/ergo720/pdclib
-	branch = master
-	shallow = true
