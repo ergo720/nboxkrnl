@@ -171,8 +171,10 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xc/sha.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/xe/xe.cpp"
 
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/memcmp.c"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/memcpy.c"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/memset.c"
+ "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strcmp.c"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strlen.c"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strncmp.c"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/functions/string/strncpy.c"
