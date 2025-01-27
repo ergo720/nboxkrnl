@@ -4,7 +4,7 @@
 
 #include "..\kernel.hpp"
 #include "dbg.hpp"
-#include <stdio.h>
+#include <nanoprintf.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -20,7 +20,7 @@ EXPORTNUM(8) ULONG CDECL DbgPrint
 		char buff[512];
 		va_list vlist;
 		va_start(vlist, Format);
-		vsnprintf(buff, sizeof(buff), Format, vlist);
+		npf_vsnprintf(buff, sizeof(buff), Format, vlist);
 		va_end(vlist);
 
 		outl(DBG_OUTPUT_STR_PORT, reinterpret_cast<ULONG>(buff));

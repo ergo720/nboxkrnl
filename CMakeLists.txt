@@ -22,6 +22,7 @@ add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
  _HAS_EXCEPTIONS=0
+ NANOPRINTF_IMPLEMENTATION
 )
 
 add_compile_options(
@@ -40,6 +41,7 @@ add_compile_options(
 include_directories(
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include"
+ "${NBOXKRNL_ROOT_DIR}/import/nanoprintf"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal"
@@ -103,6 +105,8 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include/pdclib/_PDCLIB_lib_ext1.h"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include/pdclib/_PDCLIB_config.h"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include/assert.h"
+
+ "${NBOXKRNL_ROOT_DIR}/import/nanoprintf/nanoprintf.h"
 )
 
 file (GLOB SOURCES
