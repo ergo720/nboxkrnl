@@ -744,7 +744,7 @@ typedef char * _PDCLIB_va_list;
 #ifdef __cplusplus
 #define _PDCLIB_va_end( ap ) ( (ap) = (char *)0, (void)0 )
 #else
-#define _PDCLIB_va_end( ap ) ( (ap) = (char *)0, (void)0 )
+#define _PDCLIB_va_end( ap ) ( (ap) = (void *)0, (void)0 )
 #endif
 #define _PDCLIB_va_start( ap, parmN ) ( (ap) = (char *) &parmN + ( _PDCLIB_va_round(parmN) ), (void)0 )
 
