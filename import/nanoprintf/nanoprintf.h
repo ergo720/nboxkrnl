@@ -3,6 +3,8 @@
    charles.nicholson+nanoprintf@gmail.com
    dual-licensed under 0bsd and unlicense, take your pick. see eof for details. */
 
+// NOTE: slightly modified version to accomodate nboxkrnl. Changed line are marked with "nboxkrnl"
+
 #ifndef NANOPRINTF_H_INCLUDED
 #define NANOPRINTF_H_INCLUDED
 
@@ -282,7 +284,7 @@ typedef struct npf_bufputc_ctx {
 
 #ifdef _MSC_VER
 // This is only necessary to use the BitScanReverse intrinsic, so we replace it with our RtlpBitScanReverse from the kernel
-//  #include <intrin.h>
+//  #include <intrin.h> // nboxkrnl
 #endif
 
 static int npf_max(int x, int y) { return (x > y) ? x : y; }
@@ -693,9 +695,9 @@ static int npf_bin_len(npf_uint_t u) {
     #define NPF_HAVE_BUILTIN_CLZ
     #define NPF_CLZ _BitScanReverse64
   #elif NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS == 0
-    unsigned char RtlpBitScanReverse(unsigned int *Index, unsigned int Mask);
+    unsigned char RtlpBitScanReverse(unsigned int *Index, unsigned int Mask); // nboxkrnl
     #define NPF_HAVE_BUILTIN_CLZ
-    #define NPF_CLZ RtlpBitScanReverse
+    #define NPF_CLZ RtlpBitScanReverse // nboxkrnl
   #endif
   #ifdef NPF_HAVE_BUILTIN_CLZ
     unsigned long idx;
