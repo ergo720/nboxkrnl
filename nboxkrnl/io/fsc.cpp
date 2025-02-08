@@ -68,15 +68,19 @@ static PFSCACHE_ELEMENT FscAllocateFreeElement()
 	PLIST_ENTRY Entry = FscCacheElementListHead.Flink;
 	while (Entry != &FscCacheElementListHead) {
 		PFSCACHE_ELEMENT Element = CONTAINING_RECORD(Entry, FSCACHE_ELEMENT, ListEntry);
-		if (Element->CacheExtension == nullptr) {
+		if (Element->NumOfUsers == 0) {
 			return Element;
 		}
 
 		Entry = Element->ListEntry.Blink;
 	}
 
-	ULONG PagesToLeftToAllocate = MAX_NUMBER_OF_CACHE_PAGES - FscCurrNumberOfCachePages;
-	if (!NT_SUCCESS(FscSetCacheSize(FscCurrNumberOfCachePages + (16 < PagesToLeftToAllocate ? 16 : PagesToLeftToAllocate)))) {
+	ULONG PagesLeftToAllocate = MAX_NUMBER_OF_CACHE_PAGES - FscCurrNumberOfCachePages;
+	if (PagesLeftToAllocate) {
+		if (!NT_SUCCESS(FscSetCacheSize(FscCurrNumberOfCachePages + (16 < PagesLeftToAllocate ? 16 : PagesLeftToAllocate)))) {
+			return nullptr;
+		}
+	} else {
 		return nullptr;
 	}
 
