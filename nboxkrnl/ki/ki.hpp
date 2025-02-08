@@ -128,7 +128,7 @@ using PKPCR = KPCR *;
 
 
 inline KTHREAD KiIdleThread;
-inline uint8_t alignas(4) KiIdleThreadStack[KERNEL_STACK_SIZE];
+inline uint8_t alignas(16) KiIdleThreadStack[KERNEL_STACK_SIZE]; // must be 16 byte aligned because it's used by fxsave and fxrstor
 
 // List of all thread that can be scheduled, one for each priority level
 inline LIST_ENTRY KiReadyThreadLists[NUM_OF_THREAD_PRIORITIES];
