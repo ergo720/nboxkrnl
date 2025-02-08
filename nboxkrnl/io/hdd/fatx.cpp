@@ -15,6 +15,7 @@
 #define FATX_ONLINE_DATA_LENGTH 2048
 #define FATX_RESERVED_LENGTH 1968
 #define FATX_SIGNATURE 'XTAF'
+#define FATX_CLUSTER_FREE 0
 
 #define FATX_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
 #define FATX_DELETE_ON_CLOSE            FILE_DELETE_ON_CLOSE // = 0x00001000
@@ -199,12 +200,50 @@ static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, 
 	VolumeExtension->ClusterShift = UCHAR(ClusterShift);
 	VolumeExtension->VolumeID = Superblock->VolumeID;
 	VolumeExtension->NumberOfClusters = ULONG((PartitionInformation->PartitionLength.QuadPart - sizeof(FATX_SUPERBLOCK)) >> VolumeExtension->ClusterShift);
-	VolumeExtension->NumberOfClustersAvailable = VolumeExtension->NumberOfClusters;
+	VolumeExtension->NumberOfClustersAvailable = 0;
 	VolumeExtension->VolumeInfo.FileNameLength = 0;
 	VolumeExtension->VolumeInfo.HostHandle = HostHandle;
 	VolumeExtension->VolumeInfo.Flags = FATX_VOLUME_FILE;
 
 	FscUnmapElementPage(Superblock);
+
+	// Calculate how much free space we have in this partition
+	ULONG FatLength;
+	BOOLEAN IsFatx16;
+	if ((PartitionInformation->PartitionNumber >= 2) && (PartitionInformation->PartitionNumber <= 5)) {
+		FatLength = VolumeExtension->NumberOfClusters << 1;
+		IsFatx16 = TRUE;
+	} else {
+		FatLength = VolumeExtension->NumberOfClusters << 2;
+		IsFatx16 = FALSE;
+	}
+
+	ULONG FatBytesLeft = FatLength, FatOffset = sizeof(FATX_SUPERBLOCK);
+	while (FatBytesLeft > 0) {
+		PUCHAR FatBuffer;
+		ULONG FatBytesToMap = FatBytesLeft > PAGE_SIZE ? PAGE_SIZE : FatBytesLeft;
+		if (NTSTATUS Status = FscMapElementPage(&VolumeExtension->CacheExtension, FatOffset, (PVOID *)&FatBuffer, FALSE); !NT_SUCCESS(Status)) {
+			return Status;
+		}
+		if (IsFatx16) {
+			PUSHORT FatPage = (PUSHORT)FatBuffer;
+			for (ULONG i = 0; i < FatBytesToMap; i += 2) {
+				if (FatPage[i >> 1] == FATX_CLUSTER_FREE) {
+					VolumeExtension->NumberOfClustersAvailable++;
+				}
+			}
+		} else {
+			PULONG FatPage = (PULONG)FatBuffer;
+			for (ULONG i = 0; i < FatBytesToMap; i += 4) {
+				if (FatPage[i >> 2] == FATX_CLUSTER_FREE) {
+					VolumeExtension->NumberOfClustersAvailable++;
+				}
+			}
+		}
+		FatBytesLeft -= FatBytesToMap;
+		FatOffset += FatBytesToMap;
+		FscUnmapElementPage(FatBuffer);
+	}
 
 	return STATUS_SUCCESS;
 }
