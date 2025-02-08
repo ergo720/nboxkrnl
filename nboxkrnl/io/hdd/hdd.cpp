@@ -124,8 +124,8 @@ BOOLEAN HddInitDriver()
 		else {
 			// Data partition, system partition or cache partitions
 			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO);
-			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i].LBAStart * HDD_SECTOR_SIZE;
-			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i].LBASize * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i - 1].LBAStart * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i - 1].LBASize * HDD_SECTOR_SIZE;
 		}
 
 		HddDeviceObject->AlignmentRequirement = HDD_ALIGNMENT_REQUIREMENT;
