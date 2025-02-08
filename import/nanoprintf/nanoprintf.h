@@ -752,6 +752,8 @@ static void npf_putc_cnt(int c, void *ctx) {
 #define NPF_WRITEBACK(MOD, TYPE) \
   case NPF_FMT_SPEC_LEN_MOD_##MOD: *(va_arg(args, TYPE *)) = (TYPE)pc_cnt.n; break
 
+// nboxkrnl: this function uses some x87 instructions, probably to handle the float format specifier. When this is called from DbgPrint, the kernel will then use
+// x87 instructions. Is this bad? Note that, because there's no user -> kernel transition on the xbox and multitasking is not supported either, this might not be an issue
 int npf_vpprintf(npf_putc pc, void *pc_ctx, char const *format, va_list args) {
   npf_format_spec_t fs;
   char const *cur = format;
