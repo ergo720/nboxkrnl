@@ -17,9 +17,41 @@
 #define FATX_SIGNATURE 'XTAF'
 #define FATX_CLUSTER_FREE 0
 
+#define FATX_TIMESTAMP_SECONDS2_SHIFT 0
+#define FATX_TIMESTAMP_MINUTES_SHIFT  5
+#define FATX_TIMESTAMP_HOURS_SHIFT    11
+#define FATX_TIMESTAMP_DAY_SHIFT      16
+#define FATX_TIMESTAMP_MONTH_SHIFT    21
+#define FATX_TIMESTAMP_YEAR_SHIFT     25
+#define FATX_TIMESTAMP_SECONDS2_MASK  0x1F
+#define FATX_TIMESTAMP_MINUTES_MASK   0x3F
+#define FATX_TIMESTAMP_HOURS_MASK     0x1F
+#define FATX_TIMESTAMP_DAY_MASK       0x1F
+#define FATX_TIMESTAMP_MONTH_MASK     0x0F
+#define FATX_TIMESTAMP_YEAR_MASK      0x7F
+
 #define FATX_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
 #define FATX_DELETE_ON_CLOSE            FILE_DELETE_ON_CLOSE // = 0x00001000
 #define FATX_VOLUME_FILE                0x80000000
+#define FATX_VALID_FILE_ATTRIBUES       (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_ARCHIVE)
+// File permission check masks, used by nxbx and here only for documentation
+#define FATX_VALID_DIRECTORY_ACCESS     (DELETE | READ_CONTROL | WRITE_OWNER | \
+										WRITE_DAC | SYNCHRONIZE | ACCESS_SYSTEM_SECURITY | FILE_WRITE_DATA | \
+										FILE_READ_EA | FILE_WRITE_EA | FILE_READ_ATTRIBUTES | \
+										FILE_WRITE_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_TRAVERSE | \
+										FILE_DELETE_CHILD | FILE_APPEND_DATA)
+#define FATX_VALID_FILE_ACCESS          (DELETE | READ_CONTROL | WRITE_OWNER | \
+										WRITE_DAC | SYNCHRONIZE | ACCESS_SYSTEM_SECURITY | FILE_READ_DATA | \
+										FILE_WRITE_DATA | FILE_READ_EA | FILE_WRITE_EA | FILE_READ_ATTRIBUTES | \
+										FILE_WRITE_ATTRIBUTES | FILE_EXECUTE | FILE_DELETE_CHILD | \
+										FILE_APPEND_DATA)
+#define FATX_ACCESS_IMPLIES_WRITE       (DELETE | READ_CONTROL | WRITE_OWNER | \
+										WRITE_DAC | SYNCHRONIZE | ACCESS_SYSTEM_SECURITY | FILE_READ_DATA | \
+										FILE_READ_EA | FILE_WRITE_EA | FILE_READ_ATTRIBUTES | \
+										FILE_WRITE_ATTRIBUTES | FILE_EXECUTE | FILE_LIST_DIRECTORY | \
+										FILE_TRAVERSE)
+#define FATX_CREATE_IMPLIES_WRITE       FILE_DELETE_ON_CLOSE
+
 
 #pragma pack(1)
 struct FATX_SUPERBLOCK {
@@ -92,6 +124,42 @@ static NTSTATUS FatxCompleteRequest(PIRP Irp, NTSTATUS Status, PFAT_VOLUME_EXTEN
 	return Status;
 }
 
+static BOOLEAN FatxPackTimestamp(PLARGE_INTEGER Time, PULONG FatxTimestamp)
+{
+	LARGE_INTEGER LocalTime{ .QuadPart = Time->QuadPart + (2 * 1000 * 1000 * 10 - 1) };
+	TIME_FIELDS TimeField;
+	RtlTimeToTimeFields(&LocalTime, &TimeField);
+
+	*FatxTimestamp = ((ULONG)TimeField.Year - 2000) << FATX_TIMESTAMP_YEAR_SHIFT; // fatx tracks the year from 2000
+	*FatxTimestamp |= ((ULONG)TimeField.Month << FATX_TIMESTAMP_MONTH_SHIFT);
+	*FatxTimestamp |= ((ULONG)TimeField.Day << FATX_TIMESTAMP_DAY_SHIFT);
+	*FatxTimestamp |= ((ULONG)TimeField.Hour << FATX_TIMESTAMP_HOURS_SHIFT);
+	*FatxTimestamp |= ((ULONG)TimeField.Minute << FATX_TIMESTAMP_MINUTES_SHIFT);
+	*FatxTimestamp |= ((ULONG)(TimeField.Second >> 1) << FATX_TIMESTAMP_SECONDS2_SHIFT);
+
+	return (TimeField.Year >= 2000) && (TimeField.Year <= 2000 + 127); // the years will overflow after 2127 because it's 7 bits wide
+}
+
+static LARGE_INTEGER FatxUnpackTimestamp(ULONG FatxTimestamp)
+{
+	TIME_FIELDS TimeField;
+
+	TimeField.Year = ((FatxTimestamp >> FATX_TIMESTAMP_YEAR_SHIFT) & FATX_TIMESTAMP_YEAR_MASK) + 2000; // fatx tracks the year from 2000
+	TimeField.Month = (FatxTimestamp >> FATX_TIMESTAMP_MONTH_SHIFT) & FATX_TIMESTAMP_MONTH_MASK;
+	TimeField.Day = (FatxTimestamp >> FATX_TIMESTAMP_DAY_SHIFT) & FATX_TIMESTAMP_DAY_MASK;
+	TimeField.Hour = (FatxTimestamp >> FATX_TIMESTAMP_HOURS_SHIFT) & FATX_TIMESTAMP_HOURS_MASK;
+	TimeField.Minute = (FatxTimestamp >> FATX_TIMESTAMP_MINUTES_SHIFT) & FATX_TIMESTAMP_MINUTES_MASK;
+	TimeField.Second = ((FatxTimestamp >> FATX_TIMESTAMP_SECONDS2_SHIFT) & FATX_TIMESTAMP_SECONDS2_MASK) * 2;
+	TimeField.Millisecond = 0;
+
+	LARGE_INTEGER LocalTime;
+	if (!RtlTimeFieldsToTime(&TimeField, &LocalTime)) {
+		LocalTime.QuadPart = 0;
+	}
+
+	return LocalTime;
+}
+
 static BOOLEAN FatxIsNameValid(POBJECT_STRING Name)
 {
 	if ((Name->Length == 0) || (Name->Length > FATX_MAX_FILE_NAME_LENGTH)) { // cannot be empty or exceed 42 chars
@@ -162,7 +230,7 @@ static VOID FatxRemoveFile(PFAT_VOLUME_EXTENSION VolumeExtension, PFATX_FILE_INF
 static NTSTATUS FatxSetupVolumeExtension(PFAT_VOLUME_EXTENSION VolumeExtension, PPARTITION_INFORMATION PartitionInformation)
 {
 	PFATX_SUPERBLOCK Superblock;
-	ULONGLONG HostHandle = PARTITION0_HANDLE + PartitionInformation->PartitionNumber;
+	ULONG HostHandle = PARTITION0_HANDLE + PartitionInformation->PartitionNumber;
 	VolumeExtension->CacheExtension.HostHandle = HostHandle;
 	VolumeExtension->CacheExtension.DeviceType = DEV_PARTITION0 + PartitionInformation->PartitionNumber;
 	if (NTSTATUS Status = FscMapElementPage(&VolumeExtension->CacheExtension, 0, (PVOID *)&Superblock, FALSE); !NT_SUCCESS(Status)) {
@@ -347,6 +415,7 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
 	PFILE_OBJECT RelatedFileObject = FileObject->RelatedFileObject;
 	ACCESS_MASK DesiredAccess = IrpStackPointer->Parameters.Create.DesiredAccess;
+	UCHAR Attributes = IrpStackPointer->Parameters.Create.FileAttributes & FATX_VALID_FILE_ATTRIBUES;
 	USHORT ShareAccess = IrpStackPointer->Parameters.Create.ShareAccess;
 	ULONG Disposition = (IrpStackPointer->Parameters.Create.Options >> 24) & 0xFF;
 	ULONG CreateOptions = IrpStackPointer->Parameters.Create.Options & 0xFFFFFF;
@@ -479,8 +548,8 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			}
 
 			if (FileInfo = FatxFindOpenFile(VolumeExtension, &FirstName); FileInfo && (FileInfo->Flags & FATX_DELETE_ON_CLOSE)) {
-				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
-			}
+					return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+				}
 
 			if (LocalRemainingName.Length == 0) {
 				break;
@@ -541,6 +610,10 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	// to a nullptr, which causes it to invoke IopDeleteFile via ObfDereferenceObject. Because DeviceObject is nullptr, FatxIrpClose won't be called, thus leaking the host handle and
 	// the memory for FileInfo
 	BOOLEAN UpdatedShareAccess = FALSE, FileInfoCreated = FALSE;
+	LARGE_INTEGER CurrentTime;
+	ULONG FatxTimeStamp;
+	KeQuerySystemTime(&CurrentTime);
+	FatxPackTimestamp(&CurrentTime, &FatxTimeStamp);
 	if (FileInfo) {
 		if (FileInfo->Flags & FATX_DIRECTORY_FILE) {
 			if (CreateOptions & FILE_NON_DIRECTORY_FILE) {
@@ -571,7 +644,7 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfoCreated = TRUE;
-		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
+		FileInfo->HostHandle = (ULONG)&FileInfo;
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
 		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
 		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
@@ -579,33 +652,30 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
 		FatxInsertFile(VolumeExtension, FileInfo);
 		IoSetShareAccess(DesiredAccess, ShareAccess, FileObject, &FileInfo->ShareAccess);
-
-		// NOTE: this is not entirely correct. The timestamps are supposed to be stored on the filesystem metadata, but we are not persisting them anywhere right now,
-		// and relying on the host is unreliable because not all host filesystems support the creation time
-		LARGE_INTEGER CurrentTime;
-		KeQuerySystemTime(&CurrentTime);
-		FileInfo->CreationTime = CurrentTime;
-		FileInfo->LastAccessTime = CurrentTime;
-		FileInfo->LastWriteTime = CurrentTime;
 	}
 
 	FileObject->FsContext2 = FileInfo;
+	Attributes = CreateOptions & FILE_DIRECTORY_FILE ? (Attributes | FILE_ATTRIBUTE_DIRECTORY) : (Attributes & ~FILE_ATTRIBUTE_DIRECTORY);
 
 	// Finally submit the I/O request to the host to do the actual work
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
-	ULONG IsDirectory = (CreateOptions & FILE_DIRECTORY_FILE) || HasBackslashAtEnd ? IoFlags::IsDirectory : 0;
-	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		IsDirectory | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
-		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
+	IoInfoBlockOc InfoBlock = SubmitIoRequestToHost(
+		(CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) |
+		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) |
 		(Disposition & 7) | IoRequestType::Open,
 		InitialSize,
 		HasBackslashAtEnd ? FullPath.Length - 1 : FullPath.Length,
 		FileInfo->HostHandle,
-		(ULONG_PTR)(FullPath.Buffer)
+		(ULONG_PTR)FullPath.Buffer,
+		Attributes,
+		FatxTimeStamp,
+		DesiredAccess,
+		CreateOptions
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Header.Status);
 	if (!NT_SUCCESS(Status)) {
 		if (UpdatedShareAccess) {
 			IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
@@ -622,18 +692,12 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 	else {
 		++VolumeExtension->FileObjectCount;
-		Irp->IoStatus.Information = InfoBlock.Info;
-		if (!HasBackslashAtEnd && FileInfoCreated && (InfoBlock.Info == Opened)) {
-			// Only update the file size if it was opened for the first time ever
-			FileInfo->FileSize = ULONG(InfoBlock.Info2OrId);
-		}
-		if (!FileInfoCreated && ((InfoBlock.Info == Overwritten) || (InfoBlock.Info == Superseded))) {
-			LARGE_INTEGER CurrentTime;
-			KeQuerySystemTime(&CurrentTime);
-			FileInfo->CreationTime = CurrentTime;
-			FileInfo->LastAccessTime = CurrentTime;
-			FileInfo->LastWriteTime = CurrentTime;
-		}
+		VolumeExtension->NumberOfClustersAvailable = InfoBlock.Fatx.FreeClusters;
+		Irp->IoStatus.Information = InfoBlock.Header.Info;
+		FileInfo->FileSize = InfoBlock.FileSize;
+		FileInfo->CreationTime = FatxTimeStamp;
+		FileInfo->LastAccessTime = FatxTimeStamp;
+		FileInfo->LastWriteTime = FatxTimeStamp;
 	}
 
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
@@ -657,9 +721,6 @@ static NTSTATUS XBOXAPI FatxIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		else {
 			SubmitIoRequestToHost(
 				DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Close,
-				0,
-				0,
-				0,
 				FileInfo->HostHandle
 			);
 			FatxRemoveFile(VolumeExtension, FileInfo);
@@ -720,33 +781,30 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return FatxCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	if (FileInfo->Flags & FATX_VOLUME_FILE) {
-		// If it's the volume itself, we can only support the case where the caller wants to read the partition table (for partition0) or the
-		// fatx superblock (for all the other partitions)
-
-		ULONGLONG LengthLimit = PIDE_DISK_EXTENSION(VolumeExtension->CacheExtension.TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber == 0 ? KiB(512) : KiB(4);
-		if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
-			return FatxCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
-		}
-	}
-	else {
+	if (!(FileInfo->Flags & FATX_VOLUME_FILE)) {
 		// Cannot read past the end of the file
 		if (FileOffset.HighPart || (FileOffset.LowPart >= FileInfo->FileSize)) {
 			return FatxCompleteRequest(Irp, STATUS_END_OF_FILE, VolumeExtension);
 		}
 
 		if ((FileOffset.LowPart + Length) > FileInfo->FileSize) {
-			// Reduce the number of butes transferred to avoid reading past the end of the file
+			// Reduce the number of bytes transferred to avoid reading past the end of the file
 			Length = FileInfo->FileSize - FileOffset.LowPart;
 		}
 	}
+
+	LARGE_INTEGER CurrentTime;
+	ULONG FatxTimeStamp;
+	KeQuerySystemTime(&CurrentTime);
+	FatxPackTimestamp(&CurrentTime, &FatxTimeStamp);
 
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Read,
 		FileOffset.LowPart,
 		Length,
 		(ULONG_PTR)Buffer,
-		FileInfo->HostHandle
+		FileInfo->HostHandle,
+		FatxTimeStamp
 	);
 
 	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
@@ -759,10 +817,7 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			// NOTE: despite the addition not being atomic, this is ok because on fatx the file size limit is 4 GiB, which means the high dword will always be zero with no carry to add to it
 			FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		}
-		// NOTE: FileInfo->LastAccessTime must be updated atomically because FatxIrpRead acquires a shared lock, which means it can be concurrently updated
-		LARGE_INTEGER LastAccessTime;
-		KeQuerySystemTime(&LastAccessTime);
-		atomic_store64(&FileInfo->LastAccessTime.QuadPart, LastAccessTime.QuadPart);
+		FileInfo->LastAccessTime = FatxTimeStamp;
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
@@ -811,28 +866,25 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FileOffset.QuadPart = FileInfo->FileSize;
 	}
 
-	if (FileInfo->Flags & FATX_VOLUME_FILE) {
-		// If it's the volume itself, we can only support the case where the caller wants to write to the partition table (for partition0) or the
-		// fatx superblock (for all the other partitions)
-
-		ULONGLONG LengthLimit = PIDE_DISK_EXTENSION(VolumeExtension->CacheExtension.TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber == 0 ? KiB(512) : KiB(4);
-		if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
-			return FatxCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
-		}
-	}
-	else {
+	if (!(FileInfo->Flags & FATX_VOLUME_FILE)) {
 		// 4 GiB file size limit on FAT
 		if (LARGE_INTEGER NewOffset{ .QuadPart = FileOffset.QuadPart + Length }; NewOffset.HighPart || (NewOffset.LowPart <= FileOffset.LowPart)) {
 			return FatxCompleteRequest(Irp, STATUS_DISK_FULL, VolumeExtension);
 		}
 	}
 
+	LARGE_INTEGER CurrentTime;
+	ULONG FatxTimeStamp;
+	KeQuerySystemTime(&CurrentTime);
+	FatxPackTimestamp(&CurrentTime, &FatxTimeStamp);
+
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 		DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Write,
 		FileOffset.LowPart,
 		Length,
 		(ULONG_PTR)Buffer,
-		FileInfo->HostHandle
+		FileInfo->HostHandle,
+		FatxTimeStamp
 	);
 
 	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
@@ -847,10 +899,8 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
 			FileObject->CurrentByteOffset.QuadPart += InfoBlock.Info;
 		}
-		LARGE_INTEGER CurrentTime;
-		KeQuerySystemTime(&CurrentTime);
-		FileInfo->LastAccessTime = CurrentTime;
-		FileInfo->LastWriteTime = CurrentTime;
+		FileInfo->LastAccessTime = FatxTimeStamp;
+		FileInfo->LastWriteTime = FatxTimeStamp;
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
@@ -899,11 +949,10 @@ static NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIR
 
 	case FileNetworkOpenInformation: {
 		PFILE_NETWORK_OPEN_INFORMATION NetworkOpenInformation = (PFILE_NETWORK_OPEN_INFORMATION)Irp->UserBuffer;
-		// NOTE: FileInfo->LastAccessTime must be read atomically because FatxIrpRead acquires a shared lock, which means it can update it while we are trying to write it here
-		NetworkOpenInformation->CreationTime = FileInfo->CreationTime;
-		NetworkOpenInformation->LastAccessTime.QuadPart = atomic_load64(&FileInfo->LastAccessTime.QuadPart);
-		NetworkOpenInformation->LastWriteTime = FileInfo->LastWriteTime;
-		NetworkOpenInformation->ChangeTime = FileInfo->LastWriteTime;
+		NetworkOpenInformation->CreationTime = FatxUnpackTimestamp(FileInfo->CreationTime);
+		NetworkOpenInformation->LastAccessTime = FatxUnpackTimestamp(FileInfo->LastAccessTime);
+		NetworkOpenInformation->LastWriteTime = FatxUnpackTimestamp(FileInfo->LastWriteTime);
+		NetworkOpenInformation->ChangeTime = NetworkOpenInformation->LastWriteTime;
 		if (FileInfo->Flags & FILE_DIRECTORY_FILE) {
 			NetworkOpenInformation->FileAttributes = FILE_ATTRIBUTE_DIRECTORY;
 			NetworkOpenInformation->AllocationSize.QuadPart = 0;
@@ -1039,9 +1088,6 @@ static NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	if (!(VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) && (FileInfo->ShareAccess.OpenCount == 0) && (FileInfo->Flags & FATX_DELETE_ON_CLOSE)) {
 		IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 			DEV_TYPE(VolumeExtension->CacheExtension.DeviceType) | IoRequestType::Remove,
-			0,
-			0,
-			0,
 			FileInfo->HostHandle
 		);
 	}

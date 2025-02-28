@@ -251,12 +251,7 @@ static NTSTATUS XBOXAPI RawIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return RawCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	// We can only support the case where the caller wants to read the partition table (for partition0) or the fatx superblock (for all the other partitions)
 	DWORD PartitionNumber = PIDE_DISK_EXTENSION(TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber;
-	ULONGLONG LengthLimit = PartitionNumber == 0 ? KiB(512) : KiB(4);
-	if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
-		return RawCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
-	}
 
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 		DEV_TYPE(DEV_PARTITION0 + PartitionNumber) | IoRequestType::Read,
@@ -330,12 +325,7 @@ static NTSTATUS XBOXAPI RawIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		return RawCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	// We can only support the case where the caller wants to write the partition table (for partition0) or the fatx superblock (for all the other partitions)
 	DWORD PartitionNumber = PIDE_DISK_EXTENSION(TargetDeviceObject->DeviceExtension)->PartitionInformation.PartitionNumber;
-	ULONGLONG LengthLimit = PartitionNumber == 0 ? KiB(512) : KiB(4);
-	if (((ULONGLONG)FileOffset.QuadPart + Length) > LengthLimit) {
-		return RawCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
-	}
 
 	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
 		DEV_TYPE(DEV_PARTITION0 + PartitionNumber) | IoRequestType::Write,

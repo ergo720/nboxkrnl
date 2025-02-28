@@ -6,11 +6,17 @@
 #pragma once
 
 #include "ki.hpp"
+#include "ex.hpp"
 #include "..\kernel.hpp"
 #include <assert.h>
 
 #define XBOX_ACPI_FREQUENCY 3375000 // 3.375 MHz
 
+static_assert(sizeof(IoRequest) == 44);
+static_assert(sizeof(IoInfoBlockOc) == 36);
+
+
+static LONG IoHostFileHandle = FIRST_FREE_HANDLE;
 
 XBOX_KEY_DATA XboxCERTKey;
 
@@ -180,55 +186,92 @@ VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime)
 	KiTimerListExpire(&TempList2, OldIrql);
 }
 
-static VOID SubmitIoRequestToHost(IoRequest *Request)
+static VOID SubmitIoRequestToHost(void *RequestAddr)
 {
-	outl(IO_START, (ULONG_PTR)Request);
+	outl(IO_START, (ULONG_PTR)RequestAddr);
 	while (inl(IO_CHECK_ENQUEUE)) {
 		outl(IO_RETRY, 0);
 	}
 }
 
-static VOID RetrieveIoRequestFromHost(volatile IoInfoBlock *Info, ULONGLONG Id)
+static VOID RetrieveIoRequestFromHost(volatile IoInfoBlockOc *Info, ULONG Id)
 {
 	// TODO: instead of polling the IO like this, the host should signal I/O completion by raising a HDD interrupt, so that we can handle the event in the ISR
 
-	Info->Info2OrId = Id;
-	Info->Ready = 0;
+	Info->Header.Id = Id;
+	Info->Header.Ready = 0;
 
 	do {
 		outl(IO_QUERY, (ULONG_PTR)Info);
-	} while (!Info->Ready);
+	} while (!Info->Header.Ready);
 }
 
-IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG OffsetOrInitialSize, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath)
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, ULONG Handle)
 {
-	IoInfoBlock InfoBlock;
+	IoInfoBlockOc InfoBlockOc;
 	IoRequest Packet;
-	Packet.Id = InterlockedIncrement64(&IoRequestId);
-	Packet.Type = Type;
-	Packet.HandleOrAddress = HandleOrAddress;
-	Packet.OffsetOrInitialSize = OffsetOrInitialSize;
-	Packet.Size = Size;
-	Packet.HandleOrPath = HandleOrPath;
+	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Type = Type;
+	Packet.m_xx.Handle = Handle;
 	SubmitIoRequestToHost(&Packet);
-	RetrieveIoRequestFromHost(&InfoBlock, Packet.Id);
+	RetrieveIoRequestFromHost(&InfoBlockOc, Packet.Header.Id);
+
+	return InfoBlockOc.Header;
+}
+
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG Address, ULONG Handle)
+{
+	IoInfoBlockOc InfoBlockOc;
+	IoRequest Packet;
+	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Type = Type;
+	Packet.m_rw.Offset = Offset;
+	Packet.m_rw.Size = Size;
+	Packet.m_rw.Address = Address;
+	Packet.m_rw.Handle = Handle;
+	Packet.m_rw.Timestamp = 0;
+	SubmitIoRequestToHost(&Packet);
+	RetrieveIoRequestFromHost(&InfoBlockOc, Packet.Header.Id);
+
+	return InfoBlockOc.Header;
+}
+
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG Address, ULONG Handle, ULONG Timestamp)
+{
+	IoInfoBlockOc InfoBlockOc;
+	IoRequest Packet;
+	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Type = Type;
+	Packet.m_rw.Offset = Offset;
+	Packet.m_rw.Size = Size;
+	Packet.m_rw.Address = Address;
+	Packet.m_rw.Handle = Handle;
+	Packet.m_rw.Timestamp = Timestamp;
+	SubmitIoRequestToHost(&Packet);
+	RetrieveIoRequestFromHost(&InfoBlockOc, Packet.Header.Id);
+
+	return InfoBlockOc.Header;
+}
+
+IoInfoBlockOc SubmitIoRequestToHost(ULONG Type, LONGLONG InitialSize, ULONG Size, ULONG Handle, ULONG Path, ULONG Attributes,
+	ULONG Timestamp, ULONG DesiredAccess, ULONG CreateOptions)
+{
+	IoInfoBlockOc InfoBlock;
+	IoRequest Packet;
+	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Type = Type;
+	Packet.m_oc.InitialSize = InitialSize;
+	Packet.m_oc.Size = Size;
+	Packet.m_oc.Handle = Handle;
+	Packet.m_oc.Path = Path;
+	Packet.m_oc.Attributes = Attributes;
+	Packet.m_oc.Timestamp = Timestamp;
+	Packet.m_oc.DesiredAccess = DesiredAccess;
+	Packet.m_oc.CreateOptions = CreateOptions;
+	SubmitIoRequestToHost(&Packet);
+	RetrieveIoRequestFromHost(&InfoBlock, Packet.Header.Id);
 
 	return InfoBlock;
-}
-
-ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend)
-{
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-		ASM(mov eax, [ecx]);
-		ASM(mov edx, [ecx + 4]);
-		ASM(add eax, 1);
-		ASM(adc edx, 0);
-		ASM(mov [ecx], eax);
-		ASM(mov [ecx + 4], edx);
-		ASM(popfd);
-	ASM_END
 }
 
 NTSTATUS HostToNtStatus(IoStatus Status)
@@ -253,8 +296,23 @@ NTSTATUS HostToNtStatus(IoStatus Status)
 	case IoStatus::NotADirectory:
 		return STATUS_NOT_A_DIRECTORY;
 
-	case IoStatus::NotFound:
+	case IoStatus::NameNotFound:
 		return STATUS_OBJECT_NAME_NOT_FOUND;
+
+	case IoStatus::PathNotFound:
+		return STATUS_OBJECT_PATH_NOT_FOUND;
+
+	case IoStatus::Corrupt:
+		return STATUS_FILE_CORRUPT_ERROR;
+
+	case IoStatus::Full:
+		return STATUS_DISK_FULL;
+
+	case CannotDelete:
+		return STATUS_CANNOT_DELETE;
+
+	case NotEmpty:
+		return STATUS_DIRECTORY_NOT_EMPTY;
 	}
 
 	KeBugCheckLogEip(UNREACHABLE_CODE_REACHED);

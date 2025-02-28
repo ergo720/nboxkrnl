@@ -42,7 +42,6 @@ BOOLEAN IoInitSystem()
 	}
 
 	XboxFactoryGameRegion = CachedEeprom.EncryptedSettings.GameRegion;
-	IoDvdInputType = inl(DVD_MEDIA_TYPE);
 
 	if (!HddInitDriver()) {
 		return FALSE;

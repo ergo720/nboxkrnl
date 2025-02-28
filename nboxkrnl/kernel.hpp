@@ -27,8 +27,6 @@
 #define IO_RETRY 0x207
 // Request the I/O request with the specified id
 #define IO_QUERY 0x208
-// Request the dvd type the user has booted
-#define DVD_MEDIA_TYPE 0x209
 // Check if a I/O request was submitted successfully
 #define IO_CHECK_ENQUEUE 0x20A
 // Request the path's length of the XBE to launch when no reboot occured
@@ -56,7 +54,8 @@
 #define NUM_OF_DEVS    10
 #define DEV_TYPE(n)    ((n) << 23)
 
-// Special host handles
+// Special host handles NOTE: these numbers must be less than 64 KiB - 1. This is because normal files use the address of a kernel file info struct as the host handle,
+// and addresses below 64 KiB are forbidden on the xbox. This avoids collisions with these handles
 #define CDROM_HANDLE      DEV_CDROM
 #define UNUSED_HANDLE     DEV_UNUSED
 #define PARTITION0_HANDLE DEV_PARTITION0
@@ -87,7 +86,6 @@ enum IoRequestType : ULONG {
 };
 
 enum IoFlags : ULONG {
-	IsDirectory         = 1 << 3,
 	MustBeADirectory    = 1 << 4,
 	MustNotBeADirectory = 1 << 5
 };
@@ -99,7 +97,12 @@ enum IoStatus : NTSTATUS {
 	Failed,
 	IsADirectory,
 	NotADirectory,
-	NotFound
+	NameNotFound,
+	PathNotFound,
+	Corrupt,
+	CannotDelete,
+	NotEmpty,
+	Full
 };
 
 // Same as FILE_ macros of IO
@@ -117,20 +120,64 @@ enum IoInfo : ULONG {
 // 31 - 28         27 - 23   22 - 3	   2 - 0
 
 #pragma pack(1)
-struct IoRequest {
-	ULONGLONG Id; // unique id to identify this request
+struct IoRequestHeader {
+	ULONG Id; // unique id to identify this request
 	ULONG Type; // type of request and flags
-	LONGLONG OffsetOrInitialSize; // file offset from which to start the I/O or file initial size
-	ULONG Size; // bytes to transfer or size of path for open/create requests
-	ULONGLONG HandleOrAddress; // virtual address of the data to transfer or file handle for open/create requests
-	ULONGLONG HandleOrPath; // file handle or file path for open/create requests
+};
+
+struct IoRequestXX {
+	ULONG Handle; // file handle (it's the address of the kernel file info object that tracks the file)
+};
+
+// Specialized version of IoRequest for read/write requests only
+struct IoRequestRw {
+	LONGLONG Offset; // file offset from which to start the I/O
+	ULONG Size; // bytes to transfer
+	ULONG Address; // virtual address of the data to transfer
+	ULONG Handle; // file handle (it's the address of the kernel file info object that tracks the file)
+	ULONG Timestamp; // file timestamp
+};
+
+// Specialized version of IoRequest for open/create requests only
+struct IoRequestOc {
+	LONGLONG InitialSize; // file initial size
+	ULONG Size; // size of file path
+	ULONG Handle; // file handle (it's the address of the kernel file info object that tracks the file)
+	ULONG Path; // file path address
+	ULONG Attributes; // file attributes (only uses a single byte really)
+	ULONG Timestamp; // file timestamp
+	ULONG DesiredAccess; // the kind of access requested for the file
+	ULONG CreateOptions; // how the create the file
+};
+
+struct IoRequest {
+	IoRequestHeader Header;
+	union {
+		IoRequestOc m_oc;
+		IoRequestRw m_rw;
+		IoRequestXX m_xx;
+	};
 };
 
 struct IoInfoBlock {
-	IoStatus Status;
-	IoInfo Info;
-	uint64_t Info2OrId; // extra info or id of the io request to query
-	uint32_t Ready; // set to 0 by the guest, then set to 1 by the host when the io request is complete
+	ULONG Id; // id of the io request to query
+	IoStatus Status; // the final status of the request
+	IoInfo Info; // request-specific information
+	ULONG Ready; // set to 0 by the guest, then set to 1 by the host when the io request is complete
+};
+
+struct IoInfoBlockOc {
+	IoInfoBlock Header;
+	ULONG FileSize; // actual size of the opened file
+	union {
+		struct {
+			ULONG FreeClusters; // number of free clusters remaining
+			ULONG CreationTime; // timestamp when the file was created
+			ULONG LastAccessTime; // timestamp when the file was read/written/executed
+			ULONG LastWriteTime; // timestamp when the file was written/truncated/overwritten
+		} Fatx;
+		LONGLONG XdvdfsTimestamp; // only one timestamp for xdvdfs, because xiso is read-only
+	};
 };
 #pragma pack()
 
@@ -150,9 +197,6 @@ struct XBOX_KRNL_VERSION {
 };
 
 inline SystemType XboxType;
-inline ULONG IoDvdInputType; // 0: xbe, 1: xiso
-inline ULONGLONG IoRequestId = 0;
-inline ULONGLONG IoHostFileHandle = FIRST_FREE_HANDLE;
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,8 +210,11 @@ EXPORTNUM(324) DLLEXPORT extern XBOX_KRNL_VERSION XboxKrnlVersion;
 }
 #endif
 
-IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG OffsetOrInitialSize, ULONG Size, ULONGLONG HandleOrAddress, ULONGLONG HandleOrPath);
-ULONGLONG FASTCALL InterlockedIncrement64(volatile PULONGLONG Addend);
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, ULONG Handle);
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG Address, ULONG Handle);
+IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG Address, ULONG Handle, ULONG Timestamp);
+IoInfoBlockOc SubmitIoRequestToHost(ULONG Type, LONGLONG InitialSize, ULONG Size, ULONG Handle, ULONG Path, ULONG Attributes, ULONG Timestamp,
+	ULONG DesiredAccess, ULONG CreateOptions);
 NTSTATUS HostToNtStatus(IoStatus Status);
 VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime);
 
@@ -250,20 +297,6 @@ static inline VOID CDECL atomic_store64(LONGLONG *dst, LONGLONG val)
 	*dst = val;
 
 	ASM(popfd);
-}
-
-static inline LONGLONG CDECL atomic_load64(LONGLONG *src)
-{
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-	ASM_END
-
-	LONGLONG val = *src;
-
-	ASM(popfd);
-
-	return val;
 }
 
 static inline VOID CDECL atomic_add64(LONGLONG *dst, LONGLONG val)

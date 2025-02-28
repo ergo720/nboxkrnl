@@ -4,7 +4,7 @@
 
 #include "iop.hpp"
 #include "hdd\fatx.hpp"
-#include "cdrom\xiso.hpp"
+#include "cdrom\xdvdfs.hpp"
 #include "raw/raw.hpp"
 #include "nt.hpp"
 
@@ -142,8 +142,8 @@ NTSTATUS IopMountDevice(PDEVICE_OBJECT DeviceObject, BOOLEAN AllowRawAccess)
 			switch (DeviceObject->DeviceType)
 			{
 			case FILE_DEVICE_CD_ROM:
-				// FIXME: this could also be a regular CD/DVD with UDF filesystem instead of XISO
-				Status = XisoCreateVolume(DeviceObject);
+				// FIXME: this could also be a regular CD/DVD with UDF filesystem instead of XDVDFS
+				Status = XdvdfsCreateVolume(DeviceObject);
 				break;
 
 			case FILE_DEVICE_DISK:

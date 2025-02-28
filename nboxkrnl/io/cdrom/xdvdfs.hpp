@@ -13,9 +13,10 @@ struct XISO_FILE_INFO {
 	USHORT FileNameLength;
 	PCHAR FileName;
 	ULONG FileSize;
-	ULONGLONG HostHandle;
+	ULONG HostHandle;
 	ULONG Flags;
 	ULONG RefCounter;
+	LARGE_INTEGER Timestamp;
 	LIST_ENTRY ListEntry;
 };
 using PXISO_FILE_INFO = XISO_FILE_INFO *;
@@ -33,4 +34,4 @@ struct XISO_VOLUME_EXTENSION {
 };
 using PXISO_VOLUME_EXTENSION = XISO_VOLUME_EXTENSION *;
 
-NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject);
+NTSTATUS XdvdfsCreateVolume(PDEVICE_OBJECT DeviceObject);

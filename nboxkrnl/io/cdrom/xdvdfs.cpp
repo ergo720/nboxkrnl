@@ -3,28 +3,28 @@
  */
 
 #include "cdrom.hpp"
-#include "xiso.hpp"
+#include "xdvdfs.hpp"
 #include "obp.hpp"
 #include <string.h>
 #include <assert.h>
 
 
-#define XISO_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
-#define XISO_VOLUME_FILE                0x80000000
+#define XDVDFS_DIRECTORY_FILE             FILE_DIRECTORY_FILE // = 0x00000001
+#define XDVDFS_VOLUME_FILE                0x80000000
 
-static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
-static NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
-static DRIVER_OBJECT XisoDriverObject = {
+static DRIVER_OBJECT XdvdfsDriverObject = {
 	nullptr,                            // DriverStartIo
 	nullptr,                            // DriverDeleteDevice
 	nullptr,                            // DriverDismountVolume
 	{
-		XisoIrpCreate,                  // IRP_MJ_CREATE
-		XisoIrpClose,                   // IRP_MJ_CLOSE
-		XisoIrpRead,                    // IRP_MJ_READ
+		XdvdfsIrpCreate,                  // IRP_MJ_CREATE
+		XdvdfsIrpClose,                   // IRP_MJ_CLOSE
+		XdvdfsIrpRead,                    // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
@@ -35,37 +35,37 @@ static DRIVER_OBJECT XisoDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
-		XisoIrpCleanup,                 // IRP_MJ_CLEANUP
+		XdvdfsIrpCleanup,                 // IRP_MJ_CLEANUP
 	}
 };
 
-static VOID XisoVolumeLockExclusive(PXISO_VOLUME_EXTENSION VolumeExtension)
+static VOID XdvdfsVolumeLockExclusive(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
 	KeEnterCriticalRegion();
 	ExAcquireReadWriteLockExclusive(&VolumeExtension->VolumeMutex);
 }
 
-static VOID XisoVolumeLockShared(PXISO_VOLUME_EXTENSION VolumeExtension)
+static VOID XdvdfsVolumeLockShared(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
 	KeEnterCriticalRegion();
 	ExAcquireReadWriteLockShared(&VolumeExtension->VolumeMutex);
 }
 
-static VOID XisoVolumeUnlock(PXISO_VOLUME_EXTENSION VolumeExtension)
+static VOID XdvdfsVolumeUnlock(PXISO_VOLUME_EXTENSION VolumeExtension)
 {
 	ExReleaseReadWriteLock(&VolumeExtension->VolumeMutex);
 	KeLeaveCriticalRegion();
 }
 
-static NTSTATUS XisoCompleteRequest(PIRP Irp, NTSTATUS Status, PXISO_VOLUME_EXTENSION VolumeExtension)
+static NTSTATUS XdvdfsCompleteRequest(PIRP Irp, NTSTATUS Status, PXISO_VOLUME_EXTENSION VolumeExtension)
 {
-	XisoVolumeUnlock(VolumeExtension);
+	XdvdfsVolumeUnlock(VolumeExtension);
 	Irp->IoStatus.Status = Status;
 	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
 	return Status;
 }
 
-static PXISO_FILE_INFO XisoFindOpenFile(PXISO_VOLUME_EXTENSION VolumeExtension, POBJECT_STRING Name)
+static PXISO_FILE_INFO XdvdfsFindOpenFile(PXISO_VOLUME_EXTENSION VolumeExtension, POBJECT_STRING Name)
 {
 	PXISO_FILE_INFO FileInfo = nullptr;
 	PLIST_ENTRY Entry = VolumeExtension->OpenFileList.Blink;
@@ -88,17 +88,17 @@ static PXISO_FILE_INFO XisoFindOpenFile(PXISO_VOLUME_EXTENSION VolumeExtension, 
 	return FileInfo;
 }
 
-static VOID XisoInsertFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
+static VOID XdvdfsInsertFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
 {
 	InsertTailList(&VolumeExtension->OpenFileList, &FileInfo->ListEntry);
 }
 
-static VOID XisoRemoveFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
+static VOID XdvdfsRemoveFile(PXISO_VOLUME_EXTENSION VolumeExtension, PXISO_FILE_INFO FileInfo)
 {
 	RemoveEntryList(&FileInfo->ListEntry);
 }
 
-static VOID XisoDeleteVolume(PDEVICE_OBJECT DeviceObject)
+static VOID XdvdfsDeleteVolume(PDEVICE_OBJECT DeviceObject)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
 
@@ -122,7 +122,7 @@ static VOID XisoDeleteVolume(PDEVICE_OBJECT DeviceObject)
 	}
 }
 
-NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
+NTSTATUS XdvdfsCreateVolume(PDEVICE_OBJECT DeviceObject)
 {
 	DISK_GEOMETRY DiskGeometry;
 	DiskGeometry.Cylinders.QuadPart = CDROM_TOTAL_NUM_OF_SECTORS;
@@ -131,24 +131,24 @@ NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
 	DiskGeometry.SectorsPerTrack = 1;
 	DiskGeometry.BytesPerSector = CDROM_SECTOR_SIZE;
 
-	PDEVICE_OBJECT XisoDeviceObject;
-	NTSTATUS Status = IoCreateDevice(&XisoDriverObject, sizeof(XISO_VOLUME_EXTENSION), nullptr, FILE_DEVICE_CD_ROM_FILE_SYSTEM, FALSE, &XisoDeviceObject);
+	PDEVICE_OBJECT XdvdfsDeviceObject;
+	NTSTATUS Status = IoCreateDevice(&XdvdfsDriverObject, sizeof(XISO_VOLUME_EXTENSION), nullptr, FILE_DEVICE_CD_ROM_FILE_SYSTEM, FALSE, &XdvdfsDeviceObject);
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
 
-	XisoDeviceObject->StackSize = XisoDeviceObject->StackSize + DeviceObject->StackSize;
-	XisoDeviceObject->SectorSize = DiskGeometry.BytesPerSector;
+	XdvdfsDeviceObject->StackSize = XdvdfsDeviceObject->StackSize + DeviceObject->StackSize;
+	XdvdfsDeviceObject->SectorSize = DiskGeometry.BytesPerSector;
 
-	if (XisoDeviceObject->AlignmentRequirement < DeviceObject->AlignmentRequirement) {
-		XisoDeviceObject->AlignmentRequirement = DeviceObject->AlignmentRequirement;
+	if (XdvdfsDeviceObject->AlignmentRequirement < DeviceObject->AlignmentRequirement) {
+		XdvdfsDeviceObject->AlignmentRequirement = DeviceObject->AlignmentRequirement;
 	}
 
 	if (DeviceObject->Flags & DO_SCATTER_GATHER_IO) {
-		XisoDeviceObject->Flags |= DO_SCATTER_GATHER_IO;
+		XdvdfsDeviceObject->Flags |= DO_SCATTER_GATHER_IO;
 	}
 
-	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)XisoDeviceObject->DeviceExtension;
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)XdvdfsDeviceObject->DeviceExtension;
 
 	VolumeExtension->TargetDeviceObject = DeviceObject;
 	VolumeExtension->SectorSize = DiskGeometry.BytesPerSector;
@@ -156,21 +156,21 @@ NTSTATUS XisoCreateVolume(PDEVICE_OBJECT DeviceObject)
 	VolumeExtension->PartitionLength.QuadPart = (ULONGLONG)DiskGeometry.Cylinders.LowPart << 11;
 	VolumeExtension->VolumeInfo.FileNameLength = 0;
 	VolumeExtension->VolumeInfo.HostHandle = CDROM_HANDLE;
-	VolumeExtension->VolumeInfo.Flags = XISO_VOLUME_FILE;
+	VolumeExtension->VolumeInfo.Flags = XDVDFS_VOLUME_FILE;
 	InitializeListHead(&VolumeExtension->OpenFileList);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
 
-	XisoDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
+	XdvdfsDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
-	DeviceObject->MountedOrSelfDevice = XisoDeviceObject;
+	DeviceObject->MountedOrSelfDevice = XdvdfsDeviceObject;
 
 	return STATUS_SUCCESS;
 }
 
-static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XdvdfsIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
-	XisoVolumeLockExclusive(VolumeExtension);
+	XdvdfsVolumeLockExclusive(VolumeExtension);
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	POBJECT_STRING RemainingName = IrpStackPointer->Parameters.Create.RemainingName;
@@ -182,25 +182,25 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	ULONG InitialSize = Irp->Overlay.AllocationSize.LowPart;
 
 	if (VolumeExtension->Dismounted) {
-		return XisoCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}
 
 	if (IrpStackPointer->Flags & SL_OPEN_TARGET_DIRECTORY) { // cannot rename directories (xiso is read-only media)
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	if (DesiredAccess & (FILE_WRITE_ATTRIBUTES | FILE_WRITE_DATA | // don't allow any write access (xiso is read-only media)
 		FILE_WRITE_EA | FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY |
 		FILE_APPEND_DATA | FILE_DELETE_CHILD | DELETE | WRITE_DAC)) {
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	if (CreateOptions & FILE_OPEN_BY_FILE_ID) { // not supported on xiso
-		return XisoCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_NOT_IMPLEMENTED, VolumeExtension);
 	}
 
 	if ((Disposition != FILE_OPEN) && (Disposition != FILE_OPEN_IF)) { // only allow open operations (xiso is read-only media)
-		return XisoCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_ACCESS_DENIED, VolumeExtension);
 	}
 
 	PXISO_FILE_INFO FileInfo;
@@ -210,8 +210,8 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	if (RelatedFileObject) {
 		FileInfo = (PXISO_FILE_INFO)RelatedFileObject->FsContext2;
 
-		if (!(FileInfo->Flags & XISO_DIRECTORY_FILE)) {
-			return XisoCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+		if (!(FileInfo->Flags & XDVDFS_DIRECTORY_FILE)) {
+			return XdvdfsCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 		}
 
 		if (RemainingName->Length == 0) {
@@ -227,7 +227,7 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		// Special case: open the volume itself
 
 		if (CreateOptions & FILE_DIRECTORY_FILE) { // volume is not a directory
-			return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
+			return XdvdfsCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 		}
 
 		SHARE_ACCESS ShareAccess;
@@ -238,9 +238,9 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		PXISO_FILE_INFO FileInfo = &VolumeExtension->VolumeInfo;
 		FileInfo->RefCounter++;
 		FileObject->FsContext2 = FileInfo;
-		XisoInsertFile(VolumeExtension, FileInfo);
+		XdvdfsInsertFile(VolumeExtension, FileInfo);
 		Irp->IoStatus.Information = FILE_OPENED;
-		return XisoCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
 	if ((RemainingName->Length == 1) && (RemainingName->Buffer[0] == OB_PATH_DELIMITER)) {
@@ -249,7 +249,7 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		HasBackslashAtEnd = TRUE;
 		FileName.Buffer = &RootName;
 		FileName.Length = 1;
-		FileInfo = XisoFindOpenFile(VolumeExtension, &FileName);
+		FileInfo = XdvdfsFindOpenFile(VolumeExtension, &FileName);
 	}
 	else {
 	OpenFile:
@@ -265,7 +265,7 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			// NOTE: ObpParseName discards the backslash from a name, so LocalRemainingName must be checked separately
 			if (LocalRemainingName.Length && (LocalRemainingName.Buffer[0] == OB_PATH_DELIMITER)) {
 				// Another delimiter in the name is invalid
-				return XisoCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
+				return XdvdfsCompleteRequest(Irp, STATUS_OBJECT_NAME_INVALID, VolumeExtension);
 			}
 
 			if (LocalRemainingName.Length == 0) {
@@ -274,7 +274,7 @@ static NTSTATUS XBOXAPI XisoIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 			OriName = LocalRemainingName;
 		}
-		FileInfo = XisoFindOpenFile(VolumeExtension, &FirstName);
+		FileInfo = XdvdfsFindOpenFile(VolumeExtension, &FirstName);
 		FileName = FirstName;
 	}
 ByPassPathCheck:
@@ -314,7 +314,7 @@ ByPassPathCheck:
 			// Allocate enough space for the resolved link and the remaining path name. e.g. D: -> \Device\CdRom0 and path is D:\default.xbe, then strlen(\Device\CdRom0) + strlen(default.xbe) + 1
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength + RemainingName->Length + 1);
 			if (FullPathBuffer == nullptr) {
-				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
+				return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			// Copy the resolved sym link name, and then the remaining part of the path too
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
@@ -326,7 +326,7 @@ ByPassPathCheck:
 			// FullPath consists only of the sym link, allocate enough space for the resolved link
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength);
 			if (FullPathBuffer == nullptr) {
-				return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
+				return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
 		}
@@ -337,16 +337,16 @@ ByPassPathCheck:
 	}
 
 	// The optional creation of FileInfo must be the last thing to happen before SubmitIoRequestToHost. This, because if the IO fails, then IoParseDevice sets FileObject->DeviceObject
-	// to a nullptr, which causes it to invoke IopDeleteFile via ObfDereferenceObject. Because DeviceObject is nullptr, XisoIrpClose won't be called, thus leaking the host handle and
+	// to a nullptr, which causes it to invoke IopDeleteFile via ObfDereferenceObject. Because DeviceObject is nullptr, XdvdfsIrpClose won't be called, thus leaking the host handle and
 	// the memory for FileInfo
 	BOOLEAN FileInfoCreated = FALSE;
 	if (FileInfo) {
-		if (FileInfo->Flags & XISO_DIRECTORY_FILE) {
+		if (FileInfo->Flags & XDVDFS_DIRECTORY_FILE) {
 			if (CreateOptions & FILE_NON_DIRECTORY_FILE) {
 				if (FullPathBufferAllocated) {
 					ExFreePool(FullPathBuffer);
 				}
-				return XisoCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
+				return XdvdfsCompleteRequest(Irp, STATUS_FILE_IS_A_DIRECTORY, VolumeExtension);
 			}
 		}
 		else {
@@ -354,7 +354,7 @@ ByPassPathCheck:
 				if (FullPathBufferAllocated) {
 					ExFreePool(FullPathBuffer);
 				}
-				return XisoCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
+				return XdvdfsCompleteRequest(Irp, STATUS_NOT_A_DIRECTORY, VolumeExtension);
 			}
 		}
 		++FileInfo->RefCounter;
@@ -365,17 +365,17 @@ ByPassPathCheck:
 			if (FullPathBufferAllocated) {
 				ExFreePool(FullPathBuffer);
 			}
-			return XisoCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
+			return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfoCreated = TRUE;
-		FileInfo->HostHandle = InterlockedIncrement64(&IoHostFileHandle);
+		FileInfo->HostHandle = (ULONG)&FileInfo;
 		FileInfo->FileNameLength = FileName.Length;
 		FileInfo->FileName = (PCHAR)(FileInfo + 1);
 		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
 		FileInfo->Flags = CreateOptions & FILE_DIRECTORY_FILE;
 		FileInfo->RefCounter = 1;
 		strncpy(FileInfo->FileName, FileName.Buffer, FileName.Length);
-		XisoInsertFile(VolumeExtension, FileInfo);
+		XdvdfsInsertFile(VolumeExtension, FileInfo);
 	}
 
 	SHARE_ACCESS ShareAccess;
@@ -385,21 +385,24 @@ ByPassPathCheck:
 	// Finally submit the I/O request to the host to do the actual work
 	// NOTE: we cannot use the xbox handle as the host file handle, because the xbox handle is created by OB only after this I/O request succeeds. This new handle
 	// should then be deleted when the file object goes away with IopCloseFile and/or IopDeleteFile
-	ULONG IsDirectory = (CreateOptions & FILE_DIRECTORY_FILE) || HasBackslashAtEnd ? IoFlags::IsDirectory : 0;
-	IoInfoBlock InfoBlock = SubmitIoRequestToHost(
-		IsDirectory | (CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
+	IoInfoBlockOc InfoBlock = SubmitIoRequestToHost(
+		(CreateOptions & FILE_NON_DIRECTORY_FILE ? IoFlags::MustNotBeADirectory : 0) |
 		(CreateOptions & FILE_DIRECTORY_FILE ? IoFlags::MustBeADirectory : 0) | DEV_TYPE(DEV_CDROM) |
 		(Disposition & 7) | IoRequestType::Open,
 		InitialSize,
 		HasBackslashAtEnd ? FullPath.Length - 1 : FullPath.Length,
 		FileInfo->HostHandle,
-		(ULONG_PTR)(FullPath.Buffer)
+		(ULONG_PTR)(FullPath.Buffer),
+		0,
+		0,
+		DesiredAccess,
+		CreateOptions
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	NTSTATUS Status = HostToNtStatus(InfoBlock.Header.Status);
 	if (!NT_SUCCESS(Status)) {
 		if (FileInfoCreated) {
-			XisoRemoveFile(VolumeExtension, FileInfo);
+			XdvdfsRemoveFile(VolumeExtension, FileInfo);
 			ExFreePool(FileInfo);
 			FileObject->FsContext2 = nullptr;
 		}
@@ -410,53 +413,48 @@ ByPassPathCheck:
 	}
 	else {
 		++VolumeExtension->FileObjectCount;
-		Irp->IoStatus.Information = InfoBlock.Info;
-		if (!HasBackslashAtEnd && FileInfoCreated && (InfoBlock.Info == Opened)) {
-			// Only update the file size if it was opened for the first time ever
-			FileInfo->FileSize = ULONG(InfoBlock.Info2OrId);
-		}
+		Irp->IoStatus.Information = InfoBlock.Header.Info;
+		FileInfo->FileSize = InfoBlock.FileSize;
+		FileInfo->Timestamp.QuadPart = InfoBlock.XdvdfsTimestamp;
 	}
 
 	if (FullPathBufferAllocated) {
 		ExFreePool(FullPathBuffer);
 	}
 
-	return XisoCompleteRequest(Irp, Status, VolumeExtension);
+	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
 }
 
-static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XdvdfsIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
-	XisoVolumeLockExclusive(VolumeExtension);
+	XdvdfsVolumeLockExclusive(VolumeExtension);
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
 	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
 
 	if (--FileInfo->RefCounter == 0) {
-		if (FileInfo->Flags & XISO_VOLUME_FILE) {
-			XisoRemoveFile(VolumeExtension, FileInfo);
+		if (FileInfo->Flags & XDVDFS_VOLUME_FILE) {
+			XdvdfsRemoveFile(VolumeExtension, FileInfo);
 		}
 		else {
 			SubmitIoRequestToHost(
 				DEV_TYPE(DEV_CDROM) | IoRequestType::Close,
-				0,
-				0,
-				0,
 				FileInfo->HostHandle
 			);
-			XisoRemoveFile(VolumeExtension, FileInfo);
+			XdvdfsRemoveFile(VolumeExtension, FileInfo);
 			ExFreePool(FileInfo);
 		}
 		FileObject->FsContext2 = nullptr;
 	}
 
 	if ((--VolumeExtension->FileObjectCount == 0) && (VolumeExtension->Dismounted)) {
-		XisoVolumeUnlock(VolumeExtension);
-		XisoDeleteVolume(DeviceObject);
+		XdvdfsVolumeUnlock(VolumeExtension);
+		XdvdfsDeleteVolume(DeviceObject);
 	}
 	else {
-		XisoVolumeUnlock(VolumeExtension);
+		XdvdfsVolumeUnlock(VolumeExtension);
 	}
 
 	Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -465,10 +463,10 @@ static NTSTATUS XBOXAPI XisoIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return STATUS_SUCCESS;
 }
 
-static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
-	XisoVolumeLockShared(VolumeExtension);
+	XdvdfsVolumeLockShared(VolumeExtension);
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
@@ -478,41 +476,35 @@ static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
 
 	if (VolumeExtension->Dismounted) {
-		return XisoCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}
 
 	// Don't allow to operate on the file after all its handles are closed
 	if (FileObject->Flags & FO_CLEANUP_COMPLETE) {
-		return XisoCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_FILE_CLOSED, VolumeExtension);
 	}
 
 	// Cannot read from a directory
-	if (FileInfo->Flags & XISO_DIRECTORY_FILE) {
-		return XisoCompleteRequest(Irp, STATUS_INVALID_DEVICE_REQUEST, VolumeExtension);
+	if (FileInfo->Flags & XDVDFS_DIRECTORY_FILE) {
+		return XdvdfsCompleteRequest(Irp, STATUS_INVALID_DEVICE_REQUEST, VolumeExtension);
 	}
 
 	if (FileObject->Flags & FO_NO_INTERMEDIATE_BUFFERING) {
 		// NOTE: for the dvd drive, SectorSize is 2048
 		if ((FileOffset.LowPart & (DeviceObject->SectorSize - 1)) || (Length & (DeviceObject->SectorSize - 1))) {
-			return XisoCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+			return XdvdfsCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
 		}
 	}
 
 	if (Length == 0) {
 		Irp->IoStatus.Information = 0;
-		return XisoCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
+		return XdvdfsCompleteRequest(Irp, STATUS_SUCCESS, VolumeExtension);
 	}
 
-	if (FileInfo->Flags & XISO_VOLUME_FILE) {
-		// We can only support the volume itself if the user booted an xiso image
-		if (IoDvdInputType == 0) {
-			return XisoCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
-		}
-	}
-	else {
+	if (FileInfo->Flags & XDVDFS_VOLUME_FILE) {
 		// Cannot read past the end of the file
 		if (FileOffset.HighPart || (FileOffset.LowPart >= FileInfo->FileSize)) {
-			return XisoCompleteRequest(Irp, STATUS_END_OF_FILE, VolumeExtension);
+			return XdvdfsCompleteRequest(Irp, STATUS_END_OF_FILE, VolumeExtension);
 		}
 
 		if ((FileOffset.LowPart + Length) > FileInfo->FileSize) {
@@ -542,10 +534,10 @@ static NTSTATUS XBOXAPI XisoIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
-	return XisoCompleteRequest(Irp, Status, VolumeExtension);
+	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
 }
 
-static NTSTATUS XBOXAPI XisoIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI XdvdfsIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	// We cannot delete a file because xiso is read-only media, so only set FO_CLEANUP_COMPLETE to make other irp request fail
 

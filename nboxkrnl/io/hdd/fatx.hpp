@@ -14,13 +14,15 @@
 struct FATX_FILE_INFO {
 	UCHAR FileNameLength;
 	CHAR FileName[FATX_MAX_FILE_NAME_LENGTH];
+	UCHAR FileAttributes;
 	ULONG FileSize;
-	ULONGLONG HostHandle;
+	ULONG HostHandle;
 	SHARE_ACCESS ShareAccess;
 	ULONG Flags;
-	LARGE_INTEGER CreationTime;
-	LARGE_INTEGER LastAccessTime;
-	LARGE_INTEGER LastWriteTime;
+	ULONG DirentCluster;
+	ULONG CreationTime;
+	ULONG LastAccessTime;
+	ULONG LastWriteTime;
 	ULONG RefCounter;
 	LIST_ENTRY ListEntry;
 };
@@ -31,7 +33,7 @@ struct FSCACHE_EXTENSION {
 	LARGE_INTEGER PartitionLength;
 	ULONG SectorSize;
 	ULONG DeviceType;
-	ULONGLONG HostHandle;
+	ULONG HostHandle;
 };
 using PFSCACHE_EXTENSION = FSCACHE_EXTENSION *;
 
