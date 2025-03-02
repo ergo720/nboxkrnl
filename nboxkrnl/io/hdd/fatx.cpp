@@ -548,8 +548,8 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			}
 
 			if (FileInfo = FatxFindOpenFile(VolumeExtension, &FirstName); FileInfo && (FileInfo->Flags & FATX_DELETE_ON_CLOSE)) {
-					return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
-				}
+				return FatxCompleteRequest(Irp, STATUS_DELETE_PENDING, VolumeExtension);
+			}
 
 			if (LocalRemainingName.Length == 0) {
 				break;

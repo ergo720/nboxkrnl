@@ -19,7 +19,6 @@ struct FATX_FILE_INFO {
 	ULONG HostHandle;
 	SHARE_ACCESS ShareAccess;
 	ULONG Flags;
-	ULONG DirentCluster;
 	ULONG CreationTime;
 	ULONG LastAccessTime;
 	ULONG LastWriteTime;
