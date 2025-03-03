@@ -88,6 +88,11 @@
 #define FILE_WRITE_TO_END_OF_FILE       0xFFFFFFFF
 #define FILE_USE_FILE_POINTER_POSITION  0xFFFFFFFE
 
+#define IOCTL_DISK_GET_DRIVE_GEOMETRY   0x00070000
+#define IOCTL_DISK_GET_PARTITION_INFO   0x00074004
+#define IOCTL_DISK_VERIFY               0x00070014
+#define IOCTL_IDE_PASS_THROUGH          0x0004D028
+#define IOCTL_SCSI_PASS_THROUGH_DIRECT  0x0004D014
 
 using PFILE_SEGMENT_ELEMENT = PVOID;
 using PIO_TIMER = struct IO_TIMER *;
@@ -505,6 +510,12 @@ struct DISK_GEOMETRY {
 };
 using PDISK_GEOMETRY = DISK_GEOMETRY *;
 
+struct VERIFY_INFORMATION {
+	LARGE_INTEGER StartingOffset;
+	ULONG Length;
+};
+using PVERIFY_INFORMATION = VERIFY_INFORMATION *;
+
 struct SHARE_ACCESS {
 	UCHAR OpenCount;
 	UCHAR ReadAccess;
@@ -687,3 +698,5 @@ VOID IopAcquireSynchronousFileLock(PFILE_OBJECT FileObject);
 VOID IopReleaseSynchronousFileLock(PFILE_OBJECT FileObject);
 NTSTATUS IopCleanupFailedIrpAllocation(PFILE_OBJECT FileObject, PKEVENT EventObject);
 NTSTATUS IopSynchronousService(PDEVICE_OBJECT DeviceObject, PIRP Irp, PFILE_OBJECT FileObject, BOOLEAN DeferredIoCompletion, BOOLEAN SynchronousIo);
+NTSTATUS XBOXAPI IopControlFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock,
+	ULONG IoControlCode, PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer, ULONG OutputBufferLength, ULONG IrpType);

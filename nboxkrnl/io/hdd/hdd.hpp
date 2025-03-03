@@ -5,6 +5,7 @@
 #pragma once
 
 #include "..\..\types.hpp"
+#include "iop.hpp"
 
 #define PE_PARTFLAGS_IN_USE	0x80000000
 
@@ -20,11 +21,11 @@
 #define XBOX_CONFIG_AREA_LBA_START  0
 #define XBOX_CONFIG_AREA_LBA_SIZE   XBOX_SWAPPART1_LBA_START
 
-#define XBOX_MAX_NUM_OF_PARTITIONS 6
+#define XBOX_MAX_NUM_OF_PARTITIONS 14 // accounts for non-standard partitions
 
 #define HDD_ALIGNMENT_REQUIREMENT 1
-#define HDD_SECTOR_SIZE 512
-#define HDD_TOTAL_NUM_OF_SECTORS 15657984
+#define HDD_SECTOR_SIZE (ULONGLONG)512
+#define HDD_MAXIMUM_TRANSFER_BYTES (HDD_SECTOR_SIZE * 256)
 
 
 #pragma pack(1)
@@ -42,4 +43,9 @@ struct XBOX_PARTITION_TABLE {
 #pragma pack()
 
 
+// Setup during initialization by HddInitDriver(), then never changed again
+inline ULONGLONG HddTotalByteSize = 0;
+inline ULONGLONG HddTotalSectorCount = 0;
+
 BOOLEAN HddInitDriver();
+NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);

@@ -455,3 +455,79 @@ NTSTATUS IopCleanupFailedIrpAllocation(PFILE_OBJECT FileObject, PKEVENT EventObj
 
 	return STATUS_INSUFFICIENT_RESOURCES;
 }
+
+NTSTATUS XBOXAPI IopControlFile
+(
+	HANDLE FileHandle,
+	HANDLE Event,
+	PIO_APC_ROUTINE ApcRoutine,
+	PVOID ApcContext,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	ULONG IoControlCode,
+	PVOID InputBuffer,
+	ULONG InputBufferLength,
+	PVOID OutputBuffer,
+	ULONG OutputBufferLength,
+	ULONG IrpType
+)
+{
+	// TODO: does this need to lock the pages of the OutputBuffer?
+
+	PFILE_OBJECT FileObject;
+	NTSTATUS Status = ObReferenceObjectByHandle(FileHandle, &IoFileObjectType, (PVOID *)&FileObject);
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	if (FileObject->CompletionContext && ApcRoutine) {
+		ObfDereferenceObject(FileObject);
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	PKEVENT UserEvent = nullptr;
+	if (Event) {
+		NTSTATUS Status = ObReferenceObjectByHandle(Event, &ExEventObjectType, (PVOID *)&UserEvent);
+		if (!NT_SUCCESS(Status)) {
+			ObfDereferenceObject(FileObject);
+			return Status;
+		}
+		UserEvent->Header.SignalState = 0;
+	}
+
+	BOOLEAN IsSynchronousIo;
+	if (FileObject->Flags & FO_SYNCHRONOUS_IO) {
+		IopAcquireSynchronousFileLock(FileObject);
+		IsSynchronousIo = TRUE;
+	}
+	else {
+		IsSynchronousIo = FALSE;
+		RIP_API_MSG("Asynchronous IO is not supported");
+	}
+
+	PDEVICE_OBJECT DeviceObject = FileObject->DeviceObject;
+
+	PIRP Irp = IoAllocateIrp(DeviceObject->StackSize);
+	if (!Irp) {
+		return IopCleanupFailedIrpAllocation(FileObject, UserEvent);
+	}
+	Irp->Tail.Overlay.OriginalFileObject = FileObject;
+	Irp->Tail.Overlay.Thread = (PETHREAD)KeGetCurrentThread();
+	Irp->Overlay.AsynchronousParameters.UserApcRoutine = ApcRoutine;
+	Irp->Overlay.AsynchronousParameters.UserApcContext = ApcContext;
+	Irp->UserBuffer = OutputBuffer;
+	Irp->UserEvent = UserEvent;
+	Irp->UserIosb = IoStatusBlock;
+	Irp->Flags = (IrpType == IRP_MJ_FILE_SYSTEM_CONTROL) ? IRP_DEFER_IO_COMPLETION : 0;
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetNextIrpStackLocation(Irp);
+	IrpStackPointer->MajorFunction = IrpType;
+	IrpStackPointer->FileObject = FileObject;
+	IrpStackPointer->Parameters.DeviceIoControl.OutputBufferLength = OutputBufferLength;
+	IrpStackPointer->Parameters.DeviceIoControl.InputBufferLength = InputBufferLength;
+	IrpStackPointer->Parameters.DeviceIoControl.IoControlCode = IoControlCode;
+	IrpStackPointer->Parameters.DeviceIoControl.InputBuffer = InputBuffer;
+
+	FileObject->Event.Header.SignalState = 0;
+
+	return IopSynchronousService(DeviceObject, Irp, FileObject, (IrpType == IRP_MJ_FILE_SYSTEM_CONTROL), IsSynchronousIo);
+}

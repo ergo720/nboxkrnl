@@ -5,6 +5,7 @@
 #include "raw.hpp"
 #include "mm.hpp"
 #include "rtl.hpp"
+#include "../hdd/hdd.hpp"
 #include <assert.h>
 
 
@@ -12,6 +13,7 @@ static NTSTATUS XBOXAPI RawIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI RawIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI RawIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI RawIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI RawIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI RawIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT RawDriverObject = {
@@ -29,7 +31,7 @@ static DRIVER_OBJECT RawDriverObject = {
 		IoInvalidDeviceRequest       ,  // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		RawIrpDeviceControl,            // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
 		RawIrpCleanup,                  // IRP_MJ_CLEANUP
@@ -95,7 +97,7 @@ NTSTATUS RawCreateVolume(PDEVICE_OBJECT DeviceObject)
 	{
 	default:
 	case FILE_DEVICE_MEDIA_BOARD: // TODO
-		return STATUS_UNRECOGNIZED_VOLUME;
+		RIP_API_FMT("Unimplemented DeviceType %u", DeviceObject->DeviceType);
 
 	case FILE_DEVICE_DISK:
 		break;
@@ -224,7 +226,7 @@ static NTSTATUS XBOXAPI RawIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	{
 	default:
 	case FILE_DEVICE_MEDIA_BOARD: // TODO
-		return RawCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		RIP_API_FMT("Unimplemented DeviceType %u", TargetDeviceObject->DeviceType);
 
 	case FILE_DEVICE_DISK:
 		break;
@@ -293,7 +295,7 @@ static NTSTATUS XBOXAPI RawIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	{
 	default:
 	case FILE_DEVICE_MEDIA_BOARD: // TODO
-		return RawCompleteRequest(Irp, STATUS_IO_DEVICE_ERROR, VolumeExtension);
+		RIP_API_FMT("Unimplemented DeviceType %u", TargetDeviceObject->DeviceType);
 
 	case FILE_DEVICE_DISK:
 		break;
@@ -348,6 +350,29 @@ static NTSTATUS XBOXAPI RawIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	Irp->IoStatus.Information = InfoBlock.Info;
 	return RawCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+NTSTATUS XBOXAPI RawIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PRAW_VOLUME_EXTENSION VolumeExtension = (PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	RawVolumeLockShared(VolumeExtension);
+
+	if (VolumeExtension->Dismounted) {
+		return RawCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	PDEVICE_OBJECT TargetDeviceObject = VolumeExtension->TargetDeviceObject;
+
+	switch (TargetDeviceObject->DeviceType)
+	{
+	default:
+	case FILE_DEVICE_MEDIA_BOARD: // TODO
+		RIP_API_FMT("Unimplemented DeviceType %u", TargetDeviceObject->DeviceType);
+
+	case FILE_DEVICE_DISK:
+		// FIXME: in reality, this should pass down the irp to the next stack location, instead of invoking the handler directly like this
+		return RawCompleteRequest(Irp, HddIrpDeviceControl(TargetDeviceObject, Irp), VolumeExtension);
+	}
 }
 
 static NTSTATUS XBOXAPI RawIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)

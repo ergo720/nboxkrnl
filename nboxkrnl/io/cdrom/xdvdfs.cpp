@@ -15,6 +15,7 @@
 static NTSTATUS XBOXAPI XdvdfsIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT XdvdfsDriverObject = {
@@ -22,9 +23,9 @@ static DRIVER_OBJECT XdvdfsDriverObject = {
 	nullptr,                            // DriverDeleteDevice
 	nullptr,                            // DriverDismountVolume
 	{
-		XdvdfsIrpCreate,                  // IRP_MJ_CREATE
-		XdvdfsIrpClose,                   // IRP_MJ_CLOSE
-		XdvdfsIrpRead,                    // IRP_MJ_READ
+		XdvdfsIrpCreate,                // IRP_MJ_CREATE
+		XdvdfsIrpClose,                 // IRP_MJ_CLOSE
+		XdvdfsIrpRead,                  // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
@@ -32,10 +33,10 @@ static DRIVER_OBJECT XdvdfsDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		XdvdfsIrpDeviceControl,         // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
-		XdvdfsIrpCleanup,                 // IRP_MJ_CLEANUP
+		XdvdfsIrpCleanup,               // IRP_MJ_CLEANUP
 	}
 };
 
@@ -534,6 +535,40 @@ static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	}
 
 	Irp->IoStatus.Information = InfoBlock.Info;
+	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+static NTSTATUS XBOXAPI XdvdfsIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	XdvdfsVolumeLockShared(VolumeExtension);
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	if (VolumeExtension->Dismounted) {
+		return XdvdfsCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	// This function is used to send various SCSI commands to the dvd drive. For now, we only support the dvd authentication command,
+	// and rip on everything else
+
+	NTSTATUS Status;
+	switch (IrpStackPointer->Parameters.DeviceIoControl.IoControlCode)
+	{
+	case IOCTL_SCSI_PASS_THROUGH_DIRECT: {
+		// This is used to authenticate an xbox dvd disc. Because nxbx doesn't implement the authentication mechanism, we unconditionally succeed here
+		PSCSI_PASS_THROUGH_DIRECT PassThrough = (PSCSI_PASS_THROUGH_DIRECT)IrpStackPointer->Parameters.DeviceIoControl.InputBuffer;
+		PDVDX2_AUTHENTICATION Authentication = (PDVDX2_AUTHENTICATION)PassThrough->DataBuffer;
+		Authentication->AuthenticationPage.CDFValid = 1;
+		Authentication->AuthenticationPage.PartitionArea = 1;
+		Authentication->AuthenticationPage.Authentication = 1;
+		Status = STATUS_SUCCESS;
+	}
+	break;
+
+	default:
+		RIP_API_FMT("Ripped on unimplemented DVD IOCTL 0x%X", IrpStackPointer->Parameters.DeviceIoControl.IoControlCode);
+	}
+
 	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
 }
 

@@ -74,6 +74,7 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI FatxIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI FatxIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT FatxDriverObject = {
@@ -91,7 +92,7 @@ static DRIVER_OBJECT FatxDriverObject = {
 		FatxIrpQueryVolumeInformation,  // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		FatxIrpDeviceControl,           // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
 		FatxIrpCleanup,                 // IRP_MJ_CLEANUP
@@ -345,7 +346,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 {
 	// NOTE: This is called while holding DeviceObject->DeviceLock
 
-	DISK_GEOMETRY DiskGeometry;
+	DWORD BytesPerSector;
 	PARTITION_INFORMATION PartitionInformation;
 	
 	switch (DeviceObject->DeviceType)
@@ -353,15 +354,10 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	default:
 	case FILE_DEVICE_MEMORY_UNIT: // TODO
 	case FILE_DEVICE_MEDIA_BOARD: // TODO
-		return STATUS_UNRECOGNIZED_VOLUME;
+		RIP_API_FMT("Unimplemented DeviceType %u", DeviceObject->DeviceType);
 
 	case FILE_DEVICE_DISK:
-		// Fixed HDD of 8 GiB
-		DiskGeometry.Cylinders.QuadPart = HDD_TOTAL_NUM_OF_SECTORS;
-		DiskGeometry.MediaType = FixedMedia;
-		DiskGeometry.TracksPerCylinder = 1;
-		DiskGeometry.SectorsPerTrack = 1;
-		DiskGeometry.BytesPerSector = HDD_SECTOR_SIZE;
+		BytesPerSector = HDD_SECTOR_SIZE;
 		PartitionInformation = PIDE_DISK_EXTENSION(DeviceObject->DeviceExtension)->PartitionInformation;
 		break;
 	}
@@ -373,7 +369,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	}
 
 	FatxDeviceObject->StackSize = FatxDeviceObject->StackSize + DeviceObject->StackSize;
-	FatxDeviceObject->SectorSize = DiskGeometry.BytesPerSector;
+	FatxDeviceObject->SectorSize = BytesPerSector;
 
 	if (FatxDeviceObject->AlignmentRequirement < DeviceObject->AlignmentRequirement) {
 		FatxDeviceObject->AlignmentRequirement = DeviceObject->AlignmentRequirement;
@@ -387,7 +383,7 @@ NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)FatxDeviceObject->DeviceExtension;
 	VolumeExtension->CacheExtension.TargetDeviceObject = DeviceObject;
 	VolumeExtension->CacheExtension.SectorSize = FatxDeviceObject->SectorSize;
-	RtlpBitScanForward(&SectorShift, DiskGeometry.BytesPerSector);
+	RtlpBitScanForward(&SectorShift, BytesPerSector);
 	VolumeExtension->SectorShift = UCHAR(SectorShift);
 	InitializeListHead(&VolumeExtension->OpenFileList);
 	ExInitializeReadWriteLock(&VolumeExtension->VolumeMutex);
@@ -1070,6 +1066,27 @@ static NTSTATUS XBOXAPI FatxIrpQueryVolumeInformation(PDEVICE_OBJECT DeviceObjec
 
 	Irp->IoStatus.Information = BytesWritten;
 	return FatxCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+static NTSTATUS XBOXAPI FatxIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	FatxVolumeLockShared(VolumeExtension);
+
+	if (VolumeExtension->Flags & FATX_VOLUME_DISMOUNTED) {
+		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	PDEVICE_OBJECT HddDeviceObject = VolumeExtension->CacheExtension.TargetDeviceObject;
+	if (HddDeviceObject->DeviceType != FILE_DEVICE_DISK) {
+		RIP_API_FMT("Unimplemented DeviceType %u", DeviceObject->DeviceType);
+	}
+
+	// FIXME: in reality, this should pass down the irp to the next stack location, instead of invoking the handler directly like this
+
+	return FatxCompleteRequest(Irp, HddIrpDeviceControl(HddDeviceObject, Irp), VolumeExtension);
 }
 
 static NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)

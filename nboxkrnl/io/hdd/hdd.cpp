@@ -72,7 +72,7 @@ static DRIVER_OBJECT HddDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		HddIrpDeviceControl,            // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
 		IoInvalidDeviceRequest,         // IRP_MJ_CLEANUP
@@ -126,6 +126,11 @@ BOOLEAN HddInitDriver()
 		PartitionTable = HddPartitionTable;
 	}
 
+	for (unsigned i = 0; i < XBOX_MAX_NUM_OF_PARTITIONS; ++i) {
+		HddTotalSectorCount += PartitionTable.TableEntries[i].LBASize;
+	}
+	HddTotalByteSize = HddTotalSectorCount * HDD_SECTOR_SIZE;
+
 	// Create all device objects required by the HDD, one for each partition and the whole disk
 	for (unsigned i = 0; i < XBOX_MAX_NUM_OF_PARTITIONS; ++i) {
 		PDEVICE_OBJECT HddDeviceObject;
@@ -138,14 +143,16 @@ BOOLEAN HddInitDriver()
 		if (i == 0) {
 			// Whole disk
 			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO | DO_RAW_MOUNT_ONLY);
-			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)XBOX_CONFIG_AREA_LBA_START * HDD_SECTOR_SIZE;
-			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)HDD_TOTAL_NUM_OF_SECTORS * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = XBOX_CONFIG_AREA_LBA_START * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = HddTotalByteSize;
+			HddExtension->PartitionInformation.HiddenSectors = 0;
 		}
 		else {
 			// Data partition, system partition or cache partitions
 			HddDeviceObject->Flags |= (DO_DIRECT_IO | DO_SCATTER_GATHER_IO);
-			HddExtension->PartitionInformation.StartingOffset.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i - 1].LBAStart * HDD_SECTOR_SIZE;
-			HddExtension->PartitionInformation.PartitionLength.QuadPart = (ULONGLONG)PartitionTable.TableEntries[i - 1].LBASize * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.StartingOffset.QuadPart = PartitionTable.TableEntries[i - 1].LBAStart * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.PartitionLength.QuadPart = PartitionTable.TableEntries[i - 1].LBASize * HDD_SECTOR_SIZE;
+			HddExtension->PartitionInformation.HiddenSectors = PartitionTable.TableEntries[i - 1].Reserved * HDD_SECTOR_SIZE;
 		}
 
 		HddDeviceObject->AlignmentRequirement = HDD_ALIGNMENT_REQUIREMENT;
@@ -224,4 +231,93 @@ NTSTATUS XBOXAPI HddParseDirectory(PVOID ParseObject, POBJECT_TYPE ObjectType, U
 	}
 
 	return LocalRemainingName.Length ? STATUS_OBJECT_PATH_NOT_FOUND : STATUS_OBJECT_NAME_NOT_FOUND;
+}
+
+static NTSTATUS HddGetDriveGeometry(PIRP Irp)
+{
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	if (IrpStackPointer->Parameters.DeviceIoControl.OutputBufferLength < sizeof(DISK_GEOMETRY)) {
+		return STATUS_BUFFER_TOO_SMALL;
+	}
+
+	PDISK_GEOMETRY DiskGeometry = (PDISK_GEOMETRY)Irp->UserBuffer;
+	DiskGeometry->MediaType = FixedMedia;
+	DiskGeometry->TracksPerCylinder = 1;
+	DiskGeometry->SectorsPerTrack = 1;
+	DiskGeometry->BytesPerSector = HDD_SECTOR_SIZE;
+	DiskGeometry->Cylinders.QuadPart = HddTotalSectorCount;
+
+	Irp->IoStatus.Information = sizeof(DISK_GEOMETRY);
+	return STATUS_SUCCESS;
+}
+
+static NTSTATUS HddGetPartitionInfo(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	if (IrpStackPointer->Parameters.DeviceIoControl.OutputBufferLength < sizeof(PARTITION_INFORMATION)) {
+		return STATUS_BUFFER_TOO_SMALL;
+	}
+
+	// NOTE: this is only setup during initialization by HddInitDriver() and read from FatxSetupVolumeExtension(), then never changed again
+	PPARTITION_INFORMATION PartitionInformation = (PPARTITION_INFORMATION)Irp->UserBuffer;
+	PIDE_DISK_EXTENSION HddExtension = (PIDE_DISK_EXTENSION)DeviceObject->DeviceExtension;
+	*PartitionInformation = HddExtension->PartitionInformation;
+
+	Irp->IoStatus.Information = sizeof(PARTITION_INFORMATION);
+	return STATUS_SUCCESS;
+}
+
+static NTSTATUS HddDiskVerify(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	if (IrpStackPointer->Parameters.DeviceIoControl.InputBufferLength < sizeof(VERIFY_INFORMATION)) {
+		return STATUS_INFO_LENGTH_MISMATCH;
+	}
+
+	PVERIFY_INFORMATION Verify = (PVERIFY_INFORMATION)IrpStackPointer->Parameters.DeviceIoControl.InputBuffer;
+	if (Verify->Length > HDD_MAXIMUM_TRANSFER_BYTES) {
+		return STATUS_INVALID_DEVICE_REQUEST;
+	}
+
+	PIDE_DISK_EXTENSION HddExtension = (PIDE_DISK_EXTENSION)DeviceObject->DeviceExtension;
+	ULONGLONG HddOffset = Verify->StartingOffset.QuadPart + HddExtension->PartitionInformation.StartingOffset.QuadPart;
+	if ((HddOffset + Verify->Length) < HddTotalByteSize) {
+		Irp->IoStatus.Information = Verify->Length;
+		return STATUS_SUCCESS;
+	}
+
+	return STATUS_IO_DEVICE_ERROR;
+}
+
+NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+
+	NTSTATUS Status;
+	switch (IrpStackPointer->Parameters.DeviceIoControl.IoControlCode)
+	{
+	case IOCTL_DISK_GET_DRIVE_GEOMETRY:
+		Status = HddGetDriveGeometry(Irp);
+		break;
+
+	case IOCTL_DISK_GET_PARTITION_INFO:
+		Status = HddGetPartitionInfo(DeviceObject, Irp);
+		break;
+
+	case IOCTL_DISK_VERIFY:
+		Status = HddDiskVerify(DeviceObject, Irp);
+		break;
+
+	case IOCTL_IDE_PASS_THROUGH:
+		// This is used to send ATA commands to the disk. Since it might need support from nxbx, rip on this for now
+		RIP_API_MSG("Ripped on IOCTL_IDE_PASS_THROUGH");
+
+	default:
+		Status = STATUS_INVALID_DEVICE_REQUEST;
+	}
+
+	return Status;
 }

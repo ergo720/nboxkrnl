@@ -160,6 +160,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mi.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/mm.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/mm/vad_tree.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/control.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/file.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/memory.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/nt/mutant.cpp"

@@ -52,6 +52,20 @@ EXPORTNUM(192) DLLEXPORT NTSTATUS XBOXAPI NtCreateMutant
 	BOOLEAN InitialOwner
 );
 
+EXPORTNUM(196) DLLEXPORT NTSTATUS XBOXAPI NtDeviceIoControlFile
+(
+	HANDLE FileHandle,
+	HANDLE Event,
+	PIO_APC_ROUTINE ApcRoutine,
+	PVOID ApcContext,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	ULONG IoControlCode,
+	PVOID InputBuffer,
+	ULONG InputBufferLength,
+	PVOID OutputBuffer,
+	ULONG OutputBufferLength
+);
+
 EXPORTNUM(199) DLLEXPORT NTSTATUS XBOXAPI NtFreeVirtualMemory
 (
 	PVOID *BaseAddress,

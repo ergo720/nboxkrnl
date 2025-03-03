@@ -184,8 +184,11 @@ EXPORTNUM(320) DLLEXPORT VOID XBOXAPI RtlZeroMemory
 }
 #endif
 
+[[noreturn]] VOID CDECL RipWithMsg(const char *Func, const char *Msg, ...);
+
 #define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
 #define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))
+#define RIP_API_FMT(Msg, ...) RipWithMsg(__func__, Msg __VA_OPT__(,) __VA_ARGS__)
 
 
 inline UCHAR RtlpBitScanForward(ULONG *Index, ULONG Mask)
