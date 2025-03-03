@@ -688,6 +688,8 @@ VOID ZeroIrpStackLocation(PIO_STACK_LOCATION IrpStackPointer);
 VOID IoMarkIrpPending(PIRP Irp);
 PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp);
 PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp);
+VOID IoCopyCurrentIrpStackLocationToNext(PIRP Irp);
+VOID IoSetCompletionRoutine(PIRP Irp, PIO_COMPLETION_ROUTINE CompletionRoutine, PVOID Context, BOOLEAN InvokeOnSuccess, BOOLEAN InvokeOnError, BOOLEAN InvokeOnCancel);
 VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount);
 VOID XBOXAPI IopDeleteFile(PVOID Object);
 NTSTATUS XBOXAPI IopParseFile(PVOID ParseObject, POBJECT_TYPE ObjectType, ULONG Attributes, POBJECT_STRING CompleteName, POBJECT_STRING RemainingName,

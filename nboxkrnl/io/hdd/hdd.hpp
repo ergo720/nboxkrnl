@@ -48,4 +48,3 @@ inline ULONGLONG HddTotalByteSize = 0;
 inline ULONGLONG HddTotalSectorCount = 0;
 
 BOOLEAN HddInitDriver();
-NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);

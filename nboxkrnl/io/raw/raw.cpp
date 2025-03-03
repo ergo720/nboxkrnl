@@ -136,6 +136,24 @@ NTSTATUS RawCreateVolume(PDEVICE_OBJECT DeviceObject)
 	return STATUS_SUCCESS;
 }
 
+static NTSTATUS XBOXAPI RawCompletionRoutine(DEVICE_OBJECT *DeviceObject, IRP *Irp, PVOID Context)
+{
+	// This is called from IofCompleteRequest while holding the raw volume lock. Note that IrpStackPointer points again to the PIO_STACK_LOCATION of the raw driver
+	// because it calls IoGetCurrentIrpStackLocation after having incremented the IrpStackPointer
+
+	if (Irp->PendingReturned) {
+		IoMarkIrpPending(Irp);
+	}
+
+	// Read and write requests are completed directly in the raw driver, without having to call a lower level driver
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_READ));
+
+	RawVolumeUnlock((PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension);
+
+	return STATUS_SUCCESS;
+}
+
 static NTSTATUS XBOXAPI RawIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PRAW_VOLUME_EXTENSION VolumeExtension = (PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
@@ -363,16 +381,18 @@ NTSTATUS XBOXAPI RawIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 	PDEVICE_OBJECT TargetDeviceObject = VolumeExtension->TargetDeviceObject;
 
-	switch (TargetDeviceObject->DeviceType)
-	{
-	default:
-	case FILE_DEVICE_MEDIA_BOARD: // TODO
+	if (TargetDeviceObject->DeviceType == FILE_DEVICE_MEDIA_BOARD) { // TODO
 		RIP_API_FMT("Unimplemented DeviceType %u", TargetDeviceObject->DeviceType);
-
-	case FILE_DEVICE_DISK:
-		// FIXME: in reality, this should pass down the irp to the next stack location, instead of invoking the handler directly like this
-		return RawCompleteRequest(Irp, HddIrpDeviceControl(TargetDeviceObject, Irp), VolumeExtension);
 	}
+
+	IoCopyCurrentIrpStackLocationToNext(Irp);
+	IoSetCompletionRoutine(Irp, RawCompletionRoutine, nullptr, TRUE, TRUE, TRUE);
+
+	NTSTATUS Status = IofCallDriver(VolumeExtension->TargetDeviceObject, Irp); // invokes HddIrpDeviceControl for HDD
+
+	KeLeaveCriticalRegion();
+
+	return Status;
 }
 
 static NTSTATUS XBOXAPI RawIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)

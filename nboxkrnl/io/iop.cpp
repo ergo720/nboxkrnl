@@ -7,6 +7,7 @@
 #include "cdrom\xdvdfs.hpp"
 #include "raw/raw.hpp"
 #include "nt.hpp"
+#include "string.h"
 
 
 const UCHAR IopValidFsInformationQueries[] = {
@@ -225,6 +226,31 @@ PIO_STACK_LOCATION IoGetCurrentIrpStackLocation(PIRP Irp)
 PIO_STACK_LOCATION IoGetNextIrpStackLocation(PIRP Irp)
 {
 	return Irp->Tail.Overlay.CurrentStackLocation - 1;
+}
+
+VOID IoCopyCurrentIrpStackLocationToNext(PIRP Irp)
+{
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PIO_STACK_LOCATION NextIrpStackPointer = IoGetNextIrpStackLocation(Irp);
+	memcpy(NextIrpStackPointer, IrpStackPointer, offsetof(IO_STACK_LOCATION, CompletionRoutine));
+	NextIrpStackPointer->Control = 0;
+}
+
+VOID IoSetCompletionRoutine(PIRP Irp, PIO_COMPLETION_ROUTINE CompletionRoutine, PVOID Context, BOOLEAN InvokeOnSuccess, BOOLEAN InvokeOnError, BOOLEAN InvokeOnCancel)
+{
+	PIO_STACK_LOCATION NextIrpStackPointer = IoGetNextIrpStackLocation(Irp);
+	NextIrpStackPointer->CompletionRoutine = CompletionRoutine;
+	NextIrpStackPointer->Context = Context;
+	NextIrpStackPointer->Control = 0;
+	if (InvokeOnSuccess) {
+		NextIrpStackPointer->Control = SL_INVOKE_ON_SUCCESS;
+	}
+	if (InvokeOnError) {
+		NextIrpStackPointer->Control |= SL_INVOKE_ON_ERROR;
+	}
+	if (InvokeOnCancel) {
+		NextIrpStackPointer->Control |= SL_INVOKE_ON_CANCEL;
+	}
 }
 
 VOID XBOXAPI IopCloseFile(PVOID Object, ULONG SystemHandleCount)

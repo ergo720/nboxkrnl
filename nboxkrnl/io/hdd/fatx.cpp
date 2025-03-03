@@ -342,6 +342,30 @@ static VOID FatxDeleteVolume(PDEVICE_OBJECT DeviceObject)
 	}
 }
 
+static NTSTATUS XBOXAPI FatxCompletionRoutine(DEVICE_OBJECT *DeviceObject, IRP *Irp, PVOID Context)
+{
+	// This is called from IofCompleteRequest while holding the fatx volume lock. Note that IrpStackPointer points again to the PIO_STACK_LOCATION of the fatx driver
+	// because it calls IoGetCurrentIrpStackLocation after having incremented the IrpStackPointer
+
+	if (Irp->PendingReturned) {
+		IoMarkIrpPending(Irp);
+	}
+
+	// Read and write requests are completed directly in the fatx driver, without having to call a lower level driver. The only exception to this is the MU driver,
+	// because that's part of the game itself, and not of the kernel
+	PFAT_VOLUME_EXTENSION VolumeExtension = (PFAT_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	if (VolumeExtension->CacheExtension.TargetDeviceObject->DeviceType == FILE_DEVICE_MEMORY_UNIT) {
+		RIP_API_MSG("Unimplemented memory unit support");
+	}
+
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_READ));
+
+	FatxVolumeUnlock(VolumeExtension);
+
+	return STATUS_SUCCESS;
+}
+
 NTSTATUS FatxCreateVolume(PDEVICE_OBJECT DeviceObject)
 {
 	// NOTE: This is called while holding DeviceObject->DeviceLock
@@ -1079,14 +1103,19 @@ static NTSTATUS XBOXAPI FatxIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP I
 		return FatxCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
 	}
 
-	PDEVICE_OBJECT HddDeviceObject = VolumeExtension->CacheExtension.TargetDeviceObject;
-	if (HddDeviceObject->DeviceType != FILE_DEVICE_DISK) {
+	PDEVICE_OBJECT TargetDeviceObject = VolumeExtension->CacheExtension.TargetDeviceObject;
+	if (TargetDeviceObject->DeviceType != FILE_DEVICE_DISK) {
 		RIP_API_FMT("Unimplemented DeviceType %u", DeviceObject->DeviceType);
 	}
 
-	// FIXME: in reality, this should pass down the irp to the next stack location, instead of invoking the handler directly like this
+	IoCopyCurrentIrpStackLocationToNext(Irp);
+	IoSetCompletionRoutine(Irp, FatxCompletionRoutine, nullptr, TRUE, TRUE, TRUE);
 
-	return FatxCompleteRequest(Irp, HddIrpDeviceControl(HddDeviceObject, Irp), VolumeExtension);
+	NTSTATUS Status = IofCallDriver(TargetDeviceObject, Irp); // invokes HddIrpDeviceControl for HDD
+
+	KeLeaveCriticalRegion();
+
+	return Status;
 }
 
 static NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp)

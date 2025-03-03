@@ -57,6 +57,8 @@ OBJECT_TYPE HddDirectoryObjectType = {
 	'ksiD'
 };
 
+static NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+
 static DRIVER_OBJECT HddDriverObject = {
 	nullptr,                            // DriverStartIo
 	nullptr,                            // DriverDeleteDevice
@@ -292,7 +294,7 @@ static NTSTATUS HddDiskVerify(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 	return STATUS_IO_DEVICE_ERROR;
 }
 
-NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+static NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 
@@ -312,11 +314,16 @@ NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		break;
 
 	case IOCTL_IDE_PASS_THROUGH:
-		// This is used to send ATA commands to the disk. Since it might need support from nxbx, rip on this for now
+		// This is used to send ATA commands to the disk. Since that might need support from nxbx, rip on this for now
 		RIP_API_MSG("Ripped on IOCTL_IDE_PASS_THROUGH");
 
 	default:
 		Status = STATUS_INVALID_DEVICE_REQUEST;
+	}
+
+	if (Status != STATUS_PENDING) {
+		Irp->IoStatus.Status = Status;
+		IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
 	}
 
 	return Status;
