@@ -12,7 +12,7 @@ Only Windows builds are supported.
 
 **On Windows:**
 
-1. `git clone --recurse-submodules https://github.com/ergo720/nboxkrnl`
-2. `mkdir build && cd build`  
-3. `cmake .. -G "Visual Studio 17 2022" -A Win32`  
+1. `git clone https://github.com/ergo720/nboxkrnl`
+2. `cd nboxkrnl && mkdir build && cd build`
+3. `cmake .. -G "Visual Studio 17 2022" -A Win32`
 4. Build the resulting solution file nboxkrnl.sln with Visual Studio
