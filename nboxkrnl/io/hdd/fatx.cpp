@@ -359,7 +359,7 @@ static NTSTATUS XBOXAPI FatxCompletionRoutine(DEVICE_OBJECT *DeviceObject, IRP *
 	}
 
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
-	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_READ));
+	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_WRITE));
 
 	FatxVolumeUnlock(VolumeExtension);
 

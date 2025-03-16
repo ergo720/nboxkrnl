@@ -147,7 +147,7 @@ static NTSTATUS XBOXAPI RawCompletionRoutine(DEVICE_OBJECT *DeviceObject, IRP *I
 
 	// Read and write requests are completed directly in the raw driver, without having to call a lower level driver
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
-	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_READ));
+	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_WRITE));
 
 	RawVolumeUnlock((PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension);
 
