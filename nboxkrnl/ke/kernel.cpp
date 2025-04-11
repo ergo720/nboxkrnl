@@ -44,7 +44,11 @@ EXPORTNUM(324) XBOX_KRNL_VERSION XboxKrnlVersion =
 	1,
 	0,
 	5838, // kernel build 5838
+#if _DEBUG
+	1 | (1 << 15) // =0x8000 -> debug kernel flag
+#else
 	1
+#endif
 };
 
 // Source: Cxbx-Reloaded
