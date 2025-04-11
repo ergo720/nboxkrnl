@@ -38,10 +38,10 @@ VOID HalInitSystem()
 
 	HalpInitSMCstate();
 
-	if (XboxType == SYSTEM_DEVKIT) {
+	if (XboxType == CONSOLE_DEVKIT) {
 		XboxHardwareInfo.Flags |= 2;
 	}
-	else if (XboxType == SYSTEM_CHIHIRO) {
+	else if (XboxType == CONSOLE_CHIHIRO) {
 		XboxHardwareInfo.Flags |= 8;
 	}
 }

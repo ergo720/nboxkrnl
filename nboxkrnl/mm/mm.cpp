@@ -27,10 +27,10 @@ BOOLEAN MmInitSystem()
 {
 	ULONG RequiredPt = 2;
 
-	XboxType = static_cast<SystemType>(inl(KE_SYSTEM_TYPE));
-	MiLayoutRetail = (XboxType == SYSTEM_XBOX);
-	MiLayoutChihiro = (XboxType == SYSTEM_CHIHIRO);
-	MiLayoutDevkit = (XboxType == SYSTEM_DEVKIT);
+	XboxType = static_cast<ConsoleType>(inl(KE_SYSTEM_TYPE));
+	MiLayoutRetail = (XboxType == CONSOLE_XBOX);
+	MiLayoutChihiro = (XboxType == CONSOLE_CHIHIRO);
+	MiLayoutDevkit = (XboxType == CONSOLE_DEVKIT);
 
 	// Set up general memory variables according to the xbe type
 	if (MiLayoutChihiro) {

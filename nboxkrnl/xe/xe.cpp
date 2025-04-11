@@ -188,11 +188,11 @@ static NTSTATUS XeLoadXbe()
 			++i;
 		}
 
-		if ((XboxType == SYSTEM_DEVKIT) && !(GetXbeAddress()->dwInitFlags.bLimit64MB)) {
+		if ((XboxType == CONSOLE_DEVKIT) && !(GetXbeAddress()->dwInitFlags.bLimit64MB)) {
 			MiAllowNonDebuggerOnTop64MiB = TRUE;
 		}
 
-		if (XboxType == SYSTEM_CHIHIRO) {
+		if (XboxType == CONSOLE_CHIHIRO) {
 			GetXbeAddress()->dwInitFlags.bDontSetupHarddisk = 1;
 		}
 

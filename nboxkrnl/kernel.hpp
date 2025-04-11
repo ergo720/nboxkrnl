@@ -71,10 +71,10 @@
 #define LOWER_32(A) ((A) & 0xFFFFFFFF)
 #define UPPER_32(A) ((A) >> 32)
 
-enum SystemType {
-	SYSTEM_XBOX,
-	SYSTEM_CHIHIRO,
-	SYSTEM_DEVKIT
+enum ConsoleType {
+	CONSOLE_XBOX,
+	CONSOLE_CHIHIRO,
+	CONSOLE_DEVKIT
 };
 
 enum IoRequestType : ULONG {
@@ -196,7 +196,7 @@ struct XBOX_KRNL_VERSION {
 	USHORT Qfe;
 };
 
-inline SystemType XboxType;
+inline ConsoleType XboxType;
 
 #ifdef __cplusplus
 extern "C" {
