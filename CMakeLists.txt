@@ -34,7 +34,6 @@ else ()
 endif()
 
 add_compile_definitions(
- _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
  _HAS_EXCEPTIONS=0
  NANOPRINTF_IMPLEMENTATION
