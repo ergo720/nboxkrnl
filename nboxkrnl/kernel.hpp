@@ -206,6 +206,8 @@ EXPORTNUM(322) DLLEXPORT extern XBOX_HARDWARE_INFO XboxHardwareInfo;
 
 EXPORTNUM(324) DLLEXPORT extern XBOX_KRNL_VERSION XboxKrnlVersion;
 
+DLLEXPORT extern const char *NboxkrnlVersion;
+
 #ifdef __cplusplus
 }
 #endif

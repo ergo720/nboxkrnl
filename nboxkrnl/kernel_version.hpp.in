@@ -1,0 +1,3 @@
+#pragma once
+
+#cmakedefine _NBOXKRNL_VERSION "@_NBOXKRNL_VERSION@"

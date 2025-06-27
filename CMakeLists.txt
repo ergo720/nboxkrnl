@@ -18,6 +18,21 @@ set(NBOXKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(Git)
+if(Git_FOUND)
+ execute_process(
+  COMMAND git rev-parse HEAD
+  OUTPUT_VARIABLE _NBOXKRNL_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+ )
+ configure_file(
+  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp.in" "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp" @ONLY
+  NEWLINE_STYLE LF
+ )
+else ()
+ message(FATAL_ERROR "Git was not found")
+endif()
+
 add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
@@ -70,6 +85,7 @@ link_directories(
 
 file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ntstatus.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/types.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/winerror.hpp"

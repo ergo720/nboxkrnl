@@ -4,3 +4,6 @@
 
 # Visual Studio Cache
 .vs/
+
+#Test files
+nboxkrnl/kernel_version.hpp
