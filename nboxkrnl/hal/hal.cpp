@@ -48,7 +48,7 @@ VOID HalInitSystem()
 
 EXPORTNUM(40) ULONG HalDiskCachePartitionCount = 3;
 
-EXPORTNUM(45) NTSTATUS HalReadSMBusValue
+EXPORTNUM(45) NTSTATUS XBOXAPI HalReadSMBusValue
 (
 	UCHAR SlaveAddress,
 	UCHAR CommandCode,
