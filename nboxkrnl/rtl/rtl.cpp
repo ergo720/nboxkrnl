@@ -199,6 +199,42 @@ EXPORTNUM(281) LARGE_INTEGER XBOXAPI RtlExtendedIntegerMultiply
 }
 
 // Source: Cxbx-Reloaded
+EXPORTNUM(282) LARGE_INTEGER XBOXAPI RtlExtendedLargeIntegerDivide
+(
+	LARGE_INTEGER Dividend,
+	ULONG Divisor,
+	PULONG Remainder
+)
+{
+	LARGE_INTEGER quotient = Dividend;
+
+	if (Divisor == 0) {
+		RtlRaiseStatus(STATUS_INTEGER_DIVIDE_BY_ZERO);
+	}
+	else {
+		ULONG local_remainder = 0;
+		BOOLEAN carry, remainder_carry;
+
+		// Binary division algorithm reverse engineered from real hardware.
+		for (uint8_t i = 64; i > 0; i--) {
+			carry = (quotient.QuadPart >> 63) & 0x1;
+			remainder_carry = (local_remainder >> 31) & 0x1;
+			quotient.QuadPart <<= 1;
+			local_remainder = (local_remainder << 1) | carry;
+			if (remainder_carry || (local_remainder >= Divisor)) {
+				quotient.u.LowPart += 1;
+				local_remainder -= Divisor;
+			}
+		}
+		if (Remainder) {
+			*Remainder = local_remainder;
+		}
+	}
+
+	return quotient;
+}
+
+// Source: Cxbx-Reloaded
 EXPORTNUM(283) LARGE_INTEGER XBOXAPI RtlExtendedMagicDivide
 (
 	LARGE_INTEGER Dividend,
@@ -246,6 +282,17 @@ EXPORTNUM(283) LARGE_INTEGER XBOXAPI RtlExtendedMagicDivide
 	return Result;
 }
 
+// Source: Cxbx-Reloaded
+EXPORTNUM(284) VOID XBOXAPI RtlFillMemory
+(
+	VOID *Destination,
+	DWORD Length,
+	BYTE  Fill
+)
+{
+	memset(Destination, Fill, Length);
+}
+
 EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
 (
 	PVOID Destination,
@@ -262,6 +309,18 @@ EXPORTNUM(285) VOID XBOXAPI RtlFillMemoryUlong
 
 	for (unsigned i = 0; i < NumOfRepeats; ++i) {
 		d[i] = Pattern; // copy an ULONG at a time
+	}
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(287) VOID XBOXAPI RtlFreeUnicodeString
+(
+	PUNICODE_STRING UnicodeString
+)
+{
+	if (UnicodeString->Buffer) {
+		ExFreePool(UnicodeString->Buffer);
+		memset(UnicodeString, 0, sizeof(*UnicodeString));
 	}
 }
 
@@ -350,6 +409,17 @@ EXPORTNUM(297) VOID XBOXAPI RtlMapGenericMask
 	}
 
 	*AccessMask &= ~(GENERIC_READ | GENERIC_WRITE | GENERIC_EXECUTE | GENERIC_ALL);
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(298) VOID XBOXAPI RtlMoveMemory
+(
+	VOID *Destination,
+	VOID *Source,
+	SIZE_T Length
+)
+{
+	memmove(Destination, Source, Length);
 }
 
 static const int RtlpMonthLengths[2][MONSPERYEAR] =
@@ -482,6 +552,24 @@ EXPORTNUM(305) VOID XBOXAPI RtlTimeToTimeFields
 	* sequence of INT( n * 30.6): it reproduces the
 	* 31-30-31-30-31-31 month lengths exactly for small n's */
 	TimeFields->Day = (USHORT)(Yearday - (1959 * Months) / 64);
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(307) ULONG FASTCALL RtlUlongByteSwap
+(
+	ULONG Source
+)
+{
+	return (Source >> 24) | ((Source & 0xFF0000) >> 8) | ((Source & 0xFF00) << 8) | ((Source & 0xFF) << 24);
+}
+
+// Source: Cxbx-Reloaded
+EXPORTNUM(318) USHORT FASTCALL RtlUshortByteSwap
+(
+	USHORT Source
+)
+{
+	return (Source >> 8) | ((Source & 0xFF) << 8);
 }
 
 // Source: Cxbx-Reloaded

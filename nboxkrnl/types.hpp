@@ -26,6 +26,9 @@
 #define EXPORTNUM(n)
 #define DLLEXPORT __declspec(dllexport)
 
+#define ANSI_NULL ((CHAR)0)
+#define UNICODE_NULL ((WCHAR)0)
+
 
 using VOID = void;
 using PVOID = void *;
@@ -51,6 +54,7 @@ using QUAD = ULONGLONG;
 using PCHAR = CHAR *;
 using PBYTE = BYTE *;
 using PWCHAR = WCHAR *;
+using PWSTR = PWCHAR;
 using PUSHORT = USHORT *;
 using PULONG = ULONG *;
 using PULONGLONG = ULONGLONG *;
