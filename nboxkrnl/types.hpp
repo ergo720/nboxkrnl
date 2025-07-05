@@ -77,6 +77,7 @@ using HRESULT = LONG;
 using ACCESS_MASK = ULONG;
 using PACCESS_MASK = ACCESS_MASK *;
 
+#include "helpers.hpp"
 #include "ntstatus.hpp"
 #include <stddef.h>
 

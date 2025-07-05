@@ -84,6 +84,7 @@ link_directories(
 )
 
 file (GLOB HEADERS
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/helpers.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ntstatus.hpp"
