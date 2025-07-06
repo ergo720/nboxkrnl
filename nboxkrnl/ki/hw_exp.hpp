@@ -74,7 +74,7 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 		CREATE_KTRAP_FRAME \
 	ASM_END
 
-// dword ptr required or else MSVC will aceess ExceptionList as a byte
+// dword ptr required or else MSVC will access ExceptionList as a byte
 #define CREATE_KTRAP_FRAME_FOR_INT \
 	ASM_BEGIN \
 		CREATE_KTRAP_FRAME_NO_CODE \

@@ -227,7 +227,7 @@ DWORD __declspec(naked) KiSwapThreadContext()
 		ASM(sti);
 		ASM(inc [edi]KTHREAD.ContextSwitches); // per-thread number of context switches
 		ASM(inc [KiPcr]KPCR.PrcbData.KeContextSwitches); // total number of context switches
-		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // restore exception list; NOTE: dword ptr required or else MSVC will aceess ExceptionList as a byte
+		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // restore exception list; NOTE: dword ptr required or else MSVC will access ExceptionList as a byte
 		ASM(cmp [edi]KTHREAD.ApcState.KernelApcPending, 0);
 		ASM(jnz kernel_apc);
 		ASM(popfd); // restore eflags

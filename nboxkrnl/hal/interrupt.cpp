@@ -132,13 +132,13 @@ VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
 		ASM(cmp eax, [eax]LIST_ENTRY.Flink);
 		ASM(jz no_dpc);
 		ASM(push [KiPcr]KPCR.NtTib.ExceptionList);
-		ASM(mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2); // dword ptr required or else MSVC will aceess ExceptionList as a byte
+		ASM(mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2); // dword ptr required or else MSVC will access ExceptionList as a byte
 		ASM(mov eax, esp);
 		ASM(mov esp, [KiPcr]KPCR.PrcbData.DpcStack); // switch to DPC stack
 		ASM(push eax);
 		ASM(call KiExecuteDpcQueue);
 		ASM(pop esp);
-		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // dword ptr required or else MSVC will aceess ExceptionList as a byte
+		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // dword ptr required or else MSVC will access ExceptionList as a byte
 	no_dpc:
 		ASM(sti);
 		ASM(cmp [KiPcr]KPCR.PrcbData.QuantumEnd, 0);
@@ -157,7 +157,7 @@ VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
 		ASM(mov ecx, esi);
 		ASM(call KeAddThreadToTailOfReadyList);
 		ASM(mov [KiPcr]KPCR.PrcbData.CurrentThread, edi);
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will aceess NextThread as a byte
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will access NextThread as a byte
 		ASM(mov ebx, 1);
 		ASM(call KiSwapThreadContext); // when this returns, it means this thread was switched back again
 		ASM(pop ebp);

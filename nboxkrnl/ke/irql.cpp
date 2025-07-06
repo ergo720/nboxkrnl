@@ -129,7 +129,7 @@ EXPORTNUM(163) __declspec(naked) VOID FASTCALL KiUnlockDispatcherDatabase
 		ASM(mov ecx, esi);
 		ASM(call KeAddThreadToTailOfReadyList);
 		ASM(mov [KiPcr]KPCR.PrcbData.CurrentThread, edi);
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will aceess NextThread as a byte
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will access NextThread as a byte
 		ASM(movzx ebx, byte ptr [esi]KTHREAD.WaitIrql);
 		ASM(call KiSwapThreadContext); // when this returns, it means this thread was switched back again
 		ASM(test eax, eax);
