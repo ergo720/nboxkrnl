@@ -4,7 +4,6 @@
 
 #include "hal.hpp"
 #include "halp.hpp"
-#include "rtl.hpp"
 #include <assert.h>
 
 
@@ -110,18 +109,14 @@ VOID XBOXAPI HalpSwIntApc()
 {
 	// On entry, interrupts must be disabled
 
-	ASM_BEGIN
-		ASM(movzx eax, byte ptr[KiPcr]KPCR.Irql);
-		ASM(mov byte ptr[KiPcr]KPCR.Irql, APC_LEVEL); // raise IRQL
-		ASM(and HalpPendingInt, ~(1 << APC_LEVEL));
-		ASM(push eax);
-		ASM(sti);
-		ASM(call KiExecuteApcQueue);
-		ASM(cli);
-		ASM(pop eax);
-		ASM(mov byte ptr[KiPcr]KPCR.Irql, al); // lower IRQL
-		ASM(call HalpCheckUnmaskedInt);
-	ASM_END
+	KIRQL OldIrql = KiPcr.Irql;
+	KiPcr.Irql = APC_LEVEL; // raise IRQL
+	HalpPendingInt &= ~(1 << APC_LEVEL);
+	enable();
+	KiExecuteApcQueue();
+	disable();
+	KiPcr.Irql = OldIrql; // lower IRQL
+	HalpCheckUnmaskedInt();
 }
 
 VOID __declspec(naked) XBOXAPI HalpSwIntDpc()
@@ -264,42 +259,33 @@ VOID XBOXAPI HalpHwInt15()
 	ASM(int IDT_INT_VECTOR_BASE + 15);
 }
 
-VOID __declspec(naked) HalpCheckUnmaskedInt()
+VOID HalpCheckUnmaskedInt()
 {
 	// On entry, interrupts must be disabled
 
-	ASM_BEGIN
-	check_int:
-		ASM(movzx ecx, byte ptr [KiPcr]KPCR.Irql);
-		ASM(mov edx, HalpPendingInt);
-		ASM(and edx, HalpIrqlMasks[ecx * 4]); // if not zero, then there are one or more pending interrupts that have become unmasked
-		ASM(jnz unmasked_int);
-		ASM(jmp exit_func);
-	unmasked_int:
-		ASM(test HalpIntInProgress, ACTIVE_IRQ_MASK); // make sure we complete the active IRQ first
-		ASM(jnz exit_func);
-		ASM(bsr ecx, edx);
-		ASM(cmp ecx, DISPATCH_LEVEL);
-		ASM(jg hw_int);
-		ASM(call SwIntHandlers[ecx * 4]);
-		ASM(jmp check_int);
-	hw_int:
-		ASM(mov ax, HalpIntDisabled);
-		ASM(out PIC_MASTER_DATA, al);
-		ASM(shr ax, 8);
-		ASM(out PIC_SLAVE_DATA, al);
-		ASM(mov edx, 1);
-		ASM(shl edx, cl);
-		ASM(test HalpIntInProgress, edx); // check again HalpIntInProgress because if a sw/hw int comes, it re-enables interrupts, and a hw int could come again
-		ASM(jnz exit_func);
-		ASM(or HalpIntInProgress, edx);
-		ASM(xor HalpPendingInt, edx);
-		ASM(call SwIntHandlers[ecx * 4]);
-		ASM(xor HalpIntInProgress, edx);
-		ASM(jmp check_int);
-	exit_func:
-		ASM(ret);
-	ASM_END
+	while (true) {
+		DWORD CurrUnmaskedInt = HalpIrqlMasks[KiPcr.Irql] & HalpPendingInt;
+		if (CurrUnmaskedInt) { // if not zero, then there are one or more pending interrupts that have become unmasked
+			if (!(HalpIntInProgress & ACTIVE_IRQ_MASK)) { // make sure we complete the active IRQ first
+				ULONG HighestPendingInt;
+				bit_scan_reverse(&HighestPendingInt, CurrUnmaskedInt);
+				if (HighestPendingInt > DISPATCH_LEVEL) { // hw int
+					outb(PIC_MASTER_DATA, (BYTE)HalpIntDisabled);
+					outb(PIC_SLAVE_DATA, (BYTE)(HalpIntDisabled >> 8));
+					ULONG HighestPendingIntMask = (1 << HighestPendingInt);
+					HalpIntInProgress |= HighestPendingIntMask;
+					HalpPendingInt ^= HighestPendingIntMask;
+					SwIntHandlers[HighestPendingInt]();
+					HalpIntInProgress ^= HighestPendingIntMask;
+				}
+				else { // sw int
+					SwIntHandlers[HighestPendingInt]();
+				}
+				continue;
+			}
+		}
+		break;
+	}
 }
 
 static ULONG FASTCALL HalpCheckMaskedIntAtIRQLLevelNonSpurious(ULONG BusInterruptLevel, ULONG Irql)
@@ -634,11 +620,7 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 		PicImr = HalpIntDisabled & 0xFF;
 	}
 
-	ASM_BEGIN
-		ASM(mov edx, ElcrPort);
-		ASM(in al, dx);
-		ASM(mov CurrElcr, al);
-	ASM_END
+	CurrElcr = inb(ElcrPort);
 
 	if (InterruptMode == Edge) {
 		CurrElcr &= ~ElcrMask;
@@ -647,15 +629,9 @@ EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt
 		CurrElcr |= ElcrMask;
 	}
 
-	ASM_BEGIN
-		ASM(mov edx, ElcrPort);
-		ASM(mov al, CurrElcr);
-		ASM(out dx, al);
-		ASM(mov al, PicImr);
-		ASM(mov edx, DataPort);
-		ASM(out dx, al);
-		ASM(sti);
-	ASM_END
+	outb(ElcrPort, CurrElcr);
+	outb(DataPort, PicImr);
+	enable();
 }
 
 EXPORTNUM(44) ULONG XBOXAPI HalGetInterruptVector
@@ -680,15 +656,12 @@ EXPORTNUM(48) VOID FASTCALL HalRequestSoftwareInterrupt
 {
 	assert((Request == APC_LEVEL) || (Request == DISPATCH_LEVEL));
 
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-	ASM_END
+	DWORD OldEflags = save_int_state_and_disable();
 
 	HalpPendingInt |= (1 << Request);
 	if (HalpIrqlMasks[KiPcr.Irql] & (1 << Request)) { // is the requested IRQL unmasked at the current IRQL?
 		SwIntHandlers[Request]();
 	}
 
-	ASM(popfd);
+	restore_int_state(OldEflags);
 }

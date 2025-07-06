@@ -42,23 +42,14 @@ static NTSTATUS XeLoadXbe()
 	}
 	else {
 		// NOTE: we cannot just assume that the XBE name from the DVD drive is called "default.xbe", because the user might have renamed it
-		ULONG PathSize;
-		ASM_BEGIN
-			ASM(mov edx, XE_XBE_PATH_LENGTH);
-			ASM(in eax, dx);
-			ASM(mov PathSize, eax);
-		ASM_END
+		ULONG PathSize = inl(XE_XBE_PATH_LENGTH);
 
 		PCHAR PathBuffer = (PCHAR)ExAllocatePoolWithTag(PathSize, 'PebX');
 		if (!PathBuffer) {
 			return STATUS_INSUFFICIENT_RESOURCES;
 		}
 
-		ASM_BEGIN
-			ASM(mov edx, XE_XBE_PATH_ADDR);
-			ASM(mov eax, PathBuffer);
-			ASM(out dx, eax);
-		ASM_END
+		outl(XE_XBE_PATH_ADDR, (ULONG)PathBuffer);
 
 		XeImageFileName.Buffer = PathBuffer;
 		XeImageFileName.Length = (USHORT)PathSize;

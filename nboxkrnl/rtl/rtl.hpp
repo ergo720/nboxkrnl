@@ -298,36 +298,3 @@ EXPORTNUM(320) DLLEXPORT VOID XBOXAPI RtlZeroMemory
 #define RIP_UNIMPLEMENTED() RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>("unimplemented!"))
 #define RIP_API_MSG(Msg) RtlRip(const_cast<PCHAR>(__func__), nullptr, const_cast<PCHAR>(Msg))
 #define RIP_API_FMT(Msg, ...) RipWithMsg(__func__, Msg __VA_OPT__(,) __VA_ARGS__)
-
-
-inline UCHAR RtlpBitScanForward(ULONG *Index, ULONG Mask)
-{
-	if (Mask == 0) {
-		return 0;
-	}
-
-	ULONG Value;
-	ASM_BEGIN
-		ASM(bsf eax, Mask);
-		ASM(mov Value, eax);
-	ASM_END
-	*Index = Value;
-
-	return (UCHAR)Value;
-}
-
-inline UCHAR RtlpBitScanReverse(ULONG *Index, ULONG Mask)
-{
-	if (Mask == 0) {
-		return 0;
-	}
-
-	ULONG Value;
-	ASM_BEGIN
-		ASM(bsr eax, Mask);
-		ASM(mov Value, eax);
-	ASM_END
-	*Index = Value;
-
-	return (UCHAR)Value;
-}

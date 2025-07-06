@@ -695,13 +695,13 @@ static int npf_bin_len(npf_uint_t u) {
     #define NPF_HAVE_BUILTIN_CLZ
     #define NPF_CLZ _BitScanReverse64
   #elif NANOPRINTF_USE_LARGE_FORMAT_SPECIFIERS == 0
-    unsigned char RtlpBitScanReverse(unsigned int *Index, unsigned int Mask); // nboxkrnl
+    unsigned char bit_scan_reverse(unsigned int *Index, unsigned int Mask); // nboxkrnl
     #define NPF_HAVE_BUILTIN_CLZ
-    #define NPF_CLZ RtlpBitScanReverse // nboxkrnl
+    #define NPF_CLZ bit_scan_reverse // nboxkrnl
   #endif
   #ifdef NPF_HAVE_BUILTIN_CLZ
     unsigned long idx;
-    NPF_CLZ(&idx, u);
+    NPF_CLZ((unsigned int *)&idx, (unsigned int)u);
     return (int)(idx + 1);
   #endif
 #elif NANOPRINTF_CLANG || NANOPRINTF_GCC_PAST_4_6
