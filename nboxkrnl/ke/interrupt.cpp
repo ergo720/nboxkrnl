@@ -57,8 +57,7 @@ EXPORTNUM(98) BOOLEAN XBOXAPI KeConnectInterrupt
 
 	if (InterruptObject->Connected == FALSE) {
 		if (KiIdt[IDT_INT_VECTOR_BASE + InterruptObject->BusInterruptLevel] == 0) {
-			KiIdt[IDT_INT_VECTOR_BASE + InterruptObject->BusInterruptLevel] =
-				((uint64_t)0x8 << 16) | ((uint64_t)&InterruptObject->DispatchCode[0] & 0x0000FFFF) | (((uint64_t)&InterruptObject->DispatchCode[0] & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
+			KiIdt[IDT_INT_VECTOR_BASE + InterruptObject->BusInterruptLevel] = BUILD_IDT_ENTRY(InterruptObject->DispatchCode[0]);
 			HalEnableSystemInterrupt(InterruptObject->BusInterruptLevel, (KINTERRUPT_MODE)InterruptObject->Mode);
 			InterruptObject->Connected = Connected = TRUE;
 		}

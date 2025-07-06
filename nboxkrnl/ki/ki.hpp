@@ -16,6 +16,8 @@
 #define CR0_EM (1 << 2) // emulation
 #define CR0_MP (1 << 1) // monitor coprocessor
 
+#define BUILD_IDT_ENTRY(func) (((uint64_t)0x8 << 16) | ((uint64_t)&func & 0x0000FFFF) | (((uint64_t)&func & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32))
+
 #define SIZE_OF_FPU_REGISTERS        128
 #define NPX_STATE_NOT_LOADED (CR0_TS | CR0_MP) // x87 fpu, XMM, and MXCSR registers not loaded on fpu
 #define NPX_STATE_LOADED 0                     // x87 fpu, XMM, and MXCSR registers loaded on fpu
