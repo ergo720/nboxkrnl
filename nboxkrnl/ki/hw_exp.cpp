@@ -14,8 +14,7 @@
 // These handlers will first attempt to fix the problem in the kernel, and if that fails, they will deliver the exception to the xbe since it might
 // have installed an SEH handler for it. If both fail, the execution will be terminated
 
-// Divide Error
-void __declspec(naked) XBOXAPI KiTrap0()
+void __declspec(naked) XBOXAPI KiTrapDE()
 {
 	// NOTE: the cpu raises this exception also for division overflows, but we don't check for it and always report a divide by zero code
 
@@ -30,44 +29,37 @@ void __declspec(naked) XBOXAPI KiTrap0()
 	ASM_END
 }
 
-// Debug breakpoint
-void __declspec(naked) XBOXAPI KiTrap1()
+void __declspec(naked) XBOXAPI KiTrapDB()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// NMI interrupt
-void __declspec(naked) XBOXAPI KiTrap2()
+void __declspec(naked) XBOXAPI KiTrapNMI()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Breakpoint (int 3)
-void __declspec(naked) XBOXAPI KiTrap3()
+void __declspec(naked) XBOXAPI KiTrapBP()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Overflow (int O)
-void __declspec(naked) XBOXAPI KiTrap4()
+void __declspec(naked) XBOXAPI KiTrapOF()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Bound range exceeded
-void __declspec(naked) XBOXAPI KiTrap5()
+void __declspec(naked) XBOXAPI KiTrapBR()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Invalid opcode
-void __declspec(naked) XBOXAPI KiTrap6()
+void __declspec(naked) XBOXAPI KiTrapUD()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// No math coprocessor
-void __declspec(naked) XBOXAPI KiTrap7()
+void __declspec(naked) XBOXAPI KiTrapNM()
 {
 	// If CurrentThread->NpxState == NPX_STATE_NOT_LOADED, then we are here to load the floating state for this thread. Otherwise, bug check in all other cases
 
@@ -103,38 +95,32 @@ void __declspec(naked) XBOXAPI KiTrap7()
 	ASM_END
 }
 
-// Double fault
-void __declspec(naked) XBOXAPI KiTrap8()
+void __declspec(naked) XBOXAPI KiTrapDF()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Invalid tss
-void __declspec(naked) XBOXAPI KiTrap10()
+void __declspec(naked) XBOXAPI KiTrapTS()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Segment not present
-void __declspec(naked) XBOXAPI KiTrap11()
+void __declspec(naked) XBOXAPI KiTrapNP()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Stack-segment fault
-void __declspec(naked) XBOXAPI KiTrap12()
+void __declspec(naked) XBOXAPI KiTrapSS()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// General protection
-void __declspec(naked) XBOXAPI KiTrap13()
+void __declspec(naked) XBOXAPI KiTrapGP()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Page fault
-void __declspec(naked) XBOXAPI KiTrap14()
+void __declspec(naked) XBOXAPI KiTrapPF()
 {
 	ASM_BEGIN
 		CREATE_KTRAP_FRAME_WITH_CODE;
@@ -151,33 +137,29 @@ void __declspec(naked) XBOXAPI KiTrap14()
 	ASM_END
 }
 
-// Math fault
-void __declspec(naked) XBOXAPI KiTrap16()
+void __declspec(naked) XBOXAPI KiTrapMF()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Alignment check
-void __declspec(naked) XBOXAPI KiTrap17()
+void __declspec(naked) XBOXAPI KiTrapAC()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Machine check
-void __declspec(naked) XBOXAPI KiTrap18()
+void __declspec(naked) XBOXAPI KiTrapMC()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// SIMD floating-point exception
-void __declspec(naked) XBOXAPI KiTrap19()
+void __declspec(naked) XBOXAPI KiTrapXM()
 {
 	RIP_UNIMPLEMENTED();
 }
 
-// Used to catch any intel-reserved exception
 void __declspec(naked) XBOXAPI KiUnexpectedInterrupt()
 {
+	// Used to catch any intel-reserved exception
 	RIP_UNIMPLEMENTED();
 }
 
