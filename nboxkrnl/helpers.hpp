@@ -100,7 +100,7 @@ static inline UCHAR bit_scan_forward(ULONG *Index, ULONG Mask)
 	ASM_END
 	*Index = Value;
 
-	return (UCHAR)Value;
+	return 1;
 }
 
 static inline UCHAR bit_scan_reverse(ULONG *Index, ULONG Mask)
@@ -116,7 +116,7 @@ static inline UCHAR bit_scan_reverse(ULONG *Index, ULONG Mask)
 	ASM_END
 	*Index = Value;
 
-	return (UCHAR)Value;
+	return 1;
 }
 
 static inline VOID CDECL atomic_store64(LONGLONG *dst, LONGLONG val)
