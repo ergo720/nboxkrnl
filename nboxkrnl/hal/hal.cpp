@@ -29,14 +29,14 @@ VOID HalInitSystem()
 	KeSetSystemTime(&SystemTime, &OldTime);
 
 	// Connect the PIT (clock) interrupt (NOTE: this will also enable interrupts)
-	KiIdt[IDT_INT_VECTOR_BASE + 0] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpClockIsr & 0x0000FFFF) | (((uint64_t)&HalpClockIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
+	KiIdt[IDT_INT_VECTOR_BASE + 0] = BUILD_IDT_ENTRY(HalpClockIsr);
 	HalEnableSystemInterrupt(0, Edge);
 
 	// Connect the SMBUS interrupt
 	KeInitializeEvent(&HalpSmbusLock, SynchronizationEvent, 1);
 	KeInitializeEvent(&HalpSmbusComplete, NotificationEvent, 0);
 	KeInitializeDpc(&HalpSmbusDpcObject, HalpSmbusDpcRoutine, nullptr);
-	KiIdt[IDT_INT_VECTOR_BASE + 11] = ((uint64_t)0x8 << 16) | ((uint64_t)&HalpSmbusIsr & 0x0000FFFF) | (((uint64_t)&HalpSmbusIsr & 0xFFFF0000) << 32) | ((uint64_t)0x8E00 << 32);
+	KiIdt[IDT_INT_VECTOR_BASE + 11] = BUILD_IDT_ENTRY(HalpSmbusIsr);
 	HalEnableSystemInterrupt(11, LevelSensitive);
 
 	HalpInitSMCstate();
