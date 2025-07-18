@@ -72,18 +72,12 @@ EXPORTNUM(125) ULONGLONG XBOXAPI KeQueryInterruptTime()
 
 EXPORTNUM(126) ULONGLONG XBOXAPI KeQueryPerformanceCounter()
 {
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-		ASM(mov edx, KE_ACPI_TIME_LOW);
-		ASM(in eax, dx);
-		ASM(mov ecx, eax);
-		ASM(inc edx);
-		ASM(in eax, dx);
-		ASM(mov edx, eax);
-		ASM(mov eax, ecx);
-		ASM(popfd);
-	ASM_END
+	DWORD OldEflags = save_int_state_and_disable();
+	ULONGLONG Value = inl(KE_ACPI_TIME_LOW);
+	Value |= (ULONGLONG(inl(KE_ACPI_TIME_HIGH)) << 32);
+	restore_int_state(OldEflags);
+
+	return Value;
 }
 
 EXPORTNUM(127) ULONGLONG XBOXAPI KeQueryPerformanceFrequency()
