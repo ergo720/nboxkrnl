@@ -64,6 +64,7 @@ include_directories(
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/include"
  "${NBOXKRNL_ROOT_DIR}/import/nanopdclib/platform/xbox/include"
  "${NBOXKRNL_ROOT_DIR}/import/nanoprintf"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/av"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal"
@@ -90,6 +91,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ntstatus.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/types.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/winerror.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/av/av.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg/dbg.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.hpp"
@@ -138,6 +140,7 @@ file (GLOB HEADERS
 
 file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/main.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/av/av.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/dbg/debug.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/event.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.cpp"

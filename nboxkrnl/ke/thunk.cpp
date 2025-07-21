@@ -2,6 +2,7 @@
  * ergo720                Copyright (c) 2023
  */
 
+#include "av.hpp"
 #include "dbg.hpp"
 #include "ex.hpp"
 #include "fsc.hpp"
@@ -22,7 +23,7 @@ ULONG KernelThunkTable[379] =
 {
 	(ULONG)FUNC(nullptr),                                  // 0x0000 (0) "Undefined", this function doesn't exist
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvGetSavedDataAddress),                   // 0x0001 (1)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvSendTVEncoderOption),                   // 0x0002 (2)
+	(ULONG)FUNC(&AvSendTVEncoderOption),                   // 0x0002 (2)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvSetDisplayMode),                        // 0x0003 (3)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvSetSavedDataAddress),                   // 0x0004 (4)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgBreakPoint),                           // 0x0005 (5)
