@@ -66,7 +66,7 @@ EXPORTNUM(45) NTSTATUS XBOXAPI HalReadSMBusValue
 	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
 
 	NTSTATUS Status = HalpSmbusStatus;
-	*DataValue = *(PULONG)HalpSmbusData;
+	*DataValue = ReadWordValue ? *PUSHORT(HalpSmbusData) : *PBYTE(HalpSmbusData);
 
 	KeSetEvent(&HalpSmbusLock, 0, FALSE);
 	KeLeaveCriticalRegion();
