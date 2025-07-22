@@ -9,7 +9,7 @@
 [[noreturn]] __declspec(naked) VOID KernelEntry()
 {
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
-	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0, ne=osfxsr=1
+	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0, ne=osfxsr=1, cr0|mp,em,ts=0
 
 	ASM_BEGIN
 		// Load the eeprom and certificate keys. The host should have passed them in the stack
@@ -58,6 +58,11 @@
 		ASM(mov word ptr [esp], ax);
 		ASM(mov dword ptr [esp + 2], offset KiIdt);
 		ASM(lidt [esp]);
+
+		// Load a default x87 state and mask all exception. This way, we can use fpu instructions without faulting (nanoprintf uses them when printing floats)
+		ASM(fninit);
+		ASM(push 0x0000027F);
+		ASM(fldcw word ptr [esp]);
 	ASM_END
 
 	KiInitializeKernel(); // won't return
