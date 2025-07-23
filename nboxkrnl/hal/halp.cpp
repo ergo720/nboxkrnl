@@ -228,7 +228,7 @@ NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmo
 
 	NTSTATUS Status = HalpSmbusStatus;
 	for (unsigned i = 0; i < HalpBlockAmount; ++i) {
-		*Buffer = HalpSmbusData[i];
+		Buffer[i] = HalpSmbusData[i];
 	}
 
 	KeSetEvent(&HalpSmbusLock, 0, FALSE);
