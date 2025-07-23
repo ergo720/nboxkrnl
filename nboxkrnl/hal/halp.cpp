@@ -25,13 +25,6 @@
 #define CMOS_PORT_DATA 0x71
 
 
-KDPC HalpSmbusDpcObject;
-NTSTATUS HalpSmbusStatus;
-BYTE HalpSmbusData[32];
-UCHAR HalpBlockAmount;
-KEVENT HalpSmbusLock;
-KEVENT HalpSmbusComplete;
-
 VOID HalpInitPIC()
 {
 	outb(PIC_MASTER_CMD, ICW1_ICW4_NEEDED | ICW1_CASCADE | ICW1_INTERVAL8 | ICW1_EDGE | ICW1_INIT);
@@ -172,7 +165,7 @@ VOID HalpExecuteBlockReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode)
 {
 	outb(SMBUS_ADDRESS, SlaveAddress | HA_RC);
 	outb(SMBUS_COMMAND, CommandCode);
-	outb(SMBUS_DATA, HalpBlockAmount);
+	outb(SMBUS_DATA, HalpSmbusCycleInfo.BlockAmount);
 	outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BLOCK);
 }
 
@@ -180,8 +173,8 @@ VOID HalpExecuteBlockWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, PBYT
 {
 	outb(SMBUS_ADDRESS, SlaveAddress & ~HA_RC);
 	outb(SMBUS_COMMAND, CommandCode);
-	outb(SMBUS_DATA, HalpBlockAmount);
-	for (unsigned i = 0; i < HalpBlockAmount; ++i) {
+	outb(SMBUS_DATA, HalpSmbusCycleInfo.BlockAmount);
+	for (unsigned i = 0; i < HalpSmbusCycleInfo.BlockAmount; ++i) {
 		outb(SMBUS_FIFO, Data[i]);
 	}
 	outb(SMBUS_CONTROL, GE_HOST_STC | GE_HCYC_EN | GE_RW_BLOCK);
@@ -193,23 +186,25 @@ VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemA
 
 	ULONG SmbusStatus = (ULONG)SystemArgument1;
 	if (SmbusStatus & GS_PRERR_STS) {
-		HalpSmbusStatus = STATUS_IO_DEVICE_ERROR;
-		memset(HalpSmbusData, 0, 32);
+		HalpSmbusCycleInfo.Status = STATUS_IO_DEVICE_ERROR;
+		memset(HalpSmbusCycleInfo.Data, 0, 32);
 	}
 	else {
-		HalpSmbusStatus = STATUS_SUCCESS;
-		if (HalpBlockAmount) {
-			for (unsigned i = 0; i < HalpBlockAmount; ++i) {
-				HalpSmbusData[i] = inb(SMBUS_FIFO);
+		HalpSmbusCycleInfo.Status = STATUS_SUCCESS;
+		if (HalpSmbusCycleInfo.IsWrite == FALSE) {
+			if (HalpSmbusCycleInfo.BlockAmount) {
+				for (unsigned i = 0; i < HalpSmbusCycleInfo.BlockAmount; ++i) {
+					HalpSmbusCycleInfo.Data[i] = inb(SMBUS_FIFO);
+				}
 			}
-		}
-		else {
-			PULONG Buffer = (PULONG)HalpSmbusData;
-			*Buffer = inw(SMBUS_DATA);
+			else {
+				PULONG Buffer = (PULONG)HalpSmbusCycleInfo.Data;
+				*Buffer = inw(SMBUS_DATA);
+			}
 		}
 	}
 
-	KeSetEvent(&HalpSmbusComplete, 0, FALSE);
+	KeSetEvent(&HalpSmbusCycleInfo.EventComplete, 0, FALSE);
 }
 
 NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmount, BYTE *Buffer)
@@ -219,19 +214,20 @@ NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmo
 	}
 
 	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
-	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+	KeWaitForSingleObject(&HalpSmbusCycleInfo.EventLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
 
-	HalpBlockAmount = ReadAmount;
+	HalpSmbusCycleInfo.IsWrite = FALSE;
+	HalpSmbusCycleInfo.BlockAmount = ReadAmount;
 	HalpExecuteBlockReadSmbusCycle(SlaveAddress, CommandCode);
 
-	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+	KeWaitForSingleObject(&HalpSmbusCycleInfo.EventComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
 
-	NTSTATUS Status = HalpSmbusStatus;
-	for (unsigned i = 0; i < HalpBlockAmount; ++i) {
-		Buffer[i] = HalpSmbusData[i];
+	NTSTATUS Status = HalpSmbusCycleInfo.Status;
+	for (unsigned i = 0; i < HalpSmbusCycleInfo.BlockAmount; ++i) {
+		Buffer[i] = HalpSmbusCycleInfo.Data[i];
 	}
 
-	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
 	KeLeaveCriticalRegion();
 
 	return Status;
@@ -244,16 +240,17 @@ NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteA
 	}
 
 	KeEnterCriticalRegion(); // prevent suspending this thread while we hold the smbus lock below
-	KeWaitForSingleObject(&HalpSmbusLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
+	KeWaitForSingleObject(&HalpSmbusCycleInfo.EventLock, Executive, KernelMode, FALSE, nullptr); // prevent concurrent smbus cycles
 
-	HalpBlockAmount = WriteAmount;
+	HalpSmbusCycleInfo.IsWrite = TRUE;
+	HalpSmbusCycleInfo.BlockAmount = WriteAmount;
 	HalpExecuteBlockWriteSmbusCycle(SlaveAddress, CommandCode, Buffer);
 
-	KeWaitForSingleObject(&HalpSmbusComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
+	KeWaitForSingleObject(&HalpSmbusCycleInfo.EventComplete, Executive, KernelMode, FALSE, nullptr); // wait until the cycle is completed by the dpc
 
-	NTSTATUS Status = HalpSmbusStatus;
+	NTSTATUS Status = HalpSmbusCycleInfo.Status;
 
-	KeSetEvent(&HalpSmbusLock, 0, FALSE);
+	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
 	KeLeaveCriticalRegion();
 
 	return Status;

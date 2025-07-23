@@ -78,12 +78,15 @@
 #define SMC_VIDEO_MODE_NONE      0x07
 
 
-extern KDPC HalpSmbusDpcObject;
-extern NTSTATUS HalpSmbusStatus;
-extern BYTE HalpSmbusData[32];
-extern UCHAR HalpBlockAmount;
-extern KEVENT HalpSmbusLock;
-extern KEVENT HalpSmbusComplete;
+inline KDPC HalpSmbusDpcObject;
+inline struct SMBUS_CYCLE_INFO {
+	NTSTATUS Status;
+	BYTE Data[32];
+	UCHAR BlockAmount;
+	BOOLEAN IsWrite;
+	KEVENT EventLock;
+	KEVENT EventComplete;
+} HalpSmbusCycleInfo;
 
 VOID XBOXAPI HalpSwIntApc();
 VOID XBOXAPI HalpSwIntDpc();
