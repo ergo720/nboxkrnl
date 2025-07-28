@@ -130,8 +130,7 @@ struct MMGLOBALDATA {
 	PVOID *VadFreeHint;
 };
 
-struct MM_STATISTICS
-{
+struct MM_STATISTICS {
 	ULONG Length;
 	ULONG TotalPhysicalPages;
 	ULONG AvailablePages;

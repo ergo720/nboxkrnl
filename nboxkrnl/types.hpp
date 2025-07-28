@@ -4,6 +4,10 @@
 
 #pragma once
 
+// WARNING: apparently, the inline assembler of MSVC has a problem when accessing struct members as memory operands with instructions such as MOV and POP.
+// In this case, the assembler sometimes emits isntructions that access them as if they were bytes, instead of dwords, which can then cause subtle bugs. To
+// avoid the problem, be sure to always specify the memory operand size in the instructions, instead of letting the assembler guess it
+
 // Workaround fix for using clang-format with WhitespaceSensitiveMacros option
 // However, clang-format will not format inside the parentheses bracket.
 #define ASM(...) __asm __VA_ARGS__

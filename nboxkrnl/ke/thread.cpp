@@ -25,13 +25,13 @@ VOID XBOXAPI KiSuspendThread(PVOID NormalContext, PVOID SystemArgument1, PVOID S
 
 [[noreturn]] static VOID __declspec(naked) XBOXAPI KiThreadStartup()
 {
-	// This function is called from KiSwapThreadContext when a new thread is run for the first time
+	// This function is called from KiSwapThreadContext when a new thread is run for the first time ever
 	// On entry, the esp points to a PKSTART_FRAME
 
 	ASM_BEGIN
 		ASM(mov cl, PASSIVE_LEVEL);
 		ASM(call KfLowerIrql);
-		ASM(mov ecx, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov ecx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
 		ASM(movzx ecx, byte ptr [ecx]KTHREAD.HasTerminated); // make sure that PsCreateSystemThreadEx actually succeeded
 		ASM(test ecx, ecx);
 		ASM(jz thread_start);
@@ -204,31 +204,31 @@ DWORD __declspec(naked) KiSwapThreadContext()
 	// or it will be the address of KiThreadStartup when the thread is executed for the first time ever
 
 	ASM_BEGIN
-		ASM(mov [edi]KTHREAD.State, Running);
+		ASM(mov byte ptr [edi]KTHREAD.State, Running);
 		// Construct a KSWITCHFRAME on the stack (note that RetAddr was pushed by the call instruction to this function)
 		ASM(or bl, bl); // set zf in the saved eflags so that it will reflect the IRQL of the previous thread
 		ASM(pushfd); // save eflags
-		ASM(push [KiPcr]KPCR.NtTib.ExceptionList); // save per-thread exception list
+		ASM(push dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // save per-thread exception list
 		ASM(cli);
-		ASM(mov [esi]KTHREAD.KernelStack, esp); // save esp
+		ASM(mov dword ptr [esi]KTHREAD.KernelStack, esp); // save esp
 		// The floating state is saved in a lazy manner, because it's expensive to save it at every context switch. Instead of actually saving it here, we
 		// only set flags in cr0 so that an attempt to use any fpu/mmx/sse instructions will cause a "no math coprocessor" exception, which is then handled
-		// by the kernel in KiTrap7 and it's there where the float context is restored
-		ASM(mov ecx, [edi]KTHREAD.StackBase);
+		// by the kernel in KiTrapNM and it's there where the floating context is restored
+		ASM(mov ecx, dword ptr [edi]KTHREAD.StackBase);
 		ASM(sub ecx, SIZE FX_SAVE_AREA);
-		ASM(mov [KiPcr]KPCR.NtTib.StackBase, ecx);
-		ASM(mov eax, [edi]KTHREAD.StackLimit);
-		ASM(mov [KiPcr]KPCR.NtTib.StackLimit, eax);
+		ASM(mov dword ptr [KiPcr]KPCR.NtTib.StackBase, ecx);
+		ASM(mov eax, dword ptr [edi]KTHREAD.StackLimit);
+		ASM(mov dword ptr [KiPcr]KPCR.NtTib.StackLimit, eax);
 		ASM(mov eax, cr0);
 		ASM(and eax, ~(CR0_MP | CR0_EM | CR0_TS));
-		ASM(or eax, [ecx]FLOATING_SAVE_AREA.Cr0NpxState);
+		ASM(or eax, dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState);
 		ASM(mov cr0, eax);
-		ASM(mov esp, [edi]KTHREAD.KernelStack); // switch to the stack of the new thread -> it points to a KSWITCHFRAME
+		ASM(mov esp, dword ptr [edi]KTHREAD.KernelStack); // switch to the stack of the new thread -> it points to a KSWITCHFRAME
 		ASM(sti);
-		ASM(inc [edi]KTHREAD.ContextSwitches); // per-thread number of context switches
+		ASM(inc dword ptr [edi]KTHREAD.ContextSwitches); // per-thread number of context switches
 		ASM(inc [KiPcr]KPCR.PrcbData.KeContextSwitches); // total number of context switches
-		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // restore exception list; NOTE: dword ptr required or else MSVC will access ExceptionList as a byte
-		ASM(cmp [edi]KTHREAD.ApcState.KernelApcPending, 0);
+		ASM(pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList); // restore exception list
+		ASM(cmp byte ptr [edi]KTHREAD.ApcState.KernelApcPending, 0);
 		ASM(jnz kernel_apc);
 		ASM(popfd); // restore eflags
 		ASM(xor eax, eax);
@@ -393,7 +393,7 @@ NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 	// On entry, IRQL must be at DISPATCH_LEVEL
 
 	ASM_BEGIN
-		ASM(mov eax, [KiPcr]KPCR.PrcbData.NextThread);
+		ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.NextThread);
 		ASM(test eax, eax);
 		ASM(jnz thread_switch); // check to see if a new thread was selected by the scheduler
 		ASM(push LOW_PRIORITY);
@@ -407,14 +407,14 @@ NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 		ASM(push ebx);
 		ASM(push ebp);
 		ASM(mov edi, eax);
-		ASM(mov esi, [KiPcr]KPCR.PrcbData.CurrentThread);
-		ASM(mov [KiPcr]KPCR.PrcbData.CurrentThread, edi);
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will access NextThread as a byte
+		ASM(mov esi, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.CurrentThread, edi);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0);
 		ASM(movzx ebx, byte ptr [esi]KTHREAD.WaitIrql);
 		ASM(call KiSwapThreadContext); // when this returns, it means this thread was switched back again
 		ASM(test eax, eax);
 		ASM(mov cl, byte ptr [edi]KTHREAD.WaitIrql);
-		ASM(mov ebx, [edi]KTHREAD.WaitStatus);
+		ASM(mov ebx, dword ptr [edi]KTHREAD.WaitStatus);
 		ASM(jnz deliver_apc);
 	restore_regs:
 		ASM(call KfLowerIrql);
@@ -438,7 +438,7 @@ NTSTATUS __declspec(naked) XBOXAPI KiSwapThread()
 
 EXPORTNUM(104) PKTHREAD XBOXAPI KeGetCurrentThread()
 {
-	ASM(mov eax, [KiPcr]KPCR.PrcbData.CurrentThread);
+	ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
 }
 
 EXPORTNUM(140) ULONG XBOXAPI KeResumeThread

@@ -54,12 +54,12 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 		ASM(sub esp, 24); \
 		ASM(mov ebp, esp); \
 		ASM(cld); \
-		ASM(mov ebx, [ebp]KTRAP_FRAME.Ebp); \
-		ASM(mov edi, [ebp]KTRAP_FRAME.Eip); \
-		ASM(mov [ebp]KTRAP_FRAME.DbgArgPointer, 0); \
-		ASM(mov [ebp]KTRAP_FRAME.DbgArgMark, 0xDEADBEEF); \
-		ASM(mov [ebp]KTRAP_FRAME.DbgEip, edi); \
-		ASM(mov [ebp]KTRAP_FRAME.DbgEbp, ebx); \
+		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Ebp); \
+		ASM(mov edi, dword ptr [ebp]KTRAP_FRAME.Eip); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.DbgArgPointer, 0); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.DbgArgMark, 0xDEADBEEF); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.DbgEip, edi); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.DbgEbp, ebx); \
 	ASM_END
 
 #define CREATE_KTRAP_FRAME_WITH_CODE \
@@ -74,7 +74,6 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 		CREATE_KTRAP_FRAME \
 	ASM_END
 
-// dword ptr required or else MSVC will access ExceptionList as a byte
 #define CREATE_KTRAP_FRAME_FOR_INT \
 	ASM_BEGIN \
 		CREATE_KTRAP_FRAME_NO_CODE \
@@ -84,13 +83,13 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 #define CREATE_EXCEPTION_RECORD_ARG0 \
 	ASM_BEGIN \
 		ASM(sub esp, SIZE EXCEPTION_RECORD); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionCode, eax); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionFlags, 0); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionRecord, 0); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionAddress, ebx); \
-		ASM(mov [esp]EXCEPTION_RECORD.NumberParameters, 0); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionInformation[0], 0); \
-		ASM(mov [esp]EXCEPTION_RECORD.ExceptionInformation[1], 0); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionCode, eax); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionFlags, 0); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionRecord, 0); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionAddress, ebx); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.NumberParameters, 0); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionInformation[0], 0); \
+		ASM(mov dword ptr [esp]EXCEPTION_RECORD.ExceptionInformation[1], 0); \
 	ASM_END
 
 #define HANDLE_EXCEPTION \
@@ -104,14 +103,14 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 #define EXIT_EXCEPTION \
 	ASM_BEGIN \
 		ASM(cli); \
-		ASM(mov edx, [ebp]KTRAP_FRAME.ExceptionList); \
+		ASM(mov edx, dword ptr [ebp]KTRAP_FRAME.ExceptionList); \
 		ASM(mov dword ptr fs:[0], edx); \
-		ASM(test [ebp]KTRAP_FRAME.SegCs, SELECTOR_MASK); \
+		ASM(test dword ptr [ebp]KTRAP_FRAME.SegCs, SELECTOR_MASK); \
 		ASM(jz esp_changed); \
-		ASM(mov eax, [ebp]KTRAP_FRAME.Eax); \
-		ASM(mov edx, [ebp]KTRAP_FRAME.Edx); \
-		ASM(mov ecx, [ebp]KTRAP_FRAME.Ecx); \
-		ASM(lea esp, [ebp]KTRAP_FRAME.Edi); \
+		ASM(mov eax, dword ptr [ebp]KTRAP_FRAME.Eax); \
+		ASM(mov edx, dword ptr [ebp]KTRAP_FRAME.Edx); \
+		ASM(mov ecx, dword ptr [ebp]KTRAP_FRAME.Ecx); \
+		ASM(lea esp, dword ptr [ebp]KTRAP_FRAME.Edi); \
 		ASM(pop edi); \
 		ASM(pop esi); \
 		ASM(pop ebx); \
@@ -119,21 +118,21 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 		ASM(add esp, 4); \
 		ASM(iretd); \
 		ASM(esp_changed:); \
-		ASM(mov ebx, [ebp]KTRAP_FRAME.TempSegCs); \
-		ASM(mov [ebp]KTRAP_FRAME.SegCs, ebx); \
-		ASM(mov ebx, [ebp]KTRAP_FRAME.TempEsp); \
+		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.TempSegCs); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.SegCs, ebx); \
+		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.TempEsp); \
 		ASM(sub ebx, 12); \
-		ASM(mov [ebp]KTRAP_FRAME.ErrCode, ebx); \
-		ASM(mov esi, [ebp]KTRAP_FRAME.EFlags); \
+		ASM(mov dword ptr [ebp]KTRAP_FRAME.ErrCode, ebx); \
+		ASM(mov esi, dword ptr [ebp]KTRAP_FRAME.EFlags); \
 		ASM(mov [ebx + 8], esi); \
-		ASM(mov esi, [ebp]KTRAP_FRAME.SegCs); \
+		ASM(mov esi, dword ptr [ebp]KTRAP_FRAME.SegCs); \
 		ASM(mov [ebx + 4], esi); \
-		ASM(mov esi, [ebp]KTRAP_FRAME.Eip); \
+		ASM(mov esi, dword ptr [ebp]KTRAP_FRAME.Eip); \
 		ASM(mov [ebx], esi); \
-		ASM(mov eax, [ebp]KTRAP_FRAME.Eax); \
-		ASM(mov edx, [ebp]KTRAP_FRAME.Edx); \
-		ASM(mov ecx, [ebp]KTRAP_FRAME.Ecx); \
-		ASM(lea esp, [ebp]KTRAP_FRAME.Edi); \
+		ASM(mov eax, dword ptr [ebp]KTRAP_FRAME.Eax); \
+		ASM(mov edx, dword ptr [ebp]KTRAP_FRAME.Edx); \
+		ASM(mov ecx, dword ptr [ebp]KTRAP_FRAME.Ecx); \
+		ASM(lea esp, dword ptr [ebp]KTRAP_FRAME.Edi); \
 		ASM(pop edi); \
 		ASM(pop esi); \
 		ASM(pop ebx); \
@@ -144,12 +143,12 @@ using PKTRAP_FRAME = KTRAP_FRAME *;
 
 #define EXIT_INTERRUPT \
 	ASM_BEGIN \
-		ASM(mov edx, [ebp]KTRAP_FRAME.ExceptionList); \
+		ASM(mov edx, dword ptr [ebp]KTRAP_FRAME.ExceptionList); \
 		ASM(mov dword ptr fs:[0], edx); \
-		ASM(mov eax, [ebp]KTRAP_FRAME.Eax); \
-		ASM(mov edx, [ebp]KTRAP_FRAME.Edx); \
-		ASM(mov ecx, [ebp]KTRAP_FRAME.Ecx); \
-		ASM(lea esp, [ebp]KTRAP_FRAME.Edi); \
+		ASM(mov eax, dword ptr [ebp]KTRAP_FRAME.Eax); \
+		ASM(mov edx, dword ptr [ebp]KTRAP_FRAME.Edx); \
+		ASM(mov ecx, dword ptr [ebp]KTRAP_FRAME.Ecx); \
+		ASM(lea esp, dword ptr [ebp]KTRAP_FRAME.Edi); \
 		ASM(pop edi); \
 		ASM(pop esi); \
 		ASM(pop ebx); \

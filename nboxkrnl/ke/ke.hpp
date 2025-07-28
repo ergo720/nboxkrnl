@@ -48,43 +48,43 @@
 // the accesses are atomic and thus thread-safe
 #define KeGetStackBase(var) \
 	ASM_BEGIN \
-		ASM(mov eax, [KiPcr].NtTib.StackBase); \
+		ASM(mov eax, dword ptr [KiPcr].NtTib.StackBase); \
 		ASM(mov var, eax); \
 	ASM_END
 
 #define KeGetStackLimit(var) \
 	ASM_BEGIN \
-		ASM(mov eax, [KiPcr].NtTib.StackLimit); \
+		ASM(mov eax, dword ptr [KiPcr].NtTib.StackLimit); \
 		ASM(mov var, eax); \
 	ASM_END
 
 #define KeGetExceptionHead(var) \
 	ASM_BEGIN \
-		ASM(mov eax, [KiPcr].NtTib.ExceptionList); \
+		ASM(mov eax, dword ptr [KiPcr].NtTib.ExceptionList); \
 		ASM(mov dword ptr var, eax); \
 	ASM_END
 
 #define KeSetExceptionHead(var) \
 	ASM_BEGIN \
 		ASM(mov eax, dword ptr var); \
-		ASM(mov [KiPcr].NtTib.ExceptionList, eax); \
+		ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax); \
 	ASM_END
 
 #define KeResetExceptionHead(var) \
 	ASM_BEGIN \
 		ASM(mov eax, dword ptr var); \
-		ASM(mov [KiPcr].NtTib.ExceptionList, eax); \
+		ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax); \
 	ASM_END
 
 #define KeGetDpcStack(var) \
 	ASM_BEGIN \
-		ASM(mov eax, [KiPcr].PrcbData.DpcStack); \
+		ASM(mov eax, dword ptr [KiPcr].PrcbData.DpcStack); \
 		ASM(mov var, eax); \
 	ASM_END
 
 #define KeGetDpcActive(var) \
 	ASM_BEGIN \
-		ASM(mov eax, [KiPcr].PrcbData.DpcRoutineActive); \
+		ASM(mov eax, dword ptr [KiPcr].PrcbData.DpcRoutineActive); \
 		ASM(mov var, eax); \
 	ASM_END
 
@@ -327,7 +327,7 @@ struct KTHREAD {
 	DISPATCHER_HEADER Header;
 	LIST_ENTRY MutantListHead;
 	ULONG KernelTime;
-	PVOID StackBase;
+	PVOID StackBase; // not subtracted by sizeof(FX_SAVE_AREA) -> it points to the top of the stack
 	PVOID StackLimit;
 	PVOID KernelStack;
 	PVOID TlsData;

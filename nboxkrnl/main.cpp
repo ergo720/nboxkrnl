@@ -59,7 +59,7 @@
 		ASM(mov dword ptr [esp + 2], offset KiIdt);
 		ASM(lidt [esp]);
 
-		// Load a default x87 state and mask all exception. This way, we can use fpu instructions without faulting (nanoprintf uses them when printing floats)
+		// Load a default x87 state and mask all exceptions. This way, we can use fpu instructions without faulting (nanoprintf uses them when printing floats)
 		ASM(fninit);
 		ASM(push 0x0000027F);
 		ASM(fldcw word ptr [esp]);

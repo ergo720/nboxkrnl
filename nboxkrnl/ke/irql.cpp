@@ -105,12 +105,12 @@ EXPORTNUM(163) __declspec(naked) VOID FASTCALL KiUnlockDispatcherDatabase
 )
 {
 	ASM_BEGIN
-		ASM(mov eax, [KiPcr]KPCR.PrcbData.NextThread);
+		ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.NextThread);
 		ASM(test eax, eax);
 		ASM(jz end_func); // check to see if a new thread was selected by the scheduler
 		ASM(cmp cl, DISPATCH_LEVEL);
 		ASM(jb thread_switch); // check to see if we can context switch to the new thread
-		ASM(mov eax, [KiPcr]KPCR.PrcbData.DpcRoutineActive);
+		ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.DpcRoutineActive);
 		ASM(jnz end_func); // we can't, so request a dispatch interrupt if we are not running a DPC already
 		ASM(push ecx);
 		ASM(mov cl, DISPATCH_LEVEL);
@@ -124,12 +124,12 @@ EXPORTNUM(163) __declspec(naked) VOID FASTCALL KiUnlockDispatcherDatabase
 		ASM(push ebx);
 		ASM(push ebp);
 		ASM(mov edi, eax);
-		ASM(mov esi, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov esi, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
 		ASM(mov byte ptr [esi]KTHREAD.WaitIrql, cl); // we still need to lower the IRQL when this thread is switched back, so save it for later use
 		ASM(mov ecx, esi);
 		ASM(call KeAddThreadToTailOfReadyList);
-		ASM(mov [KiPcr]KPCR.PrcbData.CurrentThread, edi);
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0); // dword ptr required or else MSVC will access NextThread as a byte
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.CurrentThread, edi);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0);
 		ASM(movzx ebx, byte ptr [esi]KTHREAD.WaitIrql);
 		ASM(call KiSwapThreadContext); // when this returns, it means this thread was switched back again
 		ASM(test eax, eax);

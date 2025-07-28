@@ -22,7 +22,7 @@ void __declspec(naked) XBOXAPI KiTrapDE()
 		CREATE_KTRAP_FRAME_NO_CODE;
 		ASM(sti);
 		ASM(mov eax, 0xC0000094); // STATUS_INTEGER_DIVIDE_BY_ZERO
-		ASM(mov ebx, [ebp]KTRAP_FRAME.Eip);
+		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip);
 		CREATE_EXCEPTION_RECORD_ARG0;
 		HANDLE_EXCEPTION;
 		EXIT_EXCEPTION;
@@ -65,25 +65,25 @@ void __declspec(naked) XBOXAPI KiTrapNM()
 
 	ASM_BEGIN
 		CREATE_KTRAP_FRAME_NO_CODE;
-		ASM(mov edx, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
 		ASM(cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
 		ASM(je unexpected_exp);
 		ASM(mov eax, cr0);
 		ASM(and eax, ~(CR0_MP | CR0_EM | CR0_TS)); // allow executing fpu instructions
 		ASM(mov cr0, eax);
-		ASM(mov eax, [KiPcr]KPCR.PrcbData.NpxThread);
+		ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.NpxThread);
 		ASM(test eax, eax);
 		ASM(jz no_npx_thread); // NpxThread can be nullptr when no thread has loaded the floating state
-		ASM(mov ecx, [eax]KTHREAD.StackBase);
+		ASM(mov ecx, dword ptr [eax]KTHREAD.StackBase);
 		ASM(sub ecx, SIZE FX_SAVE_AREA); // points to FLOATING_SAVE_AREA of NpxThread
 		ASM(fxsave [ecx]);
-		ASM(mov [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED);
+		ASM(mov dword ptr [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED);
 	no_npx_thread:
-		ASM(mov ecx, [edx]KTHREAD.StackBase);
+		ASM(mov ecx, dword ptr [edx]KTHREAD.StackBase);
 		ASM(sub ecx, SIZE FX_SAVE_AREA); // points to FLOATING_SAVE_AREA of CurrentThread
 		ASM(fxrstor [ecx]);
 		ASM(and dword ptr [edx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS)); // allow executing fpu instructions for this thread only
-		ASM(mov [KiPcr]KPCR.PrcbData.NpxThread, edx);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, edx);
 		ASM(mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
 		ASM(jmp exit_exp);
 	unexpected_exp:
@@ -124,13 +124,13 @@ void __declspec(naked) XBOXAPI KiTrapPF()
 {
 	ASM_BEGIN
 		CREATE_KTRAP_FRAME_WITH_CODE;
-		ASM(push [ebp]KTRAP_FRAME.Eip);
+		ASM(push dword ptr [ebp]KTRAP_FRAME.Eip);
 		ASM(mov edx, cr2);
 		ASM(push edx);
 		ASM(call MiPageFaultHandler);
 		ASM(sti);
 		ASM(mov eax, 0xC0000005); // STATUS_ACCESS_VIOLATION
-		ASM(mov ebx, [ebp]KTRAP_FRAME.Eip);
+		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip);
 		CREATE_EXCEPTION_RECORD_ARG0;
 		HANDLE_EXCEPTION;
 		EXIT_EXCEPTION;
@@ -203,7 +203,7 @@ static VOID KiFlushNPXState()
 	ASM_BEGIN
 		ASM(pushfd);
 		ASM(cli);
-		ASM(mov edx, [KiPcr]KPCR.PrcbData.CurrentThread);
+		ASM(mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
 		ASM(cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
 		ASM(jne not_loaded);
 		ASM(mov eax, cr0);
@@ -212,10 +212,10 @@ static VOID KiFlushNPXState()
 		ASM(and eax, ~(CR0_MP | CR0_EM | CR0_TS));
 		ASM(mov cr0, eax);
 	no_fpu_exp:
-		ASM(mov ecx, [KiPcr]KPCR.NtTib.StackBase);
+		ASM(mov ecx, dword ptr [KiPcr]KPCR.NtTib.StackBase);
 		ASM(fxsave [ecx]);
 		ASM(mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED);
-		ASM(mov [KiPcr]KPCR.PrcbData.NpxThread, 0);
+		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, 0);
 		ASM(or eax, NPX_STATE_NOT_LOADED);
 		ASM(or dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, NPX_STATE_NOT_LOADED); // block executing fpu instructions for this thread only
 		ASM(mov cr0, eax);

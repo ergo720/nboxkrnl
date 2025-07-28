@@ -370,10 +370,10 @@ EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 
 	ASM_BEGIN
 		ASM(mov ecx, CriticalSection);
-		ASM(dec [ecx]RTL_CRITICAL_SECTION.RecursionCount);
+		ASM(dec dword ptr [ecx]RTL_CRITICAL_SECTION.RecursionCount);
 		ASM(jnz dec_count);
-		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
-		ASM(mov [ecx]RTL_CRITICAL_SECTION.OwningThread, 0);
+		ASM(dec dword ptr [ecx]RTL_CRITICAL_SECTION.LockCount);
+		ASM(mov dword ptr [ecx]RTL_CRITICAL_SECTION.OwningThread, 0);
 		ASM(jl not_signalled);
 		ASM(push FALSE);
 		ASM(push PRIORITY_BOOST_EVENT);
@@ -383,7 +383,7 @@ EXPORTNUM(295) VOID XBOXAPI RtlLeaveCriticalSectionAndRegion
 		ASM(call KeLeaveCriticalRegion);
 		ASM(jmp end_func);
 	dec_count:
-		ASM(dec [ecx]RTL_CRITICAL_SECTION.LockCount);
+		ASM(dec dword ptr [ecx]RTL_CRITICAL_SECTION.LockCount);
 	end_func:
 	ASM_END
 }

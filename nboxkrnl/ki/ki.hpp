@@ -107,7 +107,7 @@ using PKPRCB = KPRCB *;
 
 struct NT_TIB {
 	struct EXCEPTION_REGISTRATION_RECORD *ExceptionList;
-	PVOID StackBase;
+	PVOID StackBase; // already subtracted by sizeof(FX_SAVE_AREA)
 	PVOID StackLimit;
 	PVOID SubSystemTib;
 	union {

@@ -94,11 +94,11 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 		ASM(sub esp, SIZE CONTEXT);
 		ASM(push esp);
 		ASM(call RtlCaptureContext);
-		ASM(add [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
-		ASM(mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
+		ASM(add dword ptr [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
+		ASM(mov dword ptr [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
 		ASM(mov eax, [ebp + 8]);
 		ASM(mov ecx, [ebp + 4]);
-		ASM(mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		ASM(mov dword ptr [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
 		ASM(mov ecx, esp);
 		ASM(push TRUE);
 		ASM(push ecx);

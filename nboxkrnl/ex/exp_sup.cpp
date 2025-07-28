@@ -18,11 +18,11 @@ EXPORTNUM(26) __declspec(naked) VOID XBOXAPI ExRaiseException
 		ASM(sub esp, SIZE CONTEXT);
 		ASM(push esp);
 		ASM(call RtlCaptureContext);
-		ASM(add [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
-		ASM(mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
-		ASM(mov eax, [ebp + 8]);
-		ASM(mov ecx, [ebp + 4]);
-		ASM(mov [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		ASM(add dword ptr [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
+		ASM(mov dword ptr [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
+		ASM(mov eax, dword ptr [ebp + 8]);
+		ASM(mov ecx, dword ptr [ebp + 4]);
+		ASM(mov dword ptr [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
 		ASM(push esp);
 		ASM(push eax);
 		ASM(call RtlDispatchException);
@@ -34,7 +34,7 @@ EXPORTNUM(26) __declspec(naked) VOID XBOXAPI ExRaiseException
 		ASM(jz exp_unhandled);
 		ASM(call ZwContinue); // won't return
 	exp_unhandled:
-		ASM(push [ebp + 8]);
+		ASM(push dword ptr [ebp + 8]);
 		ASM(call ZwRaiseException); // won't return
 	ASM_END
 }
@@ -50,16 +50,16 @@ EXPORTNUM(27) __declspec(naked) VOID XBOXAPI ExRaiseStatus
 		ASM(sub esp, SIZE CONTEXT + SIZE EXCEPTION_RECORD);
 		ASM(push esp);
 		ASM(call RtlCaptureContext);
-		ASM(add [esp]CONTEXT.Esp, 4); // pop Status argument
-		ASM(mov [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
-		ASM(lea ecx, [ebp - SIZE EXCEPTION_RECORD]);
-		ASM(mov eax, [ebp + 8]);
-		ASM(mov [ecx]EXCEPTION_RECORD.ExceptionCode, eax); // set ExceptionCode member of ExceptionRecord to Status argument
-		ASM(mov [ecx]EXCEPTION_RECORD.ExceptionFlags, EXCEPTION_NONCONTINUABLE);
-		ASM(mov [ecx]EXCEPTION_RECORD.ExceptionRecord, 0);
-		ASM(mov eax, [ebp + 4]);
-		ASM(mov [ecx]EXCEPTION_RECORD.ExceptionAddress, eax); // set ExceptionAddress member of ExceptionRecord to caller's eip
-		ASM(mov [ecx]EXCEPTION_RECORD.NumberParameters, 0);
+		ASM(add dword ptr [esp]CONTEXT.Esp, 4); // pop Status argument
+		ASM(mov dword ptr [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
+		ASM(lea ecx, dword ptr [ebp - SIZE EXCEPTION_RECORD]);
+		ASM(mov eax, dword ptr [ebp + 8]);
+		ASM(mov dword ptr [ecx]EXCEPTION_RECORD.ExceptionCode, eax); // set ExceptionCode member of ExceptionRecord to Status argument
+		ASM(mov dword ptr [ecx]EXCEPTION_RECORD.ExceptionFlags, EXCEPTION_NONCONTINUABLE);
+		ASM(mov dword ptr [ecx]EXCEPTION_RECORD.ExceptionRecord, 0);
+		ASM(mov eax, dword ptr [ebp + 4]);
+		ASM(mov dword ptr [ecx]EXCEPTION_RECORD.ExceptionAddress, eax); // set ExceptionAddress member of ExceptionRecord to caller's eip
+		ASM(mov dword ptr [ecx]EXCEPTION_RECORD.NumberParameters, 0);
 		ASM(push esp);
 		ASM(push ecx);
 		ASM(call RtlDispatchException);
