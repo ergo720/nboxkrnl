@@ -238,8 +238,17 @@ PFN_NUMBER MiRemoveAnyPageFromFreeList()
 	// The caller should have already checked that we have enough free pages available
 	assert(MiTotalPagesAvailable);
 
-	MiRemoveRetailPageFromFreeList();
-	MiRemoveDevkitPageFromFreeList();
+	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
+		if (MiRetailRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
+			return DecodeFreePfn(MiRetailRegion.FreeListHead[ListIdx].Blink, ListIdx);
+		}
+	}
+
+	for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
+		if (MiDevkitRegion.FreeListHead[ListIdx].Blink != PFN_LIST_END) {
+			return DecodeFreePfn(MiDevkitRegion.FreeListHead[ListIdx].Blink, ListIdx);
+		}
+	}
 
 	RIP_API_MSG("should always find a free page.");
 }
