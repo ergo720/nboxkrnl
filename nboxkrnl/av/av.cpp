@@ -5,6 +5,7 @@
 
 #include "ex.hpp"
 #include "hal.hpp"
+#include "halp.hpp"
 #include "rtl.hpp"
 #include "av.hpp"
 
@@ -124,6 +125,47 @@ static ULONG AvpQueryAvCapabilities()
 	return AvPack | (AvRegion & (AV_STANDARD_MASK | AV_REFRESH_MASK)) | (UserSettings & ~(AV_STANDARD_MASK | AV_PACK_MASK));
 }
 
+static VOID AvpSetFlickerFilter(ULONG Param)
+{
+	// This function sets the flicker filter used by the video encoder. We only support the conexant encoder here
+	// "Param" specifies the filter level to use. 0=disable, [1-5]=valid levels
+	// reg 0x34: ADPT_FF bit[7] -> disable(=0)/enable(=1) adaptive flicker filter
+	// reg 0x34: C_ALTFF bit[3-4] -> chroma alternate flicker filter selection (only effective when ADPT_FF=1)
+	// reg 0x34: Y_ALTFF bit[0-1] -> luma alternate flicker filter selection (only effective when ADPT_FF=1)
+	// reg 0xC8: DIS_YLPF bit[7] -> disable(=1)/enable(=0) luma initial horizontal low pass filter
+	// reg 0xC8: DIS_FFILT bit[6] -> disable(=1)/enable(=0) standard flicker filter
+	// reg 0xC8: F_SELC bit[3-5] -> chroma standard flicker filter
+	// reg 0xC8: F_SELY bit[0-2] -> luma standard flicker filter
+
+	if (Param == 0) {
+		ULONG Value = 0;
+		HalReadSMBusValue(CONEXANT_READ_ADDR, 0xC8, FALSE, &Value);
+		Value |= 0x40; // disable standard filter
+		HalWriteSMBusValue(CONEXANT_WRITE_ADDR, 0xC8, FALSE, Value);
+	}
+	else {
+		ULONG Level, Value = 0;
+		if (Param == 1) {
+			Level = 1; // selects lv 2
+		}
+		else if (Param == 2) {
+			Level = 2; // selects lv 3
+		}
+		else if (Param == 3) {
+			Level = 3; // selects lv 4
+		}
+		else {
+			Level = 0; // selects lv 5 (max)
+		}
+
+		HalReadSMBusValue(CONEXANT_READ_ADDR, 0xC8, FALSE, &Value);
+		Value &= 0x80; // preserve DIS_YLPF and clear the rest
+		Value |= (Level | (Level << 3)); // set level for chroma and luma
+		HalWriteSMBusValue(CONEXANT_WRITE_ADDR, 0xC8, FALSE, Value);
+		HalWriteSMBusValue(CONEXANT_WRITE_ADDR, 0x34, FALSE, Param == 5 ? 0x80 : 0x00); // also enable the adaptive filter if we have set the standard filter at max level
+	}
+}
+
 EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 (
 	PVOID RegisterBase,
@@ -136,6 +178,10 @@ EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 	{
 	case AV_QUERY_AV_CAPABILITIES:
 		*Result = AvpQueryAvCapabilities();
+		break;
+
+	case AV_OPTION_FLICKER_FILTER:
+		AvpSetFlickerFilter(Param);
 		break;
 
 	default:

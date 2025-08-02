@@ -66,6 +66,8 @@
 #define EEPROM_READ_ADDR 0xA9
 #define SMC_WRITE_ADDR 0x20
 #define SMC_READ_ADDR 0x21
+#define CONEXANT_WRITE_ADDR 0x8A
+#define CONEXANT_READ_ADDR 0x8B
 
 // SMC video mode values
 #define SMC_VIDEO_MODE_COMMAND   0x04
