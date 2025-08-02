@@ -166,6 +166,22 @@ static VOID AvpSetFlickerFilter(ULONG Param)
 	}
 }
 
+static VOID AvpSetLumaFilter(ULONG Param)
+{
+	// This function sets the luma post-flicker filter/scaler horizontal low pass filter used by the video encoder. We only support the conexant encoder here
+	// "Param" specifies the luma filter level to use. 0=disable, 1=enable
+	// reg 0x96: CLPF bit[6-7] -> bypass(=0) chroma post-flicker filter/scaler horizontal low pass filter
+	// reg 0x96: YLPF bit[4-5] -> bypass(=0)/LPF1 setting(=1) luma post-flicker filter/scaler horizontal low pass filter
+
+	ULONG Value = 0;
+	HalReadSMBusValue(CONEXANT_READ_ADDR, 0x96, FALSE, &Value);
+	Value &= 0x0F; // bypass chroma filter
+	if (Param) {
+		Value |= 0x10; // enable LPF1 setting
+	}
+	HalWriteSMBusValue(CONEXANT_WRITE_ADDR, 0x96, FALSE, Value);
+}
+
 EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 (
 	PVOID RegisterBase,
@@ -182,6 +198,10 @@ EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 
 	case AV_OPTION_FLICKER_FILTER:
 		AvpSetFlickerFilter(Param);
+		break;
+
+	case AV_OPTION_ENABLE_LUMA_FILTER:
+		AvpSetLumaFilter(Param);
 		break;
 
 	default:
