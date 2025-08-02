@@ -400,7 +400,7 @@ ByPassPathCheck:
 		CreateOptions
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Header.Status);
+	NTSTATUS Status = InfoBlock.Header.NtStatus;
 	if (!NT_SUCCESS(Status)) {
 		if (FileInfoCreated) {
 			XdvdfsRemoveFile(VolumeExtension, FileInfo);
@@ -522,7 +522,7 @@ static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FileInfo->HostHandle
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	NTSTATUS Status = InfoBlock.NtStatus;
 	if (Status == STATUS_PENDING) {
 		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 		RIP_API_MSG("Asynchronous IO is not supported");

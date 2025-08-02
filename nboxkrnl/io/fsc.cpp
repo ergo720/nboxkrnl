@@ -304,7 +304,7 @@ Retry:
 
 		OldIrql = MiLock();
 
-		NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+		NTSTATUS Status = InfoBlock.NtStatus;
 		if (Status == STATUS_SUCCESS) {
 			Element->WriteInProgress = IsWrite ? 1 : 0;
 			*ReturnedBuffer = PVOID((ULONG(Element->CacheBuffer) & ~PAGE_MASK) + BYTE_OFFSET(ByteOffset));

@@ -695,7 +695,7 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		CreateOptions
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Header.Status);
+	NTSTATUS Status = InfoBlock.Header.NtStatus;
 	if (!NT_SUCCESS(Status)) {
 		if (UpdatedShareAccess) {
 			IoRemoveShareAccess(FileObject, &FileInfo->ShareAccess);
@@ -827,7 +827,7 @@ static NTSTATUS XBOXAPI FatxIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FatxTimeStamp
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	NTSTATUS Status = InfoBlock.NtStatus;
 	if (Status == STATUS_PENDING) {
 		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 		RIP_API_MSG("Asynchronous IO is not supported");
@@ -907,7 +907,7 @@ static NTSTATUS XBOXAPI FatxIrpWrite(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 		FatxTimeStamp
 	);
 
-	NTSTATUS Status = HostToNtStatus(InfoBlock.Status);
+	NTSTATUS Status = InfoBlock.NtStatus;
 	if (Status == STATUS_PENDING) {
 		// Should not happen right now, because RetrieveIoRequestFromHost is always synchronous
 		RIP_API_MSG("Asynchronous IO is not supported");

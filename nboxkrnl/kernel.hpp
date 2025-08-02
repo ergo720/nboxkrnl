@@ -161,7 +161,10 @@ struct IoRequest {
 
 struct IoInfoBlock {
 	ULONG Id; // id of the io request to query
-	IoStatus Status; // the final status of the request
+	union {
+		IoStatus HostStatus; // the final status of the request as received by the host
+		NTSTATUS NtStatus; // HostStatus converted to a status suitable for the kernel
+	};
 	IoInfo Info; // request-specific information
 	ULONG Ready; // set to 0 by the guest, then set to 1 by the host when the io request is complete
 };
@@ -217,7 +220,6 @@ IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG
 IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG Address, ULONG Handle, ULONG Timestamp);
 IoInfoBlockOc SubmitIoRequestToHost(ULONG Type, LONGLONG InitialSize, ULONG Size, ULONG Handle, ULONG Path, ULONG Attributes, ULONG Timestamp,
 	ULONG DesiredAccess, ULONG CreateOptions);
-NTSTATUS HostToNtStatus(IoStatus Status);
 VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime);
 
 VOID InitializeListHead(PLIST_ENTRY pListHead);

@@ -186,6 +186,50 @@ VOID KeSetSystemTime(PLARGE_INTEGER NewTime, PLARGE_INTEGER OldTime)
 	KiTimerListExpire(&TempList2, OldIrql);
 }
 
+static NTSTATUS HostToNtStatus(IoStatus Status)
+{
+	switch (Status)
+	{
+	case IoStatus::Success:
+		return STATUS_SUCCESS;
+
+	case IoStatus::Pending:
+		return STATUS_PENDING;
+
+	case IoStatus::Error:
+		return STATUS_IO_DEVICE_ERROR;
+
+	case IoStatus::Failed:
+		return STATUS_ACCESS_DENIED;
+
+	case IoStatus::IsADirectory:
+		return STATUS_FILE_IS_A_DIRECTORY;
+
+	case IoStatus::NotADirectory:
+		return STATUS_NOT_A_DIRECTORY;
+
+	case IoStatus::NameNotFound:
+		return STATUS_OBJECT_NAME_NOT_FOUND;
+
+	case IoStatus::PathNotFound:
+		return STATUS_OBJECT_PATH_NOT_FOUND;
+
+	case IoStatus::Corrupt:
+		return STATUS_FILE_CORRUPT_ERROR;
+
+	case IoStatus::Full:
+		return STATUS_DISK_FULL;
+
+	case CannotDelete:
+		return STATUS_CANNOT_DELETE;
+
+	case NotEmpty:
+		return STATUS_DIRECTORY_NOT_EMPTY;
+	}
+
+	KeBugCheckLogEip(UNREACHABLE_CODE_REACHED);
+}
+
 static VOID SubmitIoRequestToHost(void *RequestAddr)
 {
 	outl(IO_START, (ULONG_PTR)RequestAddr);
@@ -204,6 +248,8 @@ static VOID RetrieveIoRequestFromHost(volatile IoInfoBlockOc *Info, ULONG Id)
 	do {
 		outl(IO_QUERY, (ULONG_PTR)Info);
 	} while (!Info->Header.Ready);
+
+	Info->Header.NtStatus = HostToNtStatus(Info->Header.HostStatus);
 }
 
 IoInfoBlock SubmitIoRequestToHost(ULONG Type, ULONG Handle)
@@ -272,50 +318,6 @@ IoInfoBlockOc SubmitIoRequestToHost(ULONG Type, LONGLONG InitialSize, ULONG Size
 	RetrieveIoRequestFromHost(&InfoBlock, Packet.Header.Id);
 
 	return InfoBlock;
-}
-
-NTSTATUS HostToNtStatus(IoStatus Status)
-{
-	switch (Status)
-	{
-	case IoStatus::Success:
-		return STATUS_SUCCESS;
-
-	case IoStatus::Pending:
-		return STATUS_PENDING;
-
-	case IoStatus::Error:
-		return STATUS_IO_DEVICE_ERROR;
-
-	case IoStatus::Failed:
-		return STATUS_ACCESS_DENIED;
-
-	case IoStatus::IsADirectory:
-		return STATUS_FILE_IS_A_DIRECTORY;
-
-	case IoStatus::NotADirectory:
-		return STATUS_NOT_A_DIRECTORY;
-
-	case IoStatus::NameNotFound:
-		return STATUS_OBJECT_NAME_NOT_FOUND;
-
-	case IoStatus::PathNotFound:
-		return STATUS_OBJECT_PATH_NOT_FOUND;
-
-	case IoStatus::Corrupt:
-		return STATUS_FILE_CORRUPT_ERROR;
-
-	case IoStatus::Full:
-		return STATUS_DISK_FULL;
-
-	case CannotDelete:
-		return STATUS_CANNOT_DELETE;
-
-	case NotEmpty:
-		return STATUS_DIRECTORY_NOT_EMPTY;
-	}
-
-	KeBugCheckLogEip(UNREACHABLE_CODE_REACHED);
 }
 
 // Source: Cxbx-Reloaded
