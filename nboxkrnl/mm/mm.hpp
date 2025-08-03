@@ -55,6 +55,7 @@
 #define PAGES_SPANNED_LARGE(Va, Size)       ((ULONG)((((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)) + (Size) + (PAGE_LARGE_SIZE - 1)) >> PAGE_LARGE_SHIFT))
 #define CHECK_ALIGNMENT(size, alignment)    (((ULONG_PTR)(size) % (alignment)) == 0)
 #define BYTE_OFFSET(Va)                     ((ULONG)((ULONG_PTR)(Va) & (PAGE_SIZE - 1)))
+#define BYTE_LARGE_OFFSET(Va)               ((ULONG)((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)))
 
 // Memory size per system
 #define XBOX_MEMORY_SIZE                    (MiB(64))
@@ -193,6 +194,18 @@ EXPORTNUM(172) DLLEXPORT ULONG XBOXAPI MmFreeSystemMemory
 (
 	PVOID BaseAddress,
 	ULONG NumberOfBytes
+);
+
+EXPORTNUM(173) DLLEXPORT PHYSICAL_ADDRESS MmGetPhysicalAddress
+(
+	PVOID BaseAddress
+);
+
+EXPORTNUM(175) DLLEXPORT VOID XBOXAPI MmLockUnlockBufferPages
+(
+	PVOID BaseAddress,
+	SIZE_T NumberOfBytes,
+	BOOLEAN UnlockPages
 );
 
 EXPORTNUM(180) DLLEXPORT SIZE_T XBOXAPI MmQueryAllocationSize

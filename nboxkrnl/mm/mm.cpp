@@ -478,6 +478,37 @@ EXPORTNUM(172) ULONG XBOXAPI MmFreeSystemMemory
 	return MiFreeSystemMemory(BaseAddress, NumberOfBytes);
 }
 
+EXPORTNUM(173) PHYSICAL_ADDRESS MmGetPhysicalAddress
+(
+	PVOID BaseAddress
+)
+{
+	// NOTE: this function can be called at any IRQL, so we don't lock Mm here
+
+	PMMPTE Pde = GetPdeAddress(BaseAddress);
+	if (Pde->Hw & PTE_VALID_MASK) {
+		if (Pde->Hw & PTE_PAGE_LARGE_MASK) {
+			return (Pde->Hw & ~PAGE_LARGE_MASK) | BYTE_LARGE_OFFSET(BaseAddress);
+		}
+		Pde = GetPteAddress(BaseAddress);
+		if (Pde->Hw & PTE_VALID_MASK) {
+			return (Pde->Hw & ~PAGE_MASK) | BYTE_OFFSET(BaseAddress);
+		}
+	}
+
+	return NULL;
+}
+
+EXPORTNUM(175) VOID XBOXAPI MmLockUnlockBufferPages
+(
+	PVOID BaseAddress,
+	SIZE_T NumberOfBytes,
+	BOOLEAN UnlockPages
+)
+{
+	// Because MmAllocateContiguousMemoryEx never relocates any pages right now, we can safely ignore this function at the moment
+}
+
 EXPORTNUM(180) SIZE_T XBOXAPI MmQueryAllocationSize
 (
 	PVOID BaseAddress
