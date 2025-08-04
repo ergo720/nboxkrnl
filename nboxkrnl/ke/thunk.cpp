@@ -172,7 +172,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&KeSetPriorityThread),                     // 0x0094 (148)
 	(ULONG)FUNC(&KeSetTimer),                              // 0x0095 (149)
 	(ULONG)FUNC(&KeSetTimerEx),                            // 0x0096 (150)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeStallExecutionProcessor),               // 0x0097 (151)
+	(ULONG)FUNC(&KeStallExecutionProcessor),               // 0x0097 (151)
 	(ULONG)FUNC(&KeSuspendThread),                         // 0x0098 (152)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&KeSynchronizeExecution),                  // 0x0099 (153)
 	(ULONG)VARIABLE(&KeSystemTime),                        // 0x009A (154) KeSystemTime

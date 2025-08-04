@@ -5,7 +5,7 @@
 #pragma once
 
 // WARNING: apparently, the inline assembler of MSVC has a problem when accessing struct members as memory operands with instructions such as MOV and POP.
-// In this case, the assembler sometimes emits isntructions that access them as if they were bytes, instead of dwords, which can then cause subtle bugs. To
+// In this case, the assembler sometimes emits instructions that access them as if they were bytes, instead of dwords, which can then cause subtle bugs. To
 // avoid the problem, be sure to always specify the memory operand size in the instructions, instead of letting the assembler guess it
 
 // Workaround fix for using clang-format with WhitespaceSensitiveMacros option
@@ -81,9 +81,7 @@ using HRESULT = LONG;
 using ACCESS_MASK = ULONG;
 using PACCESS_MASK = ACCESS_MASK *;
 
-#include "helpers.hpp"
 #include "ntstatus.hpp"
-#include <stddef.h>
 
 #define CONTAINING_RECORD(address, type, field) ((type *)((PCHAR)(address) - (ULONG_PTR)offsetof(type, field)))
 
@@ -285,3 +283,5 @@ struct IMAGE_SECTION_HEADER {
 	DWORD   Characteristics;
 };
 using PIMAGE_SECTION_HEADER = IMAGE_SECTION_HEADER *;
+
+#include "helpers.hpp"
