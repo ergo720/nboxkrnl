@@ -63,7 +63,8 @@
 		ASM(fninit);
 		ASM(push 0x0000027F);
 		ASM(fldcw word ptr [esp]);
-	ASM_END
 
-	KiInitializeKernel(); // won't return
+		// Initialize the rest of the kernel
+		ASM(call KiInitializeKernel); // won't return
+	ASM_END
 }
