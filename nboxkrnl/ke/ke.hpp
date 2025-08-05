@@ -373,7 +373,10 @@ struct ETHREAD {
 	LARGE_INTEGER CreateTime;
 	LARGE_INTEGER ExitTime;
 	NTSTATUS ExitStatus;
-	LIST_ENTRY ReaperLink;
+	union {
+		LIST_ENTRY TimerList; // list of active timers to this thread
+		LIST_ENTRY ReaperLink; // only used by PsTerminateSystemThread
+	};
 	HANDLE UniqueThread;
 	PVOID StartAddress;
 	LIST_ENTRY IrpList;
