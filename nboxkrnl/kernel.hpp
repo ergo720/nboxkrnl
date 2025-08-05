@@ -32,9 +32,9 @@
 // Request the total execution time since booting in us
 #define KE_TIME_US_LOW 0x20B
 #define KE_TIME_US_HIGH 0x20C
-// Request the path's length of the XBE to launch when no reboot occured
+// Request the path's length of the XBE to launch when no reboot occurred
 #define XE_XBE_PATH_LENGTH 0x20D
-// Send the address where to put the path of the XBE to launch when no reboot occured
+// Send the address where to put the path of the XBE to launch when no reboot occurred
 #define XE_XBE_PATH_ADDR 0x20E
 // Request the total ACPI time since booting
 #define KE_ACPI_TIME_LOW 0x20F

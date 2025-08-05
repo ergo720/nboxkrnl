@@ -9,7 +9,7 @@
 [[noreturn]] __declspec(naked) VOID KernelEntry()
 {
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
-	// protected mode and paging=on; cpl=0; stack=crypt keys; interrupts=off, df=0, ne=osfxsr=1, cr0|mp,em,ts=0
+	// cpl=0; stack=crypt keys; eflags|if,df=0, cr4|pse,osfxsr,osxmmexcpt=1, cr0|mp,em,ts=0/ne,pe,pg=1
 
 	ASM_BEGIN
 		// Load the eeprom and certificate keys. The host should have passed them in the stack
