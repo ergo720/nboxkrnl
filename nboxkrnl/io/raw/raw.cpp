@@ -149,7 +149,8 @@ static NTSTATUS XBOXAPI RawCompletionRoutine(DEVICE_OBJECT *DeviceObject, IRP *I
 	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
 	assert((IrpStackPointer->MajorFunction != IRP_MJ_READ) && (IrpStackPointer->MajorFunction != IRP_MJ_WRITE));
 
-	RawVolumeUnlock((PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension);
+	PRAW_VOLUME_EXTENSION VolumeExtension = (PRAW_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	ExReleaseReadWriteLock(&VolumeExtension->VolumeMutex);
 
 	return STATUS_SUCCESS;
 }
