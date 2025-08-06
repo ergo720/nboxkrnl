@@ -247,15 +247,11 @@ EXPORTNUM(258) VOID XBOXAPI PsTerminateSystemThread
 		Entry = Entry->Flink;
 	}
 
-	KfLowerIrql(OldIrql);
-
 	// Because we have set ApcQueueable to FALSE and lowered the IRQL to PASSIVE_LEVEL (which triggers the delivering of APCs), there shouldn't
 	// be any pending kernel APC at this point
 	if (!IsListEmpty(&kThread->ApcState.ApcListHead[KernelMode])) {
 		KeBugCheckEx(KERNEL_APC_PENDING_DURING_EXIT, kThread->KernelApcDisable, 0, 0, 0);
 	}
-
-	KeRaiseIrqlToDpcLevel();
 
 	if (kThread->Queue) {
 		RIP_API_MSG("Flushing thread queue not implemented");
