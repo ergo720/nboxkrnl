@@ -21,7 +21,7 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(Git)
 if(Git_FOUND)
  execute_process(
-  COMMAND git rev-parse HEAD
+  COMMAND git -C ${NBOXKRNL_ROOT_DIR} rev-parse HEAD
   OUTPUT_VARIABLE _NBOXKRNL_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE
  )
