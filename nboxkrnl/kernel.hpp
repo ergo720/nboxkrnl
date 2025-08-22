@@ -203,6 +203,8 @@ struct XBOX_KRNL_VERSION {
 };
 
 inline ConsoleType XboxType;
+inline LONG IopHostRequestId = 0;
+inline LONG IopHostFileHandle = FIRST_FREE_HANDLE;
 
 #ifdef __cplusplus
 extern "C" {

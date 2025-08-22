@@ -369,7 +369,7 @@ ByPassPathCheck:
 			return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfoCreated = TRUE;
-		FileInfo->HostHandle = (ULONG)&FileInfo;
+		FileInfo->HostHandle = (ULONG)InterlockedIncrement(&IopHostFileHandle);
 		FileInfo->FileNameLength = FileName.Length;
 		FileInfo->FileName = (PCHAR)(FileInfo + 1);
 		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;

@@ -17,7 +17,6 @@ static_assert(sizeof(IoRequest) == 44);
 static_assert(sizeof(IoInfoBlockOc) == 36);
 
 
-static LONG IoHostFileHandle = FIRST_FREE_HANDLE;
 const char *NboxkrnlVersion = _NBOXKRNL_VERSION;
 
 XBOX_KEY_DATA XboxCERTKey;
@@ -275,7 +274,7 @@ IoInfoBlock SubmitIoRequestToHost(ULONG Type, ULONG Handle)
 {
 	IoInfoBlockOc InfoBlockOc;
 	IoRequest Packet;
-	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Id = InterlockedIncrement(&IopHostRequestId);
 	Packet.Header.Type = Type;
 	Packet.m_xx.Handle = Handle;
 	SubmitIoRequestToHost(&Packet);
@@ -288,7 +287,7 @@ IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG
 {
 	IoInfoBlockOc InfoBlockOc;
 	IoRequest Packet;
-	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Id = InterlockedIncrement(&IopHostRequestId);
 	Packet.Header.Type = Type;
 	Packet.m_rw.Offset = Offset;
 	Packet.m_rw.Size = Size;
@@ -305,7 +304,7 @@ IoInfoBlock SubmitIoRequestToHost(ULONG Type, LONGLONG Offset, ULONG Size, ULONG
 {
 	IoInfoBlockOc InfoBlockOc;
 	IoRequest Packet;
-	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Id = InterlockedIncrement(&IopHostRequestId);
 	Packet.Header.Type = Type;
 	Packet.m_rw.Offset = Offset;
 	Packet.m_rw.Size = Size;
@@ -323,7 +322,7 @@ IoInfoBlockOc SubmitIoRequestToHost(ULONG Type, LONGLONG InitialSize, ULONG Size
 {
 	IoInfoBlockOc InfoBlock;
 	IoRequest Packet;
-	Packet.Header.Id = InterlockedIncrement(&IoHostFileHandle);
+	Packet.Header.Id = InterlockedIncrement(&IopHostRequestId);
 	Packet.Header.Type = Type;
 	Packet.m_oc.InitialSize = InitialSize;
 	Packet.m_oc.Size = Size;

@@ -664,7 +664,7 @@ static NTSTATUS XBOXAPI FatxIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 			return FatxCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 		}
 		FileInfoCreated = TRUE;
-		FileInfo->HostHandle = (ULONG)&FileInfo;
+		FileInfo->HostHandle = (ULONG)InterlockedIncrement(&IopHostFileHandle);
 		FileInfo->FileNameLength = (UCHAR)FileName.Length;
 		FileInfo->FileSize = HasBackslashAtEnd ? 0 : InitialSize;
 		FileInfo->Flags = CreateOptions & (FILE_DELETE_ON_CLOSE | FILE_DIRECTORY_FILE);
