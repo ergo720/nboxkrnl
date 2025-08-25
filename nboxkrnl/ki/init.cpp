@@ -195,7 +195,9 @@ VOID KiInitializeKernel()
 		KeBugCheckEx(INIT_FAILURE, OB_FAILURE, 0, 0, 0);
 	}
 
-	HalInitSystem();
+	if (HalInitSystem() == FALSE) {
+		KeBugCheckEx(INIT_FAILURE, HAL_FAILURE, 0, 0, 0);
+	}
 
 	if (IoInitSystem() == FALSE) {
 		KeBugCheckEx(INIT_FAILURE, IO_FAILURE, 0, 0, 0);

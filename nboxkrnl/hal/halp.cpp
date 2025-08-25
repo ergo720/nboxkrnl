@@ -20,10 +20,6 @@
 // NOTE: on the xbox, the pit frequency is 6% lower than the default one, see https://xboxdevwiki.net/Porting_an_Operating_System_to_the_Xbox_HOWTO#Timer_Frequency
 #define PIT_COUNTER_1MS    1125
 
-// CMOS i/o ports
-#define CMOS_PORT_CMD 0x70
-#define CMOS_PORT_DATA 0x71
-
 
 VOID HalpInitPIC()
 {
@@ -61,10 +57,16 @@ static BOOL HalpIsCmosUpdatingTime()
 	return inb(CMOS_PORT_DATA) & 0x80;
 }
 
-static BYTE HalpReadCmosRegister(BYTE Register)
+BYTE HalpReadCmosRegister(BYTE Register)
 {
 	outb(CMOS_PORT_CMD, Register);
 	return inb(CMOS_PORT_DATA);
+}
+
+VOID HalpWriteCmosRegister(BYTE Register, BYTE Data)
+{
+	outb(CMOS_PORT_CMD, Register);
+	outb(CMOS_PORT_DATA, Data);
 }
 
 VOID HalpReadCmosTime(PTIME_FIELDS TimeFields)

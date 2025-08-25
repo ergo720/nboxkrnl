@@ -13,9 +13,12 @@ static LIST_ENTRY ShutdownRoutineList = { &ShutdownRoutineList , &ShutdownRoutin
 EXPORTNUM(40) ULONG HalDiskCachePartitionCount = 3;
 EXPORTNUM(356) ULONG HalBootSMCVideoMode = SMC_VIDEO_MODE_NONE;
 
-VOID HalInitSystem()
+BOOLEAN HalInitSystem()
 {
 	HalpInitPIC();
+	if (HalpCalibrateStallExecution() == FALSE) {
+		return FALSE;
+	}
 	HalpInitPIT();
 
 	TIME_FIELDS TimeFields;
@@ -47,6 +50,8 @@ VOID HalInitSystem()
 	else if (XboxType == CONSOLE_CHIHIRO) {
 		XboxHardwareInfo.Flags |= 8;
 	}
+
+	return TRUE;
 }
 
 EXPORTNUM(45) NTSTATUS XBOXAPI HalReadSMBusValue

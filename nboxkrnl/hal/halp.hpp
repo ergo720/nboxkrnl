@@ -8,6 +8,10 @@
 #include "ki.hpp"
 #include "hw_exp.hpp"
 
+ // CMOS I/O ports
+#define CMOS_PORT_CMD 0x70
+#define CMOS_PORT_DATA 0x71
+
  // PIC i/o ports
 #define PIC_MASTER_CMD          0x20
 #define PIC_MASTER_DATA         0x21
@@ -149,3 +153,6 @@ VOID HalpExecuteBlockReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode);
 VOID HalpExecuteBlockWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, PBYTE Data);
 NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmount, BYTE *Buffer);
 NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteAmount, BYTE *Buffer);
+BOOLEAN HalpCalibrateStallExecution();
+BYTE HalpReadCmosRegister(BYTE Register);
+VOID HalpWriteCmosRegister(BYTE Register, BYTE Data);

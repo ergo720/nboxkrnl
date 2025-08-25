@@ -80,4 +80,6 @@ EXPORTNUM(356) DLLEXPORT extern ULONG HalBootSMCVideoMode;
 }
 #endif
 
-VOID HalInitSystem();
+inline DWORD HalCounterPerMicroseconds;
+
+BOOLEAN HalInitSystem();

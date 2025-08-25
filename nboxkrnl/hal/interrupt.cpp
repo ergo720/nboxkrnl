@@ -105,6 +105,10 @@ static constexpr WORD PicIRQMasksForIRQL[] = {
 	0b1111111111111011,  // IRQL 31 (HIGH)
 };
 
+static BOOLEAN HalpCmosIsrFirstCall = TRUE;
+static DWORD HalpCmosLoopStartAddress = 0;
+static DWORD HalpCounterOverflow = 0;
+
 VOID XBOXAPI HalpSwIntApc()
 {
 	// On entry, interrupts must be disabled
@@ -594,6 +598,92 @@ VOID __declspec(naked) XBOXAPI HalpSmbusIsr()
 	end_isr:
 		EXIT_INTERRUPT;
 	ASM_END
+}
+
+VOID __declspec(naked) XBOXAPI HalpCmosIsr()
+{
+	// NOTE: this is only called during kernel initialization, so we ignore the IRQL stuff here and don't save a KTRAP_FRAME on the stack either
+
+	ASM_BEGIN
+		ASM(mov al, OCW2_EOI_IRQ | 2);
+		ASM(out PIC_MASTER_CMD, al); // send eoi to master pic
+		ASM(mov al, 0x0C);
+		ASM(out CMOS_PORT_CMD, al);
+		ASM(in al, CMOS_PORT_DATA); // clear interrupt flags
+		ASM(cmp HalpCmosIsrFirstCall, TRUE);
+		ASM(jz first_interrupt);
+		ASM(pop eax); // discard previous ret eip pushed by cpu
+		ASM(mov eax, HalpCmosLoopStartAddress);
+		ASM(add eax, 6 + 1 + 3 + 2 + 10); // mov ret eip to skip (jmp init_failed) of HalpCalibrateStallExecution
+		ASM(jmp second_interrupt);
+	first_interrupt:
+		ASM(mov HalpCmosIsrFirstCall, FALSE);
+		ASM(mov ecx, 0); // discard the value and restart the counter
+		ASM(pop eax); // discard previous ret eip pushed by the cpu
+		ASM(mov eax, HalpCmosLoopStartAddress);
+		ASM(add eax, 6 + 1); // mov ret eip to return to loop_start label of HalpCalibrateStallExecution
+	second_interrupt:
+		ASM(push eax);
+		ASM(mov eax, 8 + OCW2_EOI_IRQ - 8);
+		ASM(out PIC_SLAVE_CMD, al); // send eoi to slave pic
+		ASM(iretd);
+	ASM_END
+}
+
+BOOLEAN HalpCalibrateStallExecution()
+{
+	// NOTE: this is called after initializing the PIC, but before setting up the PIT and SMBUS, so we can only receive a CMOS interrupt here
+
+	HalpIntDisabled &= ~(1 << 8); // CMOS IRQ is 8
+	BYTE PicImr = (HalpIntDisabled >> 8) & 0xFF;
+	BYTE CurrElcr = inb(PIC_SLAVE_ELCR);
+	BYTE ElcrMask = 1 << (8 & 7);
+	CurrElcr |= ElcrMask; // CMOS interrupt is level sensitive
+	outb(PIC_SLAVE_ELCR, CurrElcr);
+	outb(PIC_SLAVE_DATA, PicImr);
+	KiIdt[IDT_INT_VECTOR_BASE + 8] = BUILD_IDT_ENTRY(HalpCmosIsr);
+
+	BYTE OldRegisterA = HalpReadCmosRegister(0x0A);
+	BYTE OldRegisterB = HalpReadCmosRegister(0x0B);
+	HalpReadCmosRegister(0x0C); // clear existing interrupts
+	BYTE NewRegisterA = 0b00101101; // select 32.768 KHz freq and 125 ms periodic interrupt rate
+	BYTE NewRegisterB = (OldRegisterB | (1 << 6)); // enable periodic interrupt
+
+	HalpWriteCmosRegister(0x0A, NewRegisterA);
+	HalpWriteCmosRegister(0x0B, NewRegisterB);
+
+	DWORD LoopCount = 0;
+
+	ASM_BEGIN
+		ASM(mov ecx, LoopCount);
+		ASM(push next_instr);
+	next_instr:
+		ASM(pop HalpCmosLoopStartAddress);
+		ASM(sti); // ready to receive CMOS interrupt now
+	loop_start:
+		ASM(sub ecx, 1);
+		ASM(jnz loop_start);
+		ASM(mov HalpCounterOverflow, 1);
+		ASM(cli);
+		ASM(mov LoopCount, ecx);
+	ASM_END
+
+	if (HalpCounterOverflow) {
+		return FALSE;
+	}
+
+	HalpWriteCmosRegister(0x0B, OldRegisterB & 7); // disable all CMOS interrupts
+	HalpWriteCmosRegister(0x0A, OldRegisterA);
+	HalpIntDisabled |= (1 << 8);
+	PicImr = (HalpIntDisabled >> 8) & 0xFF;
+	outb(PIC_SLAVE_DATA, PicImr); // mask CMOS IRQ again
+	KiIdt[IDT_INT_VECTOR_BASE + 8] = 0; // make CMOS IDT entry invalid again
+
+	LoopCount = 0 - LoopCount;
+	HalCounterPerMicroseconds = LoopCount / 125000;
+	HalCounterPerMicroseconds += ((LoopCount % 125000) ? 1 : 0);
+
+	return TRUE;
 }
 
 EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt

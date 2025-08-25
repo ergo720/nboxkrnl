@@ -7,6 +7,7 @@
 
 #include "ki.hpp"
 #include "ex.hpp"
+#include "hal.hpp"
 #include "..\kernel.hpp"
 #include "..\kernel_version.hpp"
 #include <assert.h>
@@ -109,18 +110,17 @@ EXPORTNUM(151) VOID XBOXAPI KeStallExecutionProcessor
 	ULONG MicroSeconds
 )
 {
-	DWORD OldEflags = save_int_state_and_disable();
-	ULONGLONG CurrentTime = inl(KE_TIME_US_LOW);
-	CurrentTime |= (ULONGLONG(inl(KE_TIME_US_HIGH)) << 32);
-	restore_int_state(OldEflags);
-	ULONGLONG EndingTime = CurrentTime + MicroSeconds;
-
-	while (CurrentTime < EndingTime) {
-		disable();
-		CurrentTime = inl(KE_TIME_US_LOW);
-		CurrentTime |= (ULONGLONG(inl(KE_TIME_US_HIGH)) << 32);
-		restore_int_state(OldEflags);
+	DWORD LoopCounterValue = HalCounterPerMicroseconds * MicroSeconds;
+	if (LoopCounterValue == 0) {
+		return;
 	}
+
+	ASM_BEGIN
+		ASM(mov ecx, LoopCounterValue);
+loop_start:
+		ASM(sub ecx, 1);
+		ASM(jnz loop_start);
+	ASM_END
 }
 
 // Source: Cxbx-Reloaded

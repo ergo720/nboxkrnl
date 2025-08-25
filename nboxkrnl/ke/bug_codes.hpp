@@ -25,3 +25,4 @@
 #define OB_FAILURE 1
 #define IO_FAILURE 2
 #define PS_FAILURE 3
+#define HAL_FAILURE 4
