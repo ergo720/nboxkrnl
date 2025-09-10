@@ -478,7 +478,7 @@ EXPORTNUM(172) ULONG XBOXAPI MmFreeSystemMemory
 	return MiFreeSystemMemory(BaseAddress, NumberOfBytes);
 }
 
-EXPORTNUM(173) PHYSICAL_ADDRESS MmGetPhysicalAddress
+EXPORTNUM(173) PHYSICAL_ADDRESS XBOXAPI MmGetPhysicalAddress
 (
 	PVOID BaseAddress
 )
