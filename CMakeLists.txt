@@ -159,6 +159,7 @@ file (GLOB SOURCES
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/fatx.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/hdd/hdd.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/raw/raw.cpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/div_exp.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/hw_exp.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/init.cpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ki/ki.cpp"

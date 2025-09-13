@@ -37,6 +37,7 @@
 using VOID = void;
 using PVOID = void *;
 using BYTE = uint8_t;
+using INT8 = int8_t;
 using UCHAR = unsigned char;
 using CHAR = char;
 using WCHAR = wchar_t;

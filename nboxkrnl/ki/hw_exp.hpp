@@ -180,3 +180,4 @@ VOID XBOXAPI KiUnexpectedInterrupt();
 VOID FASTCALL KiDispatchException(PEXCEPTION_RECORD ExceptionRecord, PKTRAP_FRAME TrapFrame, BOOLEAN FirstChance);
 VOID KiContinueService(PCONTEXT ContextRecord, BOOLEAN TestAlert);
 VOID KiRaiseExceptionService(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance);
+NTSTATUS XBOXAPI KiDecodeDivisionOperand(PKTRAP_FRAME TrapFrame, ULONG HwEsp);

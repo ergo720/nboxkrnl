@@ -16,13 +16,13 @@
 
 void __declspec(naked) XBOXAPI KiTrapDE()
 {
-	// NOTE: the cpu raises this exception also for division overflows, but we don't check for it and always report a divide by zero code
-
 	ASM_BEGIN
 		CREATE_KTRAP_FRAME_NO_CODE;
 		ASM(sti);
-		ASM(mov eax, 0xC0000094); // STATUS_INTEGER_DIVIDE_BY_ZERO
 		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip);
+		ASM(push esp);
+		ASM(push ebp);
+		ASM(call KiDecodeDivisionOperand);
 		CREATE_EXCEPTION_RECORD_ARG0;
 		HANDLE_EXCEPTION;
 		EXIT_EXCEPTION;
