@@ -21,22 +21,28 @@ EXCEPTION_DISPOSITION CDECL _nested_unwind_handler(EXCEPTION_RECORD *pExceptionR
 
 static inline void CDECL call_ebp_func(void *func, void *_ebp)
 {
-	ASM_BEGIN
-		ASM(mov eax, func);
-		ASM(push ebp);
-		ASM(mov ebp, _ebp);
-		ASM(call eax);
-		ASM(pop ebp);
-	ASM_END
+	// clang-format off
+	__asm {
+		mov eax, func
+		push ebp
+		mov ebp, _ebp
+		call eax
+		pop ebp
+	}
+	// clang-format on
 }
 
 void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 {
 	// Manually install exception handler frame
 	EXCEPTION_REGISTRATION_RECORD nestedUnwindFrame;
+	// clang-format off
 	KeGetExceptionHead([nestedUnwindFrame].Prev);
+	// clang-format on
 	nestedUnwindFrame.Handler = reinterpret_cast<void *>(_nested_unwind_handler);
+	// clang-format off
 	KeSetExceptionHead(nestedUnwindFrame);
+	// clang-format on
 
 	const ScopeTableEntry *scopeTable = pRegistrationFrame->ScopeTable;
 
@@ -62,7 +68,9 @@ void _local_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame, int stop)
 	}
 
 	// Manually remove exception handler frame
+	// clang-format off
 	KeResetExceptionHead([nestedUnwindFrame].Prev);
+	// clang-format on
 }
 
 void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
@@ -70,19 +78,21 @@ void _global_unwind2(EXCEPTION_REGISTRATION_SEH *pRegistrationFrame)
 	// NOTE: RtlUnwind will trash all the non-volatile registers (save for ebp) despite being stdcall. This happens because the register context is captured with RtlCaptureContext
 	// only after some of the function has already executed, and at that point the non-volatile registers are likely already trashed
 
-	ASM_BEGIN
-		ASM(push ebx);
-		ASM(push esi);
-		ASM(push edi);
-		ASM(push 0);
-		ASM(push 0);
-		ASM(push 0);
-		ASM(push pRegistrationFrame);
-		ASM(call RtlUnwind);
-		ASM(pop edi);
-		ASM(pop esi);
-		ASM(pop ebx);
-	ASM_END
+	// clang-format off
+	__asm {
+		push ebx
+		push esi
+		push edi
+		push 0
+		push 0
+		push 0
+		push pRegistrationFrame
+		call RtlUnwind
+		pop edi
+		pop esi
+		pop ebx
+	}
+	// clang-format on
 }
 
 // This function must use extern "C" so that MSVC can link against our implementation of _except_handler3 when we use __try / __except in the kernel. It's also necessary
@@ -92,7 +102,9 @@ extern "C"  EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD* pExce
 {
 	// Clear the direction flag - the function triggering the exception might
 	// have modified it, but it's expected to not be set
-	ASM(cld);
+	// clang-format off
+	__asm cld
+	// clang-format on
 
 	if (pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)) {
 		// We're in an unwinding pass, so unwind all local scopes
@@ -120,14 +132,16 @@ extern "C"  EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD* pExce
 			const DWORD _ebp = (DWORD)&pRegistrationFrame->_ebp;
 			LONG filterResult;
 
-			ASM_BEGIN
-				ASM(mov eax, filterFunclet);
-				ASM(push ebp);
-				ASM(mov ebp, _ebp);
-				ASM(call eax);
-				ASM(pop ebp);
-				ASM(mov filterResult, eax);
-			ASM_END
+			// clang-format off
+			__asm {
+				mov eax, filterFunclet
+				push ebp
+				mov ebp, _ebp
+				call eax
+				pop ebp
+				mov filterResult, eax
+			}
+			// clang-format on
 
 			if (filterResult != EXCEPTION_CONTINUE_SEARCH) {
 				if (filterResult == EXCEPTION_CONTINUE_EXECUTION) {
@@ -144,11 +158,13 @@ extern "C"  EXCEPTION_DISPOSITION CDECL _except_handler3(EXCEPTION_RECORD* pExce
 				_local_unwind2(pRegistrationFrame, currentTrylevel);
 				pRegistrationFrame->TryLevel = newTrylevel;
 
-				ASM_BEGIN
-					ASM(mov eax, handlerFunclet);
-					ASM(mov ebp, scopeEbp);
-					ASM(jmp eax); // won't return
-				ASM_END
+				// clang-format off
+				__asm {
+					mov eax, handlerFunclet
+					mov ebp, scopeEbp
+					jmp eax // won't return
+				}
+				// clang-format on
 			}
 		}
 

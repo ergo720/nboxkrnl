@@ -8,12 +8,6 @@
 // In this case, the assembler sometimes emits instructions that access them as if they were bytes, instead of dwords, which can then cause subtle bugs. To
 // avoid the problem, be sure to always specify the memory operand size in the instructions, instead of letting the assembler guess it
 
-// Workaround fix for using clang-format with WhitespaceSensitiveMacros option
-// However, clang-format will not format inside the parentheses bracket.
-#define ASM(...) __asm __VA_ARGS__
-#define ASM_BEGIN __asm {
-#define ASM_END }
-
 #include <stdint.h>
 #include <stddef.h>
 #include "bug_codes.hpp"

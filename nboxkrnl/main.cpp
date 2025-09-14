@@ -11,60 +11,62 @@
 	// Assumptions: cs/ds/ss/es/fs/gs base=0 and flags=valid; physical memory and contiguous memory identity mapped with large pages;
 	// cpl=0; stack=crypt keys; eflags|if,df=0, cr4|pse,osfxsr,osxmmexcpt=1, cr0|mp,em,ts=0/ne,pe,pg=1
 
-	ASM_BEGIN
+	// clang-format off
+	__asm {
 		// Load the eeprom and certificate keys. The host should have passed them in the stack
-		ASM(mov esi, esp);
-		ASM(mov edi, offset XboxEEPROMKey);
-		ASM(mov ecx, 4);
-		ASM(rep movsd);
-		ASM(mov edi, offset XboxCERTKey);
-		ASM(mov ecx, 4);
-		ASM(rep movsd);
+		mov esi, esp
+		mov edi, offset XboxEEPROMKey
+		mov ecx, 4
+		rep movsd
+		mov edi, offset XboxCERTKey
+		mov ecx, 4
+		rep movsd
 
 		// Use the global KiIdleThreadStack as the stack of the startup thread
-		ASM(xor ebp, ebp);
-		ASM(mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME));
+		xor ebp, ebp
+		mov esp, offset KiIdleThreadStack + KERNEL_STACK_SIZE - (SIZE FX_SAVE_AREA + SIZE KSTART_FRAME + SIZE KSWITCHFRAME)
 
 		// Initialize the CRT of the kernel executable
-		ASM(call InitializeCrt);
+		call InitializeCrt
 
 		// Load the GDT from the hardcoded KiGdt
-		ASM(sub esp, 8);
-		ASM(mov ax, KiGdtLimit);
-		ASM(mov word ptr [esp], ax);
-		ASM(mov dword ptr [esp + 2], offset KiGdt);
-		ASM(lgdt [esp]);
+		sub esp, 8
+		mov ax, KiGdtLimit
+		mov word ptr [esp], ax
+		mov dword ptr [esp + 2], offset KiGdt
+		lgdt [esp]
 
 		// Load the segment selectors
-		ASM(push 0x8);
-		ASM(push reload_CS);
-		ASM(_emit 0xCB);
+		push 0x8
+		push reload_CS
+		_emit 0xCB
 
 	reload_CS:
-		ASM(mov ax, 0x10);
-		ASM(mov ds, ax);
-		ASM(mov es, ax);
-		ASM(mov ss, ax);
-		ASM(mov gs, ax);
-		ASM(mov ax, 0x18);
-		ASM(mov fs, ax);
+		mov ax, 0x10
+		mov ds, ax
+		mov es, ax
+		mov ss, ax
+		mov gs, ax
+		mov ax, 0x18
+		mov fs, ax
 
 		// Load the tss from the hardcoded KiTss
-		ASM(mov ax, 0x20);
-		ASM(ltr ax);
+		mov ax, 0x20
+		ltr ax
 
 		// Load the IDT from the hardcoded KiIdt
-		ASM(mov ax, KiIdtLimit);
-		ASM(mov word ptr [esp], ax);
-		ASM(mov dword ptr [esp + 2], offset KiIdt);
-		ASM(lidt [esp]);
+		mov ax, KiIdtLimit
+		mov word ptr [esp], ax
+		mov dword ptr [esp + 2], offset KiIdt
+		lidt [esp]
 
 		// Load a default x87 state and mask all exceptions. This way, we can use fpu instructions without faulting (nanoprintf uses them when printing floats)
-		ASM(fninit);
-		ASM(push 0x0000027F);
-		ASM(fldcw word ptr [esp]);
+		fninit
+		push 0x0000027F
+		fldcw word ptr [esp]
 
 		// Initialize the rest of the kernel
-		ASM(call KiInitializeKernel); // won't return
-	ASM_END
+		call KiInitializeKernel // won't return
+	}
+	// clang-format on
 }

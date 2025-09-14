@@ -36,16 +36,22 @@ static EXCEPTION_DISPOSITION RtlpExecuteHandler(PEXCEPTION_RECORD ExceptionRecor
 	// ExceptionRoutine is either _except_handler3, _nested_unwind_handler, RtlpNestedExceptionHandler or RtlpNestedUnwindHandler
 
 	EXCEPTION_REGISTRATION_RECORD NestedUnwindFrame;
+	// clang-format off
 	KeGetExceptionHead([NestedUnwindFrame].Prev);
+	// clang-format on
 	if constexpr (IsUnwind) {
 		NestedUnwindFrame.Handler = static_cast<PVOID>(RtlpNestedUnwindHandler);
 	}
 	else {
 		NestedUnwindFrame.Handler = static_cast<PVOID>(RtlpNestedExceptionHandler);
 	}
+	// clang-format off
 	KeSetExceptionHead(NestedUnwindFrame);
+	// clang-format on
 	EXCEPTION_DISPOSITION Result = ExceptionRoutine(ExceptionRecord, RegistrationFrame, ContextRecord, pDispatcherContext);
+	// clang-format off
 	KeResetExceptionHead([NestedUnwindFrame].Prev);
+	// clang-format on
 	return Result;
 }
 
@@ -64,8 +70,10 @@ static BOOLEAN RtlpVerifyStackLimitsForExceptionFrame(PEXCEPTION_REGISTRATION_RE
 			(KeGetCurrentIrql() >= DISPATCH_LEVEL)) {  // DPCs must execute at or above DISPATCH_LEVEL
 
 			ULONG DpcStackBase, DpcRoutineActive;
+			// clang-format off
 			KeGetDpcStack(DpcStackBase);
 			KeGetDpcActive(DpcRoutineActive);
+			// clang-format on
 
 			if (DpcRoutineActive && // we must be running a DPC
 				(RegistrationHighAddress <= DpcStackBase) && // inside of DPC stack top
@@ -88,27 +96,29 @@ EXPORTNUM(302) __declspec(naked) VOID XBOXAPI RtlRaiseException
 	PEXCEPTION_RECORD ExceptionRecord
 )
 {
-	ASM_BEGIN
-		ASM(push ebp);
-		ASM(mov ebp, esp);
-		ASM(sub esp, SIZE CONTEXT);
-		ASM(push esp);
-		ASM(call RtlCaptureContext);
-		ASM(add dword ptr [esp]CONTEXT.Esp, 4); // pop ExceptionRecord argument
-		ASM(mov dword ptr [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS); // set ContextFlags member of CONTEXT
-		ASM(mov eax, [ebp + 8]);
-		ASM(mov ecx, [ebp + 4]);
-		ASM(mov dword ptr [eax]EXCEPTION_RECORD.ExceptionAddress, ecx); // set ExceptionAddress member of ExceptionRecord argument to caller's eip
-		ASM(mov ecx, esp);
-		ASM(push TRUE);
-		ASM(push ecx);
-		ASM(push [ebp + 8]);
-		ASM(call ZwRaiseException);
+	// clang-format off
+	__asm {
+		push ebp
+		mov ebp, esp
+		sub esp, SIZE CONTEXT
+		push esp
+		call RtlCaptureContext
+		add dword ptr [esp]CONTEXT.Esp, 4 // pop ExceptionRecord argument
+		mov dword ptr [esp]CONTEXT.ContextFlags, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS // set ContextFlags member of CONTEXT
+		mov eax, [ebp + 8]
+		mov ecx, [ebp + 4]
+		mov dword ptr [eax]EXCEPTION_RECORD.ExceptionAddress, ecx // set ExceptionAddress member of ExceptionRecord argument to caller's eip
+		mov ecx, esp
+		push TRUE
+		push ecx
+		push [ebp + 8]
+		call ZwRaiseException
 		// ZwRaiseException should never return. It would only be possible if KiRaiseException fails before copying the CONTEXT to the KTRAP_FRAME, but the
 		// function right now always succeeds
-		ASM(push NORETURN_FUNCTION_RETURNED);
-		ASM(call KeBugCheckLogEip); // won't return
-	ASM_END
+		push NORETURN_FUNCTION_RETURNED
+		call KeBugCheckLogEip // won't return
+	}
+	// clang-format on
 }
 
 BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord)
@@ -116,9 +126,11 @@ BOOLEAN XBOXAPI RtlDispatchException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT
 	ULONG StackBase, StackLimit;
 	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
 	EXCEPTION_REGISTRATION_RECORD** ppRegistrationFrame = nullptr;
+	// clang-format off
 	KeGetStackBase(StackBase);
 	KeGetStackLimit(StackLimit);
 	KeGetExceptionHead(RegistrationPointer);
+	// clang-format on
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 
@@ -204,10 +216,12 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		ExceptionRecord->ExceptionFlags = 0;
 		ExceptionRecord->ExceptionRecord = nullptr;
 		ExceptionRecord->NumberParameters = 0;
-		ASM_BEGIN
-			ASM(mov eax, dword ptr [ebp + 4]);
-			ASM(mov dword ptr [LocalExceptionRecord].ExceptionAddress, eax);
-		ASM_END
+		// clang-format off
+		__asm {
+			mov eax, dword ptr [ebp + 4]
+			mov dword ptr [LocalExceptionRecord].ExceptionAddress, eax
+		}
+		// clang-format on
 	}
 
 	ExceptionRecord->ExceptionFlags |= EXCEPTION_UNWINDING;
@@ -225,9 +239,11 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 	ULONG StackBase, StackLimit;
 	PEXCEPTION_REGISTRATION_RECORD RegistrationPointer;
 	EXCEPTION_REGISTRATION_RECORD** ppRegistrationFrame = nullptr;
+	// clang-format off
 	KeGetStackBase(StackBase);
 	KeGetStackLimit(StackLimit);
 	KeGetExceptionHead(RegistrationPointer);
+	// clang-format on
 
 	while (RegistrationPointer != EXCEPTION_CHAIN_END) {
 		if (RegistrationPointer == static_cast<PEXCEPTION_REGISTRATION_RECORD>(TargetFrame)) {
@@ -280,11 +296,13 @@ EXPORTNUM(312) __declspec(noinline) VOID XBOXAPI RtlUnwind
 		}
 		}
 
-		ASM_BEGIN
-			ASM(mov eax, [RegistrationPointer]);
-			ASM(mov eax, [eax]);
-			ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax);
-		ASM_END
+		// clang-format off
+		__asm {
+			mov eax, [RegistrationPointer]
+			mov eax, [eax]
+			mov dword ptr [KiPcr].NtTib.ExceptionList, eax
+		}
+		// clang-format on
 
 		RegistrationPointer = RegistrationPointer->Prev;
 	}

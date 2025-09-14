@@ -16,17 +16,19 @@
 
 void __declspec(naked) XBOXAPI KiTrapDE()
 {
-	ASM_BEGIN
-		CREATE_KTRAP_FRAME_NO_CODE;
-		ASM(sti);
-		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip);
-		ASM(push esp);
-		ASM(push ebp);
-		ASM(call KiDecodeDivisionOperand);
-		CREATE_EXCEPTION_RECORD_ARG0;
-		HANDLE_EXCEPTION;
-		EXIT_EXCEPTION;
-	ASM_END
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE
+		sti
+		mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip
+		push esp
+		push ebp
+		call KiDecodeDivisionOperand
+		CREATE_EXCEPTION_RECORD_ARG0
+		HANDLE_EXCEPTION
+		EXIT_EXCEPTION
+	}
+	// clang-format on
 }
 
 void __declspec(naked) XBOXAPI KiTrapDB()
@@ -63,36 +65,38 @@ void __declspec(naked) XBOXAPI KiTrapNM()
 {
 	// If CurrentThread->NpxState == NPX_STATE_NOT_LOADED, then we are here to load the floating state for this thread. Otherwise, bug check in all other cases
 
-	ASM_BEGIN
-		CREATE_KTRAP_FRAME_NO_CODE;
-		ASM(mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
-		ASM(cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
-		ASM(je unexpected_exp);
-		ASM(mov eax, cr0);
-		ASM(and eax, ~(CR0_MP | CR0_EM | CR0_TS)); // allow executing fpu instructions
-		ASM(mov cr0, eax);
-		ASM(mov eax, dword ptr [KiPcr]KPCR.PrcbData.NpxThread);
-		ASM(test eax, eax);
-		ASM(jz no_npx_thread); // NpxThread can be nullptr when no thread has loaded the floating state
-		ASM(mov ecx, dword ptr [eax]KTHREAD.StackBase);
-		ASM(sub ecx, SIZE FX_SAVE_AREA); // points to FLOATING_SAVE_AREA of NpxThread
-		ASM(fxsave [ecx]);
-		ASM(mov dword ptr [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED);
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE
+		mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread
+		cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
+		je unexpected_exp
+		mov eax, cr0
+		and eax, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions
+		mov cr0, eax
+		mov eax, dword ptr [KiPcr]KPCR.PrcbData.NpxThread
+		test eax, eax
+		jz no_npx_thread // NpxThread can be nullptr when no thread has loaded the floating state
+		mov ecx, dword ptr [eax]KTHREAD.StackBase
+		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of NpxThread
+		fxsave [ecx]
+		mov dword ptr [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
 	no_npx_thread:
-		ASM(mov ecx, dword ptr [edx]KTHREAD.StackBase);
-		ASM(sub ecx, SIZE FX_SAVE_AREA); // points to FLOATING_SAVE_AREA of CurrentThread
-		ASM(fxrstor [ecx]);
-		ASM(and dword ptr [edx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS)); // allow executing fpu instructions for this thread only
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, edx);
-		ASM(mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
-		ASM(jmp exit_exp);
+		mov ecx, dword ptr [edx]KTHREAD.StackBase
+		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of CurrentThread
+		fxrstor [ecx]
+		and dword ptr [edx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions for this thread only
+		mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, edx
+		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
+		jmp exit_exp
 	unexpected_exp:
-		ASM(sti);
-		ASM(push KERNEL_UNHANDLED_EXCEPTION);
-		ASM(call KeBugCheckLogEip); // won't return
+		sti
+		push KERNEL_UNHANDLED_EXCEPTION
+		call KeBugCheckLogEip // won't return
 	exit_exp:
-		EXIT_EXCEPTION;
-	ASM_END
+		EXIT_EXCEPTION
+	}
+	// clang-format on
 }
 
 void __declspec(naked) XBOXAPI KiTrapDF()
@@ -122,19 +126,21 @@ void __declspec(naked) XBOXAPI KiTrapGP()
 
 void __declspec(naked) XBOXAPI KiTrapPF()
 {
-	ASM_BEGIN
-		CREATE_KTRAP_FRAME_WITH_CODE;
-		ASM(push dword ptr [ebp]KTRAP_FRAME.Eip);
-		ASM(mov edx, cr2);
-		ASM(push edx);
-		ASM(call MiPageFaultHandler);
-		ASM(sti);
-		ASM(mov eax, 0xC0000005); // STATUS_ACCESS_VIOLATION
-		ASM(mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip);
-		CREATE_EXCEPTION_RECORD_ARG0;
-		HANDLE_EXCEPTION;
-		EXIT_EXCEPTION;
-	ASM_END
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_WITH_CODE
+		push dword ptr [ebp]KTRAP_FRAME.Eip
+		mov edx, cr2
+		push edx
+		call MiPageFaultHandler
+		sti
+		mov eax, 0xC0000005 // STATUS_ACCESS_VIOLATION
+		mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip
+		CREATE_EXCEPTION_RECORD_ARG0
+		HANDLE_EXCEPTION
+		EXIT_EXCEPTION
+	}
+	// clang-format on
 }
 
 void __declspec(naked) XBOXAPI KiTrapMF()
@@ -167,16 +173,18 @@ VOID FASTCALL KiContinue(PCONTEXT ContextRecord, BOOLEAN TestAlert, PKTRAP_FRAME
 
 VOID __declspec(naked) KiContinueService(PCONTEXT ContextRecord, BOOLEAN TestAlert)
 {
-  // ecx -> ContextRecord
-  // edx -> TestAlert
-
-	ASM_BEGIN
-		CREATE_KTRAP_FRAME_NO_CODE;
-		ASM(sti);
-		ASM(push ebp);
-		ASM(call KiContinue);
-		EXIT_EXCEPTION;
-	ASM_END
+	// ecx -> ContextRecord
+	// edx -> TestAlert
+	
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE
+		sti
+		push ebp
+		call KiContinue
+		EXIT_EXCEPTION
+	}
+	// clang-format on
 }
 
 VOID FASTCALL KiRaiseException(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT ContextRecord, BOOLEAN FirstChance, PKTRAP_FRAME TrapFrame);
@@ -187,41 +195,45 @@ VOID __declspec(naked) KiRaiseExceptionService(PEXCEPTION_RECORD ExceptionRecord
 	// edx -> ContextRecord
 	// eax -> FirstChance
 
-	ASM_BEGIN
-		CREATE_KTRAP_FRAME_NO_CODE;
-		ASM(sti);
-		ASM(push ebp);
-		ASM(push eax);
-		ASM(call KiRaiseException);
-		EXIT_EXCEPTION;
-	ASM_END
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_NO_CODE
+		sti
+		push ebp
+		push eax
+		call KiRaiseException
+		EXIT_EXCEPTION
+	}
+	// clang-format on
 }
 
  // XXX This should probably be moved in a file specific for float support
 static VOID KiFlushNPXState()
 {
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-		ASM(mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread);
-		ASM(cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED);
-		ASM(jne not_loaded);
-		ASM(mov eax, cr0);
-		ASM(test eax, (CR0_MP | CR0_EM | CR0_TS));
-		ASM(jz no_fpu_exp);
-		ASM(and eax, ~(CR0_MP | CR0_EM | CR0_TS));
-		ASM(mov cr0, eax);
+	// clang-format off
+	__asm {
+		pushfd
+		cli
+		mov edx, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread
+		cmp byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
+		jne not_loaded
+		mov eax, cr0
+		test eax, (CR0_MP | CR0_EM | CR0_TS)
+		jz no_fpu_exp
+		and eax, ~(CR0_MP | CR0_EM | CR0_TS)
+		mov cr0, eax
 	no_fpu_exp:
-		ASM(mov ecx, dword ptr [KiPcr]KPCR.NtTib.StackBase);
-		ASM(fxsave [ecx]);
-		ASM(mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED);
-		ASM(mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, 0);
-		ASM(or eax, NPX_STATE_NOT_LOADED);
-		ASM(or dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, NPX_STATE_NOT_LOADED); // block executing fpu instructions for this thread only
-		ASM(mov cr0, eax);
+		mov ecx, dword ptr [KiPcr]KPCR.NtTib.StackBase
+		fxsave [ecx]
+		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
+		mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, 0
+		or eax, NPX_STATE_NOT_LOADED
+		or dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, NPX_STATE_NOT_LOADED // block executing fpu instructions for this thread only
+		mov cr0, eax
 	not_loaded:
-		ASM(popfd);
-	ASM_END
+		popfd
+	}
+	// clang-format on
 }
 
 static VOID KiCopyKframeToContext(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord)
@@ -247,7 +259,9 @@ static VOID KiCopyKframeToContext(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 	if ((ContextRecord->ContextFlags & CONTEXT_FLOATING_POINT) || (ContextRecord->ContextFlags & CONTEXT_EXTENDED_REGISTERS)) {
 		KiFlushNPXState();
 		PFX_SAVE_AREA NpxFrame;
+		// clang-format off
 		KeGetStackBase(NpxFrame);
+		// clang-format on
 		memcpy(&ContextRecord->FloatSave, &NpxFrame->FloatSave, sizeof(FLOATING_SAVE_AREA));
 	}
 }
@@ -284,7 +298,9 @@ static VOID KiCopyContextToKframe(PKTRAP_FRAME TrapFrame, PCONTEXT ContextRecord
 	if ((ContextRecord->ContextFlags & CONTEXT_FLOATING_POINT) || (ContextRecord->ContextFlags & CONTEXT_EXTENDED_REGISTERS)) {
 		KiFlushNPXState();
 		PFX_SAVE_AREA NpxFrame;
+		// clang-format off
 		KeGetStackBase(NpxFrame);
+		// clang-format on
 		memcpy(&NpxFrame->FloatSave, &ContextRecord->FloatSave, sizeof(FLOATING_SAVE_AREA));
 		NpxFrame->FloatSave.Cr0NpxState &= ~(CR0_EM | CR0_MP | CR0_TS);
 		NpxFrame->FloatSave.MXCsr = NpxFrame->FloatSave.MXCsr & 0xFFBF;

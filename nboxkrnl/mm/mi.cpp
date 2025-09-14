@@ -8,18 +8,20 @@
 #include <assert.h>
 
 
+ // clang-format off
 VOID MiFlushEntireTlb()
 {
-	ASM_BEGIN
-		ASM(mov eax, cr3);
-		ASM(mov cr3, eax);
-	ASM_END
+	__asm {
+		mov eax, cr3
+		mov cr3, eax
+	}
 }
 
 VOID MiFlushTlbForPage(PVOID Addr)
 {
-	ASM(invlpg Addr);
+	__asm invlpg Addr
 }
+// clang-format on
 
 PageType MiInsertPageInFreeListNoBusy(PFN_NUMBER Pfn)
 {

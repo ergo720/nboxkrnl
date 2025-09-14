@@ -46,47 +46,49 @@
 
 // These macros (or equivalent assembly code) should be used to access the members of KiPcr when the irql is below dispatch level, to make sure that
 // the accesses are atomic and thus thread-safe
+// clang-format off
 #define KeGetStackBase(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr [KiPcr].NtTib.StackBase); \
-		ASM(mov var, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr [KiPcr].NtTib.StackBase \
+		__asm mov var, eax \
+	}
 
 #define KeGetStackLimit(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr [KiPcr].NtTib.StackLimit); \
-		ASM(mov var, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr [KiPcr].NtTib.StackLimit \
+		__asm mov var, eax \
+	}
 
 #define KeGetExceptionHead(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr [KiPcr].NtTib.ExceptionList); \
-		ASM(mov dword ptr var, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr [KiPcr].NtTib.ExceptionList \
+		__asm mov dword ptr var, eax \
+	}
 
 #define KeSetExceptionHead(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr var); \
-		ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr var \
+		__asm mov dword ptr [KiPcr].NtTib.ExceptionList, eax \
+	}
 
 #define KeResetExceptionHead(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr var); \
-		ASM(mov dword ptr [KiPcr].NtTib.ExceptionList, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr var \
+		__asm mov dword ptr [KiPcr].NtTib.ExceptionList, eax \
+	}
 
 #define KeGetDpcStack(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr [KiPcr].PrcbData.DpcStack); \
-		ASM(mov var, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr [KiPcr].PrcbData.DpcStack \
+		__asm mov var, eax \
+	}
 
 #define KeGetDpcActive(var) \
-	ASM_BEGIN \
-		ASM(mov eax, dword ptr [KiPcr].PrcbData.DpcRoutineActive); \
-		ASM(mov var, eax); \
-	ASM_END
+	__asm { \
+		__asm mov eax, dword ptr [KiPcr].PrcbData.DpcRoutineActive \
+		__asm mov var, eax \
+	}
+// clang-format on
 
 #define INITIALIZE_GLOBAL_KEVENT(Event, Type, State) \
     KEVENT Event = {                                 \

@@ -40,14 +40,16 @@ VOID __declspec(naked, noinline) CDECL KeBugCheckLogEip(ULONG BugCheckCode)
 {
 	// This function must be naked and never inlined because it needs to capture the return address placed on the stack by the caller
 
-	ASM_BEGIN
-		ASM(mov eax, dword ptr [esp]);
-		ASM(mov ecx, dword ptr [esp + 4]);
-		ASM(push 0);
-		ASM(push 0);
-		ASM(push 0);
-		ASM(push eax);
-		ASM(push ecx);
-		ASM(call KeBugCheckEx); // won't return
-	ASM_END
+	// clang-format off
+	__asm {
+		mov eax, dword ptr [esp]
+		mov ecx, dword ptr [esp + 4]
+		push 0
+		push 0
+		push 0
+		push eax
+		push ecx
+		call KeBugCheckEx // won't return
+	}
+	// clang-format on
 }

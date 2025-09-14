@@ -115,12 +115,14 @@ EXPORTNUM(151) VOID XBOXAPI KeStallExecutionProcessor
 		return;
 	}
 
-	ASM_BEGIN
-		ASM(mov ecx, LoopCounterValue);
+	// clang-format off
+	__asm {
+		mov ecx, LoopCounterValue
 loop_start:
-		ASM(sub ecx, 1);
-		ASM(jnz loop_start);
-	ASM_END
+		sub ecx, 1
+		jnz loop_start
+	}
+	// clang-format on
 }
 
 // Source: Cxbx-Reloaded

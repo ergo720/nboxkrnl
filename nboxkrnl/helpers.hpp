@@ -5,86 +5,87 @@
 #pragma once
 
 
+// clang-format off
 static inline VOID outl(USHORT Port, ULONG Value)
 {
-	ASM_BEGIN
-		ASM(mov eax, Value);
-		ASM(mov dx, Port);
-		ASM(out dx, eax);
-	ASM_END
+	__asm {
+		mov eax, Value
+		mov dx, Port
+		out dx, eax
+	}
 }
 
 static inline VOID outw(USHORT Port, USHORT Value)
 {
-	ASM_BEGIN
-		ASM(mov ax, Value);
-		ASM(mov dx, Port);
-		ASM(out dx, ax);
-	ASM_END
+	__asm {
+		mov ax, Value
+		mov dx, Port
+		out dx, ax
+	}
 }
 
 static inline VOID outb(USHORT Port, BYTE Value)
 {
-	ASM_BEGIN
-		ASM(mov al, Value);
-		ASM(mov dx, Port);
-		ASM(out dx, al);
-	ASM_END
+	__asm {
+		mov al, Value
+		mov dx, Port
+		out dx, al
+	}
 }
 
 static inline ULONG inl(USHORT Port)
 {
-	ASM_BEGIN
-		ASM(mov dx, Port);
-		ASM(in eax, dx);
-	ASM_END
+	__asm {
+		mov dx, Port
+		in eax, dx
+	}
 }
 
 static inline USHORT inw(USHORT Port)
 {
-	ASM_BEGIN
-		ASM(mov dx, Port);
-		ASM(in ax, dx);
-	ASM_END
+	__asm {
+		mov dx, Port
+		in ax, dx
+	}
 }
 
 static inline BYTE inb(USHORT Port)
 {
-	ASM_BEGIN
-		ASM(mov dx, Port);
-		ASM(in al, dx);
-	ASM_END
+	__asm {
+		mov dx, Port
+		in al, dx
+	}
 }
 
 static inline VOID enable()
 {
-	ASM(sti);
+	__asm sti
 }
 
 static inline VOID disable()
 {
-	ASM(cli);
+	__asm cli
 }
 
 static inline DWORD save_int_state_and_disable()
 {
 	DWORD Eflags;
 
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-		ASM(pop Eflags);
-	ASM_END
+	__asm {
+		pushfd
+		cli
+		pop Eflags
+	}
 
 	return Eflags;
 }
 
 static inline VOID restore_int_state(DWORD Eflags)
 {
-	ASM_BEGIN
-		ASM(push Eflags);
-		ASM(popfd);
-	ASM_END
+	__asm {
+		push Eflags
+		popfd
+	}
 }
 
 static inline UCHAR bit_scan_forward(ULONG *Index, ULONG Mask)
@@ -94,10 +95,10 @@ static inline UCHAR bit_scan_forward(ULONG *Index, ULONG Mask)
 	}
 
 	ULONG Value;
-	ASM_BEGIN
-		ASM(bsf eax, Mask);
-		ASM(mov Value, eax);
-	ASM_END
+	__asm {
+		bsf eax, Mask
+		mov Value, eax
+	}
 	*Index = Value;
 
 	return 1;
@@ -110,10 +111,10 @@ static inline UCHAR bit_scan_reverse(ULONG *Index, ULONG Mask)
 	}
 
 	ULONG Value;
-	ASM_BEGIN
-		ASM(bsr eax, Mask);
-		ASM(mov Value, eax);
-	ASM_END
+	__asm {
+		bsr eax, Mask
+		mov Value, eax
+	}
 	*Index = Value;
 
 	return 1;
@@ -121,26 +122,21 @@ static inline UCHAR bit_scan_reverse(ULONG *Index, ULONG Mask)
 
 static inline VOID CDECL atomic_store64(LONGLONG *dst, LONGLONG val)
 {
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-	ASM_END
+	DWORD OldEflags = save_int_state_and_disable();
 
 	*dst = val;
 
-	ASM(popfd);
+	restore_int_state(OldEflags);
 }
 
 static inline VOID CDECL atomic_add64(LONGLONG *dst, LONGLONG val)
 {
-	ASM_BEGIN
-		ASM(pushfd);
-		ASM(cli);
-	ASM_END
+	DWORD OldEflags = save_int_state_and_disable();
 
 	LONGLONG temp = *dst;
 	temp += val;
 	*dst = temp;
 
-	ASM(popfd);
+	restore_int_state(OldEflags);
 }
+// clang-format on

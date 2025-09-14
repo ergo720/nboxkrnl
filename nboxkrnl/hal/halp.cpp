@@ -130,10 +130,12 @@ VOID HalpShutdownSystem()
 	outl(KE_ABORT, 0);
 
 	while (true) {
-		ASM_BEGIN
-			ASM(cli);
-			ASM(hlt);
-		ASM_END
+		// clang-format on
+		__asm {
+			cli
+			hlt
+		}
+		// clang-format on
 	}
 }
 
