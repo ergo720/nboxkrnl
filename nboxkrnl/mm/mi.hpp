@@ -22,7 +22,7 @@
 #define PTE_GUARD_END_MASK          0x00000200
 #define PTE_PERSIST_MASK            0x00000400
 #define PTE_NOACCESS                0x00000000
-#define PTE_READONLY                PTE_VALID_MASK
+#define PTE_READONLY                PTE_NOACCESS // confirmed with a kernel dump
 #define PTE_READWRITE               PTE_WRITE_MASK
 #define PTE_NOCACHE                 PTE_CACHE_DISABLE_MASK
 #define PTE_GUARD                   PTE_GUARD_END_MASK
