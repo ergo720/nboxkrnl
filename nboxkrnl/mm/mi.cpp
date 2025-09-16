@@ -355,6 +355,39 @@ BOOLEAN MiConvertPageToSystemPtePermissions(ULONG Protect, PMMPTE Pte)
 	return TRUE;
 }
 
+DWORD MiConvertPteToPagePermissions(ULONG PteMask)
+{
+	// This routine assumes that the pte has valid protection bits. If it doesn't, it can produce invalid
+	// access permissions
+
+	ULONG Protect;
+
+	if (PteMask & PTE_READWRITE) {
+		Protect = PAGE_READWRITE;
+	}
+	else {
+		Protect = PAGE_READONLY;
+	}
+
+	if ((PteMask & PTE_VALID_MASK) == 0) {
+		if (PteMask & PTE_GUARD) {
+			Protect |= PAGE_GUARD;
+		}
+		else {
+			Protect = PAGE_NOACCESS;
+		}
+	}
+
+	if (PteMask & PTE_CACHE_DISABLE_MASK) {
+		Protect |= PAGE_NOCACHE;
+	}
+	else if (PteMask & PTE_WRITE_THROUGH_MASK) {
+		Protect |= PAGE_WRITECOMBINE;
+	}
+
+	return Protect;
+}
+
 static VOID MiReleasePtes(PPTEREGION PteRegion, PMMPTE StartPte, ULONG NumberOfPtes)
 {
 	RtlFillMemoryUlong(StartPte, NumberOfPtes * sizeof(MMPTE), 0); // caller should flush the TLB if necessary
@@ -577,9 +610,41 @@ ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
 	return NumberOfPages;
 }
 
-VOID XBOXAPI MiPageFaultHandler(ULONG Cr2, ULONG Eip)
+NTSTATUS XBOXAPI MiPageFaultHandler(ULONG Cr2, ULONG Eip)
 {
-	// For now, this just logs the faulting access and returns
-
 	DbgPrint("Page fault at 0x%X while touching address 0x%X", Eip, Cr2);
+
+	if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
+		return STATUS_IN_PAGE_ERROR; // cannot handle page fault at or above DISPATCH_LEVEL
+	}
+
+	NTSTATUS Status = STATUS_ACCESS_VIOLATION;
+
+	if (IS_USER_ADDRESS(Cr2)) {
+		// If it is a guard page installed by NtAllocateVirtualMemory, we can handle the fault ourselves here
+
+		VadLock();
+		KIRQL OldIrql = MiLock();
+
+		if (GetPdeAddress(Cr2)->Hw & PTE_VALID_MASK) {
+			PMMPTE Pte = GetPteAddress(Cr2);
+
+			if (Pte->Hw) {
+				DWORD Protect = MiConvertPteToPagePermissions(Pte->Hw & PTE_VALID_PROTECTION_MASK);
+
+				if (Protect & PAGE_GUARD) {
+					MMPTE TempPte;
+					MiConvertPageToPtePermissions(Protect & ~PAGE_GUARD, &TempPte);
+					Pte->Hw = (Pte->Hw & ~PTE_VALID_PROTECTION_MASK) | TempPte.Hw;
+					MiFlushTlbForPage((PVOID)GetVAddrMappedByPte(Pte));
+					Status = STATUS_GUARD_PAGE_VIOLATION;
+				}
+			}
+		}
+
+		MiUnlock(OldIrql);
+		VadUnlock();
+	}
+
+	return Status;
 }

@@ -131,10 +131,9 @@ void __declspec(naked) XBOXAPI KiTrapPF()
 		CREATE_KTRAP_FRAME_WITH_CODE
 		push dword ptr [ebp]KTRAP_FRAME.Eip
 		mov edx, cr2
+		sti
 		push edx
 		call MiPageFaultHandler
-		sti
-		mov eax, 0xC0000005 // STATUS_ACCESS_VIOLATION
 		mov ebx, dword ptr [ebp]KTRAP_FRAME.Eip
 		CREATE_EXCEPTION_RECORD_ARG0
 		HANDLE_EXCEPTION
