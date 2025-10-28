@@ -140,3 +140,19 @@ static inline VOID CDECL atomic_add64(LONGLONG *dst, LONGLONG val)
 	restore_int_state(OldEflags);
 }
 // clang-format on
+
+static inline ULONG next_pow2(ULONG v)
+{
+	// Source: Bit Twiddling Hacks - Round up to the next highest power of 2
+	// compute the next highest power of 2 of 32-bit v
+
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	v++;
+
+	return v;
+}

@@ -8,32 +8,35 @@
 #include <assert.h>
 
 
-// Block of data in front the actual chunk allocated
-union CHUNK_HEADER {
-	struct {
-		ULONG Size;
-		ULONG Tag;
-	} Busy;
-	struct {
-		CHUNK_HEADER *Flink;
-		ULONG Unused;
-	} Free;
-};
-
-static_assert(sizeof(CHUNK_HEADER) == 8);
-
-#define POOL_SIZE            PAGE_SIZE
-#define CHUNK_OVERHEAD       sizeof(CHUNK_HEADER)
-#define CHUNK_SHIFT          5
-#define NUM_CHUNK_LISTS      64
+#define POOL_SIZE            4096
+#define CHUNK_IDX_OFFSET     5
+#define NUM_CHUNK_LISTS      6
 
 // Macros to ensure thread safety
 #define PoolLock() KeRaiseIrqlToDpcLevel()
 #define PoolUnlock(Irql) KfLowerIrql(Irql)
 
-// Tracks lists to chunks with a size multiple of 32 bytes
-static CHUNK_HEADER *ChunkListsHead[NUM_CHUNK_LISTS] = { nullptr };
 
+// Block of data found at the start of a free chunk only
+struct CHUNK_HEADER {
+	struct CHUNK_HEADER *Flink; // links to the next free chunk
+};
+
+// Block of data found at the beginning of a page that hosts a pool
+struct POOL_HEADER {
+	SIZE_T ChunkSize; // constant for all chunks in this pool, expressed as a power of 2
+	ULONG TagArray[1]; // actual size depends on the chunk size
+};
+
+// Tracks lists to chunks with different sizes
+static CHUNK_HEADER *ChunkListsHead[NUM_CHUNK_LISTS] = {
+	nullptr, // 32, 128 chunks, 4 + 512 bytes for POOL_HEADER
+	nullptr, // 64, 64 chunks, 4 + 256 bytes for POOL_HEADER
+	nullptr, // 128, 32 chunks, 4 + 128 bytes for POOL_HEADER
+	nullptr, // 256, 16 chunks, 4 + 64 bytes for POOL_HEADER
+	nullptr, // 512, 8 chunks, 4 + 32 bytes for POOL_HEADER
+	nullptr, // 1024, 4 chunks, 4 + 16 bytes for POOL_HEADER
+};
 
 static CHUNK_HEADER *CreatePool(SIZE_T ChunkSize)
 {
@@ -42,38 +45,59 @@ static CHUNK_HEADER *CreatePool(SIZE_T ChunkSize)
 		return nullptr;
 	}
 
-	CHUNK_HEADER *Addr = Start;
+	// Initialize all CHUNK_HEADERs in the pool
+	assert(ChunkSize && !(ChunkSize & (ChunkSize - 1))); // must be a power of 2
+	unsigned FirstChunkAvailableIdx = (ChunkSize >= 256) ? 1 : (ChunkSize == 128) ? 2 : (ChunkSize == 64) ? 5 : 17;
+	CHUNK_HEADER *Addr = Start, *FirstChunkAvailableAddr = nullptr;
 	for (unsigned i = 0; i < (POOL_SIZE / ChunkSize - 1); ++i) {
-		Addr->Free.Flink = (CHUNK_HEADER *)((uint8_t *)Addr + ChunkSize);
-		Addr = Addr->Free.Flink;
+		if (i == FirstChunkAvailableIdx) {
+			FirstChunkAvailableAddr = Addr;
+		}
+		Addr->Flink = (CHUNK_HEADER *)((uint8_t *)Addr + ChunkSize);
+		Addr = Addr->Flink;
 	}
+	Addr->Flink = nullptr;
+	assert(FirstChunkAvailableAddr);
 
-	Addr->Free.Flink = nullptr;
-	return Start;
+	// Initialize POOL_HEADER
+	POOL_HEADER *Pool = (POOL_HEADER *)Start;
+	Pool->ChunkSize = ChunkSize;
+
+	return FirstChunkAvailableAddr;
 }
 
-static PVOID AllocChunk(SIZE_T ListIdx, ULONG Tag)
+static PVOID AllocChunk(SIZE_T NumberOfBytes, ULONG Tag)
 {
-	SIZE_T ChunkSize = (ListIdx + 1) << CHUNK_SHIFT;
+	NumberOfBytes = next_pow2(NumberOfBytes);
+	SIZE_T ListIdx;
+	bit_scan_reverse(&ListIdx, NumberOfBytes);
+	ListIdx -= CHUNK_IDX_OFFSET;
+	assert((ListIdx >= 0) && (ListIdx < NUM_CHUNK_LISTS));
+
 	if (ChunkListsHead[ListIdx] == nullptr) {
-		ChunkListsHead[ListIdx] = CreatePool(ChunkSize);
+		ChunkListsHead[ListIdx] = CreatePool(NumberOfBytes);
 		if (ChunkListsHead[ListIdx] == nullptr) {
 			return nullptr;
 		}
 	}
 
 	CHUNK_HEADER *Addr = ChunkListsHead[ListIdx];
-	ChunkListsHead[ListIdx] = ChunkListsHead[ListIdx]->Free.Flink;
-	Addr->Busy.Size = ChunkSize;
-	Addr->Busy.Tag = Tag;
+	ChunkListsHead[ListIdx] = ChunkListsHead[ListIdx]->Flink;
+	POOL_HEADER *Pool = (POOL_HEADER *)ROUND_DOWN((ULONG_PTR)Addr, POOL_SIZE);
+	Pool->TagArray[((ULONG_PTR)Addr - (ULONG_PTR)Pool) / Pool->ChunkSize] = Tag;
 
-	return Addr + 1;
+	return Addr;
 }
 
-static VOID FreeChunk(CHUNK_HEADER *Addr, SIZE_T ListIdx)
+static VOID FreeChunk(PVOID Addr)
 {
-	Addr->Free.Flink = ChunkListsHead[ListIdx];
-	ChunkListsHead[ListIdx] = Addr;
+	POOL_HEADER *Pool = (POOL_HEADER *)ROUND_DOWN((ULONG_PTR)Addr, POOL_SIZE);
+	SIZE_T ListIdx;
+	bit_scan_reverse(&ListIdx, Pool->ChunkSize);
+	ListIdx -= CHUNK_IDX_OFFSET;
+	CHUNK_HEADER *Chunk = (CHUNK_HEADER *)Addr;
+	Chunk->Flink = ChunkListsHead[ListIdx];
+	ChunkListsHead[ListIdx] = Chunk;
 }
 
 EXPORTNUM(14) PVOID XBOXAPI ExAllocatePool
@@ -90,16 +114,16 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 	ULONG Tag
 )
 {
-	if (NumberOfBytes > (POOL_SIZE / 2 - CHUNK_OVERHEAD)) {
+	NumberOfBytes = (NumberOfBytes < 32) ? 32 : NumberOfBytes; // smallest chunk size is 32
+
+	if (NumberOfBytes > (POOL_SIZE >> 2)) {
 		return MiAllocateSystemMemory(NumberOfBytes, PAGE_READWRITE, Pool, FALSE);
 	}
 
 	KIRQL OldIrql = PoolLock();
-	SIZE_T ListIdx = (NumberOfBytes + CHUNK_OVERHEAD - 1) >> CHUNK_SHIFT;
-	assert((ListIdx >= 0) && (ListIdx < NUM_CHUNK_LISTS));
-	PVOID Addr = AllocChunk(ListIdx, Tag);
-	assert(!CHECK_ALIGNMENT(Addr, POOL_SIZE));
+	PVOID Addr = AllocChunk(NumberOfBytes, Tag);
 	PoolUnlock(OldIrql);
+	assert(!CHECK_ALIGNMENT(Addr, POOL_SIZE));
 
 	return Addr;
 }
@@ -115,8 +139,7 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 	}
 
 	KIRQL OldIrql = PoolLock();
-	CHUNK_HEADER *Header = (CHUNK_HEADER *)((uint8_t *)P - CHUNK_OVERHEAD);
-	FreeChunk(Header, (Header->Busy.Size - 1) >> CHUNK_SHIFT);
+	FreeChunk(P);
 	PoolUnlock(OldIrql);
 }
 
@@ -129,6 +152,6 @@ EXPORTNUM(23) ULONG XBOXAPI ExQueryPoolBlockSize
 		return MmQueryAllocationSize(PoolBlock);
 	}
 
-	CHUNK_HEADER *Header = (CHUNK_HEADER *)((uint8_t *)PoolBlock - CHUNK_OVERHEAD);
-	return Header->Busy.Size - CHUNK_OVERHEAD;
+	POOL_HEADER *Pool = (POOL_HEADER *)ROUND_DOWN((ULONG_PTR)PoolBlock, POOL_SIZE);
+	return Pool->ChunkSize;
 }
