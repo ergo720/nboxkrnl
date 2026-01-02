@@ -8,13 +8,13 @@
 
 
 static DRIVER_OBJECT CdromDriverObject = {
-	nullptr,                            // DriverStartIo
-	nullptr,                            // DriverDeleteDevice
-	nullptr,                            // DriverDismountVolume
+	IopUnimplementedDriverStartIo,         // DriverStartIo
+	nullptr,                               // DriverDeleteDevice
+	nullptr,                               // DriverDismountVolume
 	{
-		IoInvalidDeviceRequest,         // IRP_MJ_CREATE
-		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
-		IoInvalidDeviceRequest,         // IRP_MJ_READ
+		IopUnimplementedDeviceRequest,  // IRP_MJ_CREATE
+		IopUnimplementedDeviceRequest,  // IRP_MJ_CLOSE
+		IopUnimplementedDeviceRequest,  // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
@@ -22,7 +22,7 @@ static DRIVER_OBJECT CdromDriverObject = {
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_DEVICE_CONTROL
+		IopUnimplementedDeviceRequest,  // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
 		IoInvalidDeviceRequest,         // IRP_MJ_CLEANUP

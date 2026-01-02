@@ -702,3 +702,7 @@ NTSTATUS IopCleanupFailedIrpAllocation(PFILE_OBJECT FileObject, PKEVENT EventObj
 NTSTATUS IopSynchronousService(PDEVICE_OBJECT DeviceObject, PIRP Irp, PFILE_OBJECT FileObject, BOOLEAN DeferredIoCompletion, BOOLEAN SynchronousIo);
 NTSTATUS XBOXAPI IopControlFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock,
 	ULONG IoControlCode, PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer, ULONG OutputBufferLength, ULONG IrpType);
+VOID XBOXAPI IopUnimplementedDriverStartIo(DEVICE_OBJECT *DeviceObject, IRP *Irp);
+VOID XBOXAPI IopUnimplementedDriverDeleteDevice(DEVICE_OBJECT *DeviceObject);
+NTSTATUS XBOXAPI IopUnimplementedDriverDismountVolume(DEVICE_OBJECT *DeviceObject);
+NTSTATUS XBOXAPI IopUnimplementedDeviceRequest(DEVICE_OBJECT *DeviceObject, IRP *Irp);

@@ -78,20 +78,20 @@ static NTSTATUS XBOXAPI FatxIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP I
 static NTSTATUS XBOXAPI FatxIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT FatxDriverObject = {
-	nullptr,                            // DriverStartIo
-	nullptr,                            // DriverDeleteDevice
-	nullptr,                            // DriverDismountVolume
+	nullptr,                               // DriverStartIo
+	nullptr,                               // DriverDeleteDevice
+	IopUnimplementedDriverDismountVolume,  // DriverDismountVolume
 	{
 		FatxIrpCreate,                  // IRP_MJ_CREATE
 		FatxIrpClose,                   // IRP_MJ_CLOSE
 		FatxIrpRead,                    // IRP_MJ_READ
 		FatxIrpWrite,                   // IRP_MJ_WRITE
 		FatxIrpQueryInformation,        // IRP_MJ_QUERY_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
+		IopUnimplementedDeviceRequest,  // IRP_MJ_SET_INFORMATION
+		IopUnimplementedDeviceRequest,  // IRP_MJ_FLUSH_BUFFERS
 		FatxIrpQueryVolumeInformation,  // IRP_MJ_QUERY_VOLUME_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
+		IopUnimplementedDeviceRequest,  // IRP_MJ_DIRECTORY_CONTROL
+		IopUnimplementedDeviceRequest,  // IRP_MJ_FILE_SYSTEM_CONTROL
 		FatxIrpDeviceControl,           // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN

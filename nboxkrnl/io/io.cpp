@@ -6,7 +6,6 @@
 #include "rtl.hpp"
 #include "obp.hpp"
 #include "nt.hpp"
-#include "dbg.hpp"
 #include "halp.hpp"
 #include "cdrom\cdrom.hpp"
 #include "hdd\hdd.hpp"
@@ -485,98 +484,6 @@ EXPORTNUM(74) NTSTATUS XBOXAPI IoInvalidDeviceRequest
 	PIRP Irp
 )
 {
-	// This should not happen. If it does, it's either a bug or a valid driver's IRP has not been implemented yet
-
-	PCHAR DriverName, IrpType;
-	switch (DeviceObject->DeviceType)
-	{
-	case FILE_DEVICE_CD_ROM:
-	case FILE_DEVICE_CD_ROM_FILE_SYSTEM:
-		DriverName = (PCHAR)"dvd drive";
-		break;
-
-	case FILE_DEVICE_DISK:
-	case FILE_DEVICE_DISK_FILE_SYSTEM:
-		DriverName = (PCHAR)"hard disk";
-		break;
-
-	case FILE_DEVICE_MEMORY_UNIT:
-		DriverName = (PCHAR)"memory unit";
-		break;
-
-	case FILE_DEVICE_MEDIA_BOARD:
-		DriverName = (PCHAR)"media board";
-		break;
-
-	default:
-		DriverName = (PCHAR)"unknown";
-	}
-
-	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
-	switch (IrpStackPointer->MajorFunction)
-	{
-	case IRP_MJ_CREATE:
-		IrpType = (PCHAR)"create";
-		break;
-
-	case IRP_MJ_CLOSE:
-		IrpType = (PCHAR)"close";
-		break;
-
-	case IRP_MJ_READ:
-		IrpType = (PCHAR)"read";
-		break;
-
-	case IRP_MJ_WRITE:
-		IrpType = (PCHAR)"write";
-		break;
-
-	case IRP_MJ_QUERY_INFORMATION:
-		IrpType = (PCHAR)"query information";
-		break;
-
-	case IRP_MJ_SET_INFORMATION:
-		IrpType = (PCHAR)"set information";
-		break;
-
-	case IRP_MJ_FLUSH_BUFFERS:
-		IrpType = (PCHAR)"flush buffers";
-		break;
-
-	case IRP_MJ_QUERY_VOLUME_INFORMATION:
-		IrpType = (PCHAR)"query volume information";
-		break;
-
-	case IRP_MJ_DIRECTORY_CONTROL:
-		IrpType = (PCHAR)"directory control";
-		break;
-
-	case IRP_MJ_FILE_SYSTEM_CONTROL:
-		IrpType = (PCHAR)"file system control";
-		break;
-
-	case IRP_MJ_DEVICE_CONTROL:
-		IrpType = (PCHAR)"device control";
-		break;
-
-	case IRP_MJ_INTERNAL_DEVICE_CONTROL:
-		IrpType = (PCHAR)"internal device control";
-		break;
-
-	case IRP_MJ_SHUTDOWN:
-		IrpType = (PCHAR)"shutdown";
-		break;
-
-	case IRP_MJ_CLEANUP:
-		IrpType = (PCHAR)"cleanup";
-		break;
-
-	default:
-		IrpType = (PCHAR)"unknown";
-	}
-
-	DbgPrint("Invalid device request \"%s\" from %s driver", IrpType, DriverName);
-
 	Irp->IoStatus.Status = STATUS_INVALID_DEVICE_REQUEST;
 	IofCompleteRequest(Irp, PRIORITY_BOOST_IO);
 	return STATUS_INVALID_DEVICE_REQUEST;

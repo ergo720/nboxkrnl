@@ -60,17 +60,17 @@ OBJECT_TYPE HddDirectoryObjectType = {
 static NTSTATUS XBOXAPI HddIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT HddDriverObject = {
-	nullptr,                            // DriverStartIo
-	nullptr,                            // DriverDeleteDevice
-	nullptr,                            // DriverDismountVolume
+	IopUnimplementedDriverStartIo,         // DriverStartIo
+	nullptr,                               // DriverDeleteDevice
+	nullptr,                               // DriverDismountVolume
 	{
-		IoInvalidDeviceRequest,         // IRP_MJ_CREATE
-		IoInvalidDeviceRequest,         // IRP_MJ_CLOSE
-		IoInvalidDeviceRequest,         // IRP_MJ_READ
-		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
+		IopUnimplementedDeviceRequest,  // IRP_MJ_CREATE
+		IopUnimplementedDeviceRequest,  // IRP_MJ_CLOSE
+		IopUnimplementedDeviceRequest,  // IRP_MJ_READ
+		IopUnimplementedDeviceRequest,  // IRP_MJ_WRITE
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
+		IopUnimplementedDeviceRequest,  // IRP_MJ_FLUSH_BUFFERS
 		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL

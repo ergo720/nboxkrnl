@@ -17,20 +17,20 @@ static NTSTATUS XBOXAPI RawIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Ir
 static NTSTATUS XBOXAPI RawIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT RawDriverObject = {
-	nullptr,                            // DriverStartIo
-	nullptr,                            // DriverDeleteDevice
-	nullptr,                            // DriverDismountVolume
+	nullptr,                               // DriverStartIo
+	nullptr,                               // DriverDeleteDevice
+	IopUnimplementedDriverDismountVolume,  // DriverDismountVolume
 	{
 		RawIrpCreate,                   // IRP_MJ_CREATE
 		RawIrpClose,                    // IRP_MJ_CLOSE
 		RawIrpRead,                     // IRP_MJ_READ
 		RawIrpWrite,                    // IRP_MJ_WRITE
-		IoInvalidDeviceRequest,         // IRP_MJ_QUERY_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_SET_INFORMATION
-		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
-		IoInvalidDeviceRequest       ,  // IRP_MJ_QUERY_VOLUME_INFORMATION
+		IopUnimplementedDeviceRequest,  // IRP_MJ_QUERY_INFORMATION
+		IopUnimplementedDeviceRequest,  // IRP_MJ_SET_INFORMATION
+		IopUnimplementedDeviceRequest,  // IRP_MJ_FLUSH_BUFFERS
+		IopUnimplementedDeviceRequest,  // IRP_MJ_QUERY_VOLUME_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_DIRECTORY_CONTROL
-		IoInvalidDeviceRequest,         // IRP_MJ_FILE_SYSTEM_CONTROL
+		IopUnimplementedDeviceRequest,  // IRP_MJ_FILE_SYSTEM_CONTROL
 		RawIrpDeviceControl,            // IRP_MJ_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_INTERNAL_DEVICE_CONTROL
 		IoInvalidDeviceRequest,         // IRP_MJ_SHUTDOWN
