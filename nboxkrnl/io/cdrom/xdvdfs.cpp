@@ -16,6 +16,7 @@ static NTSTATUS XBOXAPI XdvdfsIrpCreate(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpClose(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpRead(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+static NTSTATUS XBOXAPI XdvdfsIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 static NTSTATUS XBOXAPI XdvdfsIrpCleanup(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 
 static DRIVER_OBJECT XdvdfsDriverObject = {
@@ -27,7 +28,7 @@ static DRIVER_OBJECT XdvdfsDriverObject = {
 		XdvdfsIrpClose,                 // IRP_MJ_CLOSE
 		XdvdfsIrpRead,                  // IRP_MJ_READ
 		IoInvalidDeviceRequest,         // IRP_MJ_WRITE
-		IopUnimplementedDeviceRequest,  // IRP_MJ_QUERY_INFORMATION
+		XdvdfsIrpQueryInformation,      // IRP_MJ_QUERY_INFORMATION
 		IopUnimplementedDeviceRequest,  // IRP_MJ_SET_INFORMATION
 		IoInvalidDeviceRequest,         // IRP_MJ_FLUSH_BUFFERS
 		IopUnimplementedDeviceRequest,  // IRP_MJ_QUERY_VOLUME_INFORMATION
@@ -569,6 +570,66 @@ static NTSTATUS XBOXAPI XdvdfsIrpDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP
 		RIP_API_FMT("Ripped on unimplemented DVD IOCTL 0x%X", IrpStackPointer->Parameters.DeviceIoControl.IoControlCode);
 	}
 
+	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
+}
+
+static NTSTATUS XBOXAPI XdvdfsIrpQueryInformation(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	PXISO_VOLUME_EXTENSION VolumeExtension = (PXISO_VOLUME_EXTENSION)DeviceObject->DeviceExtension;
+	XdvdfsVolumeLockShared(VolumeExtension);
+	PIO_STACK_LOCATION IrpStackPointer = IoGetCurrentIrpStackLocation(Irp);
+	PFILE_OBJECT FileObject = IrpStackPointer->FileObject;
+	PXISO_FILE_INFO FileInfo = (PXISO_FILE_INFO)FileObject->FsContext2;
+
+	if (VolumeExtension->Dismounted) {
+		return XdvdfsCompleteRequest(Irp, STATUS_VOLUME_DISMOUNTED, VolumeExtension);
+	}
+
+	if ((FileInfo->Flags & XDVDFS_VOLUME_FILE) && (IrpStackPointer->Parameters.QueryFile.FileInformationClass != FilePositionInformation)) {
+		return XdvdfsCompleteRequest(Irp, STATUS_INVALID_PARAMETER, VolumeExtension);
+	}
+
+	memset(Irp->UserBuffer, 0, IrpStackPointer->Parameters.QueryFile.Length);
+
+	ULONG BytesWritten;
+	NTSTATUS Status = STATUS_SUCCESS;
+	switch (IrpStackPointer->Parameters.QueryFile.FileInformationClass)
+	{
+	case FileInternalInformation:
+		PFILE_INTERNAL_INFORMATION(Irp->UserBuffer)->IndexNumber.HighPart = ULONG_PTR(VolumeExtension);
+		PFILE_INTERNAL_INFORMATION(Irp->UserBuffer)->IndexNumber.LowPart = ULONG_PTR(FileInfo);
+		BytesWritten = sizeof(FILE_INTERNAL_INFORMATION);
+		break;
+
+	case FilePositionInformation:
+		PFILE_POSITION_INFORMATION(Irp->UserBuffer)->CurrentByteOffset = FileObject->CurrentByteOffset;
+		BytesWritten = sizeof(FILE_POSITION_INFORMATION);
+		break;
+
+	case FileNetworkOpenInformation: {
+		PFILE_NETWORK_OPEN_INFORMATION NetworkOpenInformation = (PFILE_NETWORK_OPEN_INFORMATION)Irp->UserBuffer;
+		NetworkOpenInformation->CreationTime = NetworkOpenInformation->LastAccessTime = NetworkOpenInformation->LastWriteTime =
+		NetworkOpenInformation->ChangeTime = FileInfo->Timestamp;
+		if (FileInfo->Flags & FILE_DIRECTORY_FILE) {
+			NetworkOpenInformation->FileAttributes = FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_READONLY;
+			NetworkOpenInformation->AllocationSize.QuadPart = 0;
+			NetworkOpenInformation->EndOfFile.QuadPart = 0;
+		}
+		else {
+			NetworkOpenInformation->FileAttributes = FILE_ATTRIBUTE_READONLY;
+			NetworkOpenInformation->AllocationSize.QuadPart = (ULONGLONG)FileInfo->FileSize;
+			NetworkOpenInformation->EndOfFile.QuadPart = (ULONGLONG)FileInfo->FileSize;
+		}
+		BytesWritten = sizeof(FILE_NETWORK_OPEN_INFORMATION);
+	}
+	break;
+
+	default:
+		BytesWritten = 0;
+		Status = STATUS_INVALID_PARAMETER;
+	}
+
+	Irp->IoStatus.Information = BytesWritten;
 	return XdvdfsCompleteRequest(Irp, Status, VolumeExtension);
 }
 
