@@ -54,7 +54,6 @@ static NTSTATUS XeLoadXbe()
 		XeImageFileName.Buffer = PathBuffer;
 		XeImageFileName.Length = (USHORT)PathSize;
 		XeImageFileName.MaximumLength = (USHORT)PathSize;
-		memcpy(XeImageFileName.Buffer, PathBuffer, PathSize); // NOTE: doesn't copy the terminating NULL character
 
 		OBJECT_ATTRIBUTES ObjectAttributes;
 		InitializeObjectAttributes(&ObjectAttributes, &XeImageFileName, OBJ_CASE_INSENSITIVE, nullptr);
