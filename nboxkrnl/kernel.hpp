@@ -90,21 +90,6 @@ enum IoFlags : ULONG {
 	MustNotBeADirectory = 1 << 5
 };
 
-enum IoStatus : NTSTATUS {
-	Success = 0,
-	Pending,
-	Error,
-	Failed,
-	IsADirectory,
-	NotADirectory,
-	NameNotFound,
-	PathNotFound,
-	Corrupt,
-	CannotDelete,
-	NotEmpty,
-	Full
-};
-
 // Same as FILE_ macros of IO
 enum IoInfo : ULONG {
 	Superseded = 0,
@@ -161,10 +146,7 @@ struct IoRequest {
 
 struct IoInfoBlock {
 	ULONG Id; // id of the io request to query
-	union {
-		IoStatus HostStatus; // the final status of the request as received by the host
-		NTSTATUS NtStatus; // HostStatus converted to a status suitable for the kernel
-	};
+	NTSTATUS NtStatus; // the final status of the request as received by the host
 	IoInfo Info; // request-specific information
 	ULONG Ready; // set to 0 by the guest, then set to 1 by the host when the io request is complete
 };

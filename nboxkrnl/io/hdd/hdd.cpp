@@ -120,7 +120,7 @@ BOOLEAN HddInitDriver()
 		PARTITION0_HANDLE
 	);
 
-	if (InfoBlock.NtStatus != Success) {
+	if (!NT_SUCCESS(InfoBlock.NtStatus)) {
 		return FALSE;
 	}
 	if (memcmp(&PartitionTable.Magic[0], &ExpectedMagic[0], sizeof(ExpectedMagic))) {
