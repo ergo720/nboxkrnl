@@ -235,7 +235,7 @@ EXPORTNUM(219) DLLEXPORT NTSTATUS XBOXAPI NtReadFile
 		if (!ByteOffset || (ByteOffset->QuadPart < 0)) {
 			ObfDereferenceObject(FileObject);
 			if (Event) {
-				ObfDereferenceObject(Event);
+				ObfDereferenceObject(UserEvent);
 			}
 			return STATUS_INVALID_PARAMETER;
 		}
@@ -333,7 +333,7 @@ EXPORTNUM(236) NTSTATUS XBOXAPI NtWriteFile
 		if (!ByteOffset || (ByteOffset->QuadPart < 0)) {
 			ObfDereferenceObject(FileObject);
 			if (Event) {
-				ObfDereferenceObject(Event);
+				ObfDereferenceObject(UserEvent);
 			}
 			return STATUS_INVALID_PARAMETER;
 		}
