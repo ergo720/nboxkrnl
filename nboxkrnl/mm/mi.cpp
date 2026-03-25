@@ -19,7 +19,10 @@ VOID MiFlushEntireTlb()
 
 VOID MiFlushTlbForPage(PVOID Addr)
 {
-	__asm invlpg Addr
+	__asm {
+		mov ecx, Addr
+		invlpg [ecx]
+	}
 }
 // clang-format on
 
