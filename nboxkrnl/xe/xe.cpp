@@ -115,7 +115,7 @@ static NTSTATUS XeLoadXbe()
 		if (GetXbeAddress()->dwSizeofHeaders > PAGE_SIZE) {
 			LARGE_INTEGER XbeOffset{ .QuadPart = PAGE_SIZE };
 			if (NTSTATUS Status = NtReadFile(XbeHandle, nullptr, nullptr, nullptr, &IoStatusBlock,
-				(PCHAR)XbeHeader + PAGE_SIZE, GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE, &XbeOffset); !NT_SUCCESS(Status)) {
+				(PCHAR)GetXbeAddress() + PAGE_SIZE, GetXbeAddress()->dwSizeofHeaders - PAGE_SIZE, &XbeOffset); !NT_SUCCESS(Status)) {
 				Address = GetXbeAddress();
 				Size = 0;
 				NtFreeVirtualMemory(&Address, &Size, MEM_RELEASE);
