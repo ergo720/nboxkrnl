@@ -81,11 +81,12 @@ void __declspec(naked) XBOXAPI KiTrapNM()
 		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of NpxThread
 		fxsave [ecx]
 		mov dword ptr [eax]KTHREAD.NpxState, NPX_STATE_NOT_LOADED
+		or dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, NPX_STATE_NOT_LOADED // block executing fpu instructions for this thread on next switch-in
 	no_npx_thread:
 		mov ecx, dword ptr [edx]KTHREAD.StackBase
 		sub ecx, SIZE FX_SAVE_AREA // points to FLOATING_SAVE_AREA of CurrentThread
 		fxrstor [ecx]
-		and dword ptr [edx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions for this thread only
+		and dword ptr [ecx]FLOATING_SAVE_AREA.Cr0NpxState, ~(CR0_MP | CR0_EM | CR0_TS) // allow executing fpu instructions for this thread only
 		mov dword ptr [KiPcr]KPCR.PrcbData.NpxThread, edx
 		mov byte ptr [edx]KTHREAD.NpxState, NPX_STATE_LOADED
 		jmp exit_exp
