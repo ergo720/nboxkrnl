@@ -337,16 +337,25 @@ EXPORTNUM(166) PVOID XBOXAPI MmAllocateContiguousMemoryEx
 	}
 
 	Pte = StartPte;
+	ULONG PageTablePfn = CurrentPfn - 1; // skip the candidate contiguous range we found and grab the first free page(s) we find
 	while (Pte <= PteEnd) {
 		if ((Pte == StartPte) || IsPteOnPdeBoundary(Pte)) {
 			PMMPTE Pde = GetPteAddress(Pte);
 			if ((Pde->Hw & PTE_VALID_MASK) == 0) {
-				PFN_NUMBER PageTablePfn = MiRemoveRetailPageFromFreeList();
-				WritePte(Pde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
-				MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, Pde);
+				while (true) {
+					PXBOX_PFN Pf = GetPfnElement(PageTablePfn);
+					if (Pf->Busy.Busy) {
+						--PageTablePfn;
+						continue;
+					}
+					WritePte(Pde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
+					MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, Pde);
+					--PageTablePfn;
+					break;
+				}
 			}
 		}
-
+		assert((GetPteAddress(Pte)->Hw & PTE_VALID_MASK) == 1);
 		MiRemovePageFromFreeList(CurrentPfn, Contiguous, Pte);
 		WritePte(Pte, TempPte.Hw | ((CurrentPfn << PAGE_SHIFT) + CONTIGUOUS_MEMORY_BASE));
 		++CurrentPfn;
