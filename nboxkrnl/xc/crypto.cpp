@@ -12,10 +12,7 @@ VOID XBOXAPI JumpedSHAInit
 	PUCHAR pbSHAContext
 )
 {
-	// The sha1 context supplied to this function has an extra 24 bytes at the beginning which are unused by our implementation,
-	// so we skip them. The same is true for XcSHAUpdate and XcSHAFinal
-
-	A_SHAInit((SHA_CTX *)(pbSHAContext + 24));
+	A_SHAInit((PSHA_CTX)pbSHAContext);
 }
 
 VOID XBOXAPI JumpedSHAUpdate
@@ -25,7 +22,7 @@ VOID XBOXAPI JumpedSHAUpdate
 	ULONG dwInputLength
 )
 {
-	A_SHAUpdate((SHA_CTX *)(pbSHAContext + 24), pbInput, dwInputLength);
+	A_SHAUpdate((PSHA_CTX)pbSHAContext, pbInput, dwInputLength);
 }
 
 VOID XBOXAPI JumpedSHAFinal
@@ -34,7 +31,7 @@ VOID XBOXAPI JumpedSHAFinal
 	PUCHAR pbDigest
 )
 {
-	A_SHAFinal((SHA_CTX *)(pbSHAContext + 24), (PULONG)pbDigest);
+	A_SHAFinal((PSHA_CTX)pbSHAContext, (PULONG)pbDigest);
 }
 
 

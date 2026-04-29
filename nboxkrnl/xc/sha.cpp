@@ -7,6 +7,7 @@
 #include "xc.hpp"
 #include <string.h>
 
+static_assert(sizeof(SHA_CTX) == 116);
 
 /* SHA1 algorithm
  *

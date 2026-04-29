@@ -46,13 +46,15 @@ struct CRYPTO_VECTOR {
 };
 using PCRYPTO_VECTOR = CRYPTO_VECTOR *;
 
-typedef struct {
-	ULONG Unknown[6];
+// Our implementation of SHA does not use the first two members Flag and Hash
+struct SHA_CTX {
+	ULONG FinishFlag;
+	BYTE Hash[20];
 	ULONG State[5];
 	ULONG Count[2];
 	UCHAR Buffer[64];
-} SHA_CTX, *PSHA_CTX;
-
+};
+using PSHA_CTX = SHA_CTX *;
 
 #ifdef __cplusplus
 extern "C" {
