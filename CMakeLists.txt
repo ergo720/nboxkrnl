@@ -18,20 +18,11 @@ set(NBOXKRNL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(Git)
-if(Git_FOUND)
- execute_process(
-  COMMAND git -C ${NBOXKRNL_ROOT_DIR} rev-parse HEAD
-  OUTPUT_VARIABLE _NBOXKRNL_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
- )
- configure_file(
-  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp.in" "${NBOXKRNL_ROOT_DIR}/nboxkrnl/kernel_version.hpp" @ONLY
-  NEWLINE_STYLE LF
- )
-else ()
- message(FATAL_ERROR "Git was not found")
-endif()
+find_package(Git REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter)
+add_custom_target(gen_git_hash ALL
+ COMMAND ${Python_EXECUTABLE} ${NBOXKRNL_ROOT_DIR}/scripts/gen_git_hash.py
+)
 
 add_compile_definitions(
  _PDCLIB_STATIC_DEFINE
@@ -219,6 +210,7 @@ source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX header FILES ${HEADERS})
 source_group(TREE ${NBOXKRNL_ROOT_DIR} PREFIX source FILES ${SOURCES})
 
 add_executable(nboxkrnl ${HEADERS} ${SOURCES})
+add_dependencies(nboxkrnl gen_git_hash)
 
 target_link_libraries(nboxkrnl PUBLIC
  debug libcmtd.lib
