@@ -316,6 +316,7 @@ ByPassPathCheck:
 			// Allocate enough space for the resolved link and the remaining path name. e.g. D: -> \Device\CdRom0 and path is D:\default.xbe, then strlen(\Device\CdRom0) + strlen(default.xbe) + 1
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength + RemainingName->Length + 1);
 			if (FullPathBuffer == nullptr) {
+				ObfDereferenceObject(SymbolicLink);
 				return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			// Copy the resolved sym link name, and then the remaining part of the path too
@@ -328,6 +329,7 @@ ByPassPathCheck:
 			// FullPath consists only of the sym link, allocate enough space for the resolved link
 			FullPathBuffer = (PCHAR)ExAllocatePool(ResolvedSymbolicLinkLength);
 			if (FullPathBuffer == nullptr) {
+				ObfDereferenceObject(SymbolicLink);
 				return XdvdfsCompleteRequest(Irp, STATUS_INSUFFICIENT_RESOURCES, VolumeExtension);
 			}
 			strncpy(FullPathBuffer, SymbolicLink->LinkTarget.Buffer, ResolvedSymbolicLinkLength);
