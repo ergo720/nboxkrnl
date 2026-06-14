@@ -35,7 +35,7 @@ EXPORTNUM(145) LONG XBOXAPI KeSetEvent
 		Event->Header.SignalState = 1;
 	}
 	else {
-		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(&Event->Header.WaitListHead.Flink, KWAIT_BLOCK, WaitListEntry);
+		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Event->Header.WaitListHead.Flink, KWAIT_BLOCK, WaitListEntry);
 		if ((Event->Header.Type == NotificationEvent) || (WaitBlock->WaitType == WaitAll)) {
 			if (OldState == 0) {
 				Event->Header.SignalState = 1;
