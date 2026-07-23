@@ -22,10 +22,10 @@
 ULONG KernelThunkTable[379] =
 {
 	(ULONG)FUNC(nullptr),                                  // 0x0000 (0) "Undefined", this function doesn't exist
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvGetSavedDataAddress),                   // 0x0001 (1)
+	(ULONG)FUNC(&AvGetSavedDataAddress),                   // 0x0001 (1)
 	(ULONG)FUNC(&AvSendTVEncoderOption),                   // 0x0002 (2)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvSetDisplayMode),                        // 0x0003 (3)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&AvSetSavedDataAddress),                   // 0x0004 (4)
+	(ULONG)FUNC(&AvSetSavedDataAddress),                   // 0x0004 (4)
 	(ULONG)FUNC(&DbgBreakPoint),                           // 0x0005 (5)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgBreakPointWithStatus),                 // 0x0006 (6)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgLoadImageSymbols),                     // 0x0007 (7) DEVKIT

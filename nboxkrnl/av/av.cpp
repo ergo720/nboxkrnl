@@ -70,6 +70,8 @@
 #define AV_OPTION_WIDESCREEN              19
 
 
+DECLSPEC_STICKY PVOID AvpSavedDataAddress = nullptr;
+
 // Source: Cxbx-Reloaded
 static ULONG AvpSMCVideoModeToAVPack(ULONG VideoMode)
 {
@@ -182,6 +184,11 @@ static VOID AvpSetLumaFilter(ULONG Param)
 	HalWriteSMBusValue(CONEXANT_WRITE_ADDR, 0x96, FALSE, Value);
 }
 
+EXPORTNUM(1) PVOID XBOXAPI AvGetSavedDataAddress()
+{
+	return AvpSavedDataAddress;
+}
+
 EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 (
 	PVOID RegisterBase,
@@ -207,4 +214,12 @@ EXPORTNUM(2) VOID XBOXAPI AvSendTVEncoderOption
 	default:
 		RIP_API_FMT("Option 0x%08X with Param 0x%08X not implemented!", Option, Param);
 	}
+}
+
+EXPORTNUM(4) VOID XBOXAPI AvSetSavedDataAddress
+(
+	PVOID Address
+)
+{
+	AvpSavedDataAddress = Address;
 }
