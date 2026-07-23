@@ -170,8 +170,7 @@ VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
 {
 	ULARGE_INTEGER SystemTime;
 	LARGE_INTEGER Interval;
-	LONG i;
-	ULONG DpcCalls = 0;
+	ULONG DpcCalls;
 	PKTIMER Timer;
 	PKDPC TimerDpc;
 	ULONG Period;
@@ -181,6 +180,8 @@ VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
 	KeQuerySystemTime((PLARGE_INTEGER)&SystemTime);
 
 	/* Loop expired list */
+ProcessDpcs:
+	DpcCalls = 0;
 	while (ExpiredListHead->Flink != ExpiredListHead) {
 		/* Get the current timer */
 		Timer = CONTAINING_RECORD(ExpiredListHead->Flink, KTIMER, TimerListEntry);
@@ -217,7 +218,9 @@ VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
 			DpcEntry[DpcCalls].Routine = TimerDpc->DeferredRoutine;
 			DpcEntry[DpcCalls].Context = TimerDpc->DeferredContext;
 			DpcCalls++;
-			assert(DpcCalls < MAX_TIMER_DPCS);
+			if (DpcCalls == MAX_TIMER_DPCS) {
+				break;
+			}
 		}
 	}
 
@@ -227,7 +230,7 @@ VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
 		KiUnlockDispatcherDatabase(DISPATCH_LEVEL);
 
 		/* Start looping all DPC Entries */
-		for (i = 0; DpcCalls; DpcCalls--, i++) {
+		for (ULONG i = 0; i < DpcCalls; ++i) {
 			/* Call the DPC */
 			DpcEntry[i].Routine(
 				DpcEntry[i].Dpc,
@@ -235,6 +238,11 @@ VOID KiTimerListExpire(PLIST_ENTRY ExpiredListHead, KIRQL OldIrql)
 				PVOID(SystemTime.u.LowPart),
 				PVOID(SystemTime.u.HighPart)
 			);
+		}
+
+		if (DpcCalls == MAX_TIMER_DPCS) {
+			assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+			goto ProcessDpcs;
 		}
 
 		/* Lower IRQL */
