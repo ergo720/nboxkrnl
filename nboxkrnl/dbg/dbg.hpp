@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+EXPORTNUM(5) DLLEXPORT VOID XBOXAPI DbgBreakPoint();
+
 EXPORTNUM(8) DLLEXPORT ULONG CDECL DbgPrint
 (
 	const CHAR *Format,

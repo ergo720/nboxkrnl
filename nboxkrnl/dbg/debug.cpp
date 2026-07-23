@@ -4,10 +4,16 @@
 
 #include "..\kernel.hpp"
 #include "dbg.hpp"
+#include "rtl.hpp"
 #include <nanoprintf.h>
 #include <string.h>
 #include <stdarg.h>
 
+
+EXPORTNUM(5) VOID XBOXAPI DbgBreakPoint()
+{
+	RIP_UNIMPLEMENTED();
+}
 
 EXPORTNUM(8) ULONG CDECL DbgPrint
 (

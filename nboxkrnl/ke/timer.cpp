@@ -6,6 +6,7 @@
 #include "ki.hpp"
 #include "rtl.hpp"
 #include "hal.hpp"
+#include "dbg.hpp"
 #include "..\kernel.hpp"
 #include "assert.h"
 
@@ -315,8 +316,63 @@ EXPORTNUM(150) BOOLEAN XBOXAPI KeSetTimerEx
 	return Inserted;
 }
 
+#if _DEBUG
+static VOID KiCheckTimerTable (ULARGE_INTEGER CurrentTime)
+{
+	KIRQL OldIrql = KfRaiseIrql(HIGH_LEVEL);
+
+	for (DWORD Index = 0; Index < TIMER_TABLE_SIZE; ++Index) {
+		PLIST_ENTRY ListHead = &KiTimerTableListHead[Index];
+		PLIST_ENTRY NextEntry = ListHead->Flink;
+		while (NextEntry != ListHead) {
+			PKTIMER Timer = CONTAINING_RECORD(NextEntry, KTIMER, TimerListEntry);
+			NextEntry = NextEntry->Flink;
+			if (Timer->DueTime.QuadPart <= CurrentTime.QuadPart) {
+				DbgPrint("Found expired timer -> Timer=0x%p, Period=%d, Dpc=0x%p, DueTime=0x%016llX, CurrentTime=0x%016llX",
+					Timer, Timer->Period, Timer->Dpc, Timer->DueTime.QuadPart, CurrentTime.QuadPart);
+				DbgBreakPoint();
+			}
+		}
+	}
+
+	KfLowerIrql(OldIrql);
+}
+#endif
+
 VOID XBOXAPI KiTimerExpiration(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2)
 {
-	// TODO
-	RIP_UNIMPLEMENTED();
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+
+	ULARGE_INTEGER InterruptTime{ .QuadPart = KeQueryInterruptTime() };
+	DWORD OldKeTickCount = (ULONG_PTR)(SystemArgument1);
+	DWORD EndKeTickCount = (ULONG_PTR)(SystemArgument2);
+	LIST_ENTRY TempList;
+	InitializeListHead(&TempList);
+
+	for (DWORD i = OldKeTickCount; i < EndKeTickCount; ++i) {
+		DWORD Index = i & (TIMER_TABLE_SIZE - 1);
+		PLIST_ENTRY ListHead = &KiTimerTableListHead[Index];
+		PLIST_ENTRY NextEntry = ListHead->Flink;
+
+		while (ListHead != NextEntry) {
+			PKTIMER Timer = CONTAINING_RECORD(NextEntry, KTIMER, TimerListEntry);
+			if (Timer->DueTime.QuadPart <= InterruptTime.QuadPart) {
+				// This timer expired, so remove it from KiTimerTableListHead and add it to the expired timer list
+				RemoveEntryList(&Timer->TimerListEntry);
+				InsertTailList(&TempList, &Timer->TimerListEntry);
+				NextEntry = ListHead->Flink;
+			}
+			else {
+				// Timers are in ascending order of due time in KiTimerTableListHead, so the remaining timers cannot have expired
+				break;
+			}
+		}
+	}
+
+	/* Verify the timer table, on a debug kernel only */
+#if _DEBUG
+	KiCheckTimerTable(InterruptTime);
+#endif
+
+	KiTimerListExpire(&TempList, DISPATCH_LEVEL);
 }
