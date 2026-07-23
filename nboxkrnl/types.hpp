@@ -27,6 +27,9 @@
 #define ANSI_NULL ((CHAR)0)
 #define UNICODE_NULL ((WCHAR)0)
 
+#pragma data_seg("STICKY")
+#define DECLSPEC_STICKY __declspec(allocate("STICKY"))
+
 
 using VOID = void;
 using PVOID = void *;
