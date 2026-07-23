@@ -195,7 +195,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmFreeContiguousMemory),                  // 0x00AB (171)
 	(ULONG)FUNC(&MmFreeSystemMemory),                      // 0x00AC (172)
 	(ULONG)FUNC(&MmGetPhysicalAddress),                    // 0x00AD (173)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmIsAddressValid),                        // 0x00AE (174)
+	(ULONG)FUNC(&MmIsAddressValid),                        // 0x00AE (174)
 	(ULONG)FUNC(&MmLockUnlockBufferPages),                 // 0x00AF (175)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmLockUnlockPhysicalPage),                // 0x00B0 (176)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmMapIoSpace),                            // 0x00B1 (177)

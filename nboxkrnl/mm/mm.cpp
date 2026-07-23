@@ -508,6 +508,30 @@ EXPORTNUM(173) PHYSICAL_ADDRESS XBOXAPI MmGetPhysicalAddress
 	return NULL;
 }
 
+EXPORTNUM(174) BOOLEAN XBOXAPI MmIsAddressValid
+(
+	PVOID   VirtualAddress
+)
+{
+	// NOTTE: the xbox kernel does not raise the IRQL in this function, so we don't lock Mm here
+
+	PMMPTE Pte = GetPdeAddress(VirtualAddress);
+	if ((Pte->Hw & PTE_VALID_MASK) == 0) { // invalid pde -> addr is invalid
+		return FALSE;
+	}
+
+	if (Pte->Hw & PTE_PAGE_LARGE_MASK) { // addr is backed by a large page
+		return TRUE;
+	}
+
+	Pte = GetPteAddress(VirtualAddress);
+	if ((Pte->Hw & PTE_VALID_MASK) == 0) { // invalid pte -> addr is invalid
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 EXPORTNUM(175) VOID XBOXAPI MmLockUnlockBufferPages
 (
 	PVOID BaseAddress,
