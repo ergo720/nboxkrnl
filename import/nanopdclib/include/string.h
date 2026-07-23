@@ -387,7 +387,10 @@ _PDCLIB_PUBLIC size_t strnlen_s( const char * s, size_t maxsize );
 // Avoid using the intrinsic version of the library functions of msvc, but still allow optimizing the pdclib versions. This is necessary since we can't use
 // the intrinsic versions because of the /NODEFAULTLIB option and it will cause a linking error otherwise
 #ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4163)
 #pragma function(memcpy, memset, memcmp, memchr, memmove, strlen, strcmp, strcpy, strcat, strncmp, strncpy)
+#pragma warning(pop)
 #endif
 
 /* Extension hook for downstream projects that want to have non-standard
