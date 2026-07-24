@@ -44,6 +44,16 @@ BOOLEAN HalInitSystem()
 
 	HalpInitSMCstate();
 
+	// Connect the SCI interrupt
+	KeInitializeDpc(&HalpSciDpcObject, HalpSciDpcRoutine, nullptr);
+	KiIdt[IDT_INT_VECTOR_BASE + 12] = BUILD_IDT_ENTRY(HalpSciIsr);
+	HalEnableSystemInterrupt(12, LevelSensitive);
+
+	ULONG Dummy;
+	if (NTSTATUS Status = HalReadSMCTrayState(&Dummy, nullptr); !NT_SUCCESS(Status)) {
+		return FALSE;
+	}
+
 	if (XboxType == CONSOLE_DEVKIT) {
 		XboxHardwareInfo.Flags |= 2;
 	}
@@ -52,6 +62,43 @@ BOOLEAN HalInitSystem()
 	}
 
 	return TRUE;
+}
+
+EXPORTNUM(9) NTSTATUS XBOXAPI HalReadSMCTrayState
+(
+	PULONG State,
+	PULONG Count
+)
+{
+	NTSTATUS Status = STATUS_SUCCESS;
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	ULONG LocalTrayState = HalpTrayState;
+	ULONG LocalTrayStateChangeCount = HalpTrayStateChangeCount;
+	KfLowerIrql(OldIrql);
+
+	if (LocalTrayState == MAXULONG) { // MAXULONG -> tray state uninitialized or cleared by SCI interrupt caused by a tray state change
+		Status = HalReadSMBusValue(SMC_READ_ADDR, SMC_COMMAND_TRAY_STATE, FALSE, &LocalTrayState);
+
+		if (NT_SUCCESS(Status)) {
+			LocalTrayState &= SMC_TRAY_STATE_STATE_MASK;
+			if ((LocalTrayState != SMC_TRAY_STATE_NO_MEDIA) && (LocalTrayState != SMC_TRAY_STATE_MEDIA_DETECT)) {
+				LocalTrayState = SMC_TRAY_STATE_OPEN;
+			}
+
+			OldIrql = KeRaiseIrqlToDpcLevel();
+			if (LocalTrayStateChangeCount == HalpTrayStateChangeCount) {
+				HalpTrayState = LocalTrayState;
+			}
+			KfLowerIrql(OldIrql);
+		}
+	}
+
+	*State = LocalTrayState;
+	if (Count) {
+		*Count = LocalTrayStateChangeCount;
+	}
+
+	return Status;
 }
 
 EXPORTNUM(45) NTSTATUS XBOXAPI HalReadSMBusValue
@@ -74,7 +121,7 @@ EXPORTNUM(45) NTSTATUS XBOXAPI HalReadSMBusValue
 	NTSTATUS Status = HalpSmbusCycleInfo.Status;
 	*DataValue = ReadWordValue ? *PUSHORT(HalpSmbusCycleInfo.Data) : *PBYTE(HalpSmbusCycleInfo.Data);
 
-	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
+	HalpServiceNextSMBusInterrupt();
 	KeLeaveCriticalRegion();
 
 	return Status;
@@ -196,7 +243,7 @@ EXPORTNUM(50) NTSTATUS XBOXAPI HalWriteSMBusValue
 
 	NTSTATUS Status = HalpSmbusCycleInfo.Status;
 
-	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
+	HalpServiceNextSMBusInterrupt();
 	KeLeaveCriticalRegion();
 
 	return Status;

@@ -26,6 +26,7 @@
 #define HIGH_LEVEL 31
 #define CLOCK_LEVEL 28
 #define SYNC_LEVEL CLOCK_LEVEL
+#define SCI_LEVEL 27
 #define SMBUS_LEVEL 15
 #define DISPATCH_LEVEL 2
 #define APC_LEVEL 1

@@ -30,7 +30,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgBreakPointWithStatus),                 // 0x0006 (6)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgLoadImageSymbols),                     // 0x0007 (7) DEVKIT
 	(ULONG)FUNC(&DbgPrint),                                // 0x0008 (8)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalReadSMCTrayState),                     // 0x0009 (9)
+	(ULONG)FUNC(&HalReadSMCTrayState),                     // 0x0009 (9)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgPrompt),                               // 0x000A (10)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&DbgUnLoadImageSymbols),                   // 0x000B (11) DEVKIT
 	(ULONG)FUNC(&ExAcquireReadWriteLockExclusive),         // 0x000C (12)

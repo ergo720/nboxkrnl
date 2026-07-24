@@ -610,6 +610,52 @@ VOID __declspec(naked) XBOXAPI HalpSmbusIsr()
 	// clang-format on
 }
 
+VOID __declspec(naked) XBOXAPI HalpSciIsr()
+{
+	// NOTE: we never recieve ACPI interrupts for the PM timer. Those are instead handled with the custom I/O ports at KE_ACPI_TIME_LOW/_HIGH
+
+	// clang-format off
+	__asm {
+		CREATE_KTRAP_FRAME_FOR_INT
+		mov al, OCW2_EOI_IRQ | 2
+		out PIC_MASTER_CMD, al // send eoi to master pic
+		movzx eax, byte ptr [KiPcr]KPCR.Irql
+		cmp eax, SCI_LEVEL
+		jge masked_int
+		mov byte ptr [KiPcr]KPCR.Irql, SCI_LEVEL // raise IRQL
+		push eax
+		sti
+		inc dword ptr [KiPcr]KPCR.PrcbData.InterruptCount // InterruptCount: number of interrupts that have occurred
+		mov edx, LPCBRIDGE_IO_REGISTER_BASE + ACPI_GPE0_STATUS_REGISTER
+		mov al, ACPI_GPE0_EXTSMI_STATUS
+		out dx, al // dismiss sci interrupt
+		push 0
+		push 0
+		push offset HalpSciDpcObject
+		call KeInsertQueueDpc
+		cli
+		mov eax, 12 + OCW2_EOI_IRQ - 8
+		out PIC_SLAVE_CMD, al // send eoi to slave pic
+		pop eax
+		mov byte ptr [KiPcr]KPCR.Irql, al // lower IRQL
+		call HalpCheckUnmaskedInt
+		jmp end_isr
+	masked_int:
+		mov edx, 1
+		mov ecx, 12 + IRQL_OFFSET_FOR_IRQ // sci IRQ is twelve
+		shl edx, cl
+		or HalpPendingInt, edx // save masked int in sw IRR, so that we can deliver it later when the IRQL goes down
+		mov ax, PicIRQMasksForIRQL[eax * 2]
+		or ax, HalpIntDisabled // mask all IRQs on the PIC with IRQL <= than current IRQL
+		out PIC_MASTER_DATA, al
+		shr ax, 8
+		out PIC_SLAVE_DATA, al
+	end_isr:
+		EXIT_INTERRUPT
+	}
+	// clang-format on
+}
+
 VOID __declspec(naked) XBOXAPI HalpCmosIsr()
 {
 	// NOTE: this is only called during kernel initialization, so we ignore the IRQL stuff here and don't save a KTRAP_FRAME on the stack either

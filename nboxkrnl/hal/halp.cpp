@@ -4,6 +4,7 @@
 
 #include "hal.hpp"
 #include "halp.hpp"
+#include <assert.h>
 #include <string.h>
 
 // PIT i/o ports
@@ -20,6 +21,12 @@
 // NOTE: on the xbox, the pit frequency is 6% lower than the default one, see https://xboxdevwiki.net/Porting_an_Operating_System_to_the_Xbox_HOWTO#Timer_Frequency
 #define PIT_COUNTER_1MS    1125
 
+
+// Set when an SCI interrupt is triggered while another SMBUS transaction is in progress
+static BOOLEAN HalpSciInterruptPending = FALSE;
+
+using SMBUS_HANDLER_ROUTINE = VOID(*)();
+static SMBUS_HANDLER_ROUTINE HalpSmbusHandlerRoutine = nullptr;
 
 VOID HalpInitPIC()
 {
@@ -46,7 +53,7 @@ VOID HalpInitPIT()
 VOID HalpInitSMCstate()
 {
 	ULONG BootVideoMode;
-	if (NT_SUCCESS(HalReadSMBusValue(SMC_READ_ADDR, SMC_VIDEO_MODE_COMMAND, FALSE, &BootVideoMode))) {
+	if (NT_SUCCESS(HalReadSMBusValue(SMC_READ_ADDR, SMC_COMMAND_VIDEO_MODE, FALSE, &BootVideoMode))) {
 		HalBootSMCVideoMode = BootVideoMode;
 	}
 }
@@ -139,6 +146,61 @@ VOID HalpShutdownSystem()
 	}
 }
 
+static VOID HalpServiceNextSMBusInterruptReason(BYTE InterruptReason)
+{
+	if (InterruptReason & SMC_INTERRUPT_REASON_TRAY_EJECT) {
+		++HalpTrayStateChangeCount;
+		HalpTrayState = SMC_TRAY_STATE_UNLOADING;
+
+		// TODO: this should reboot if we are not running the dashboard
+	}
+
+	if (InterruptReason & SMC_INTERRUPT_REASON_TRAY_OPENED) {
+		++HalpTrayStateChangeCount;
+		HalpTrayState = MAXULONG;
+
+		// TODO: this should reboot if we are not running the dashboard
+	}
+
+	if (InterruptReason & SMC_INTERRUPT_REASON_TRAY_CLOSED) {
+		++HalpTrayStateChangeCount;
+		HalpTrayState = SMC_TRAY_STATE_CLOSED;
+	}
+
+	if (InterruptReason & SMC_INTERRUPT_REASON_TRAY_DETECTED) {
+		++HalpTrayStateChangeCount;
+		HalpTrayState = MAXULONG;
+	}
+}
+
+static VOID HalpReadSciInterruptReasonCompletion()
+{
+	if (!NT_SUCCESS(HalpSmbusCycleInfo.Status)) {
+		return;
+	}
+
+	HalpServiceNextSMBusInterruptReason(inb(SMBUS_DATA));
+}
+
+static VOID HalpReadSciInterruptReason()
+{
+	assert(KeGetCurrentIrql() == DISPATCH_LEVEL);
+	HalpSmbusHandlerRoutine = HalpReadSciInterruptReasonCompletion;
+	HalpExecuteReadSmbusCycle(SMC_READ_ADDR, SMC_COMMAND_INTERRUPT_REASON, FALSE);
+}
+
+VOID HalpServiceNextSMBusInterrupt()
+{
+	KIRQL OldIrql = KeRaiseIrqlToDpcLevel();
+	if (HalpSciInterruptPending) {
+		HalpSciInterruptPending = FALSE;
+		HalpReadSciInterruptReason();
+	}
+
+	KfLowerIrql(OldIrql);
+	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
+}
+
 VOID HalpExecuteReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN ReadWordValue)
 {
 	outb(SMBUS_ADDRESS, SlaveAddress | HA_RC);
@@ -195,16 +257,22 @@ VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemA
 	}
 	else {
 		HalpSmbusCycleInfo.Status = STATUS_SUCCESS;
-		if (HalpSmbusCycleInfo.IsWrite == FALSE) {
-			if (HalpSmbusCycleInfo.BlockAmount) {
-				for (unsigned i = 0; i < HalpSmbusCycleInfo.BlockAmount; ++i) {
-					HalpSmbusCycleInfo.Data[i] = inb(SMBUS_FIFO);
-				}
+	}
+
+	if (HalpSmbusHandlerRoutine) {
+		HalpSmbusHandlerRoutine();
+		HalpSmbusHandlerRoutine = nullptr;
+		return;
+	}
+	else if (NT_SUCCESS(HalpSmbusCycleInfo.Status) && (HalpSmbusCycleInfo.IsWrite == FALSE)) {
+		if (HalpSmbusCycleInfo.BlockAmount) {
+			for (unsigned i = 0; i < HalpSmbusCycleInfo.BlockAmount; ++i) {
+				HalpSmbusCycleInfo.Data[i] = inb(SMBUS_FIFO);
 			}
-			else {
-				PULONG Buffer = (PULONG)HalpSmbusCycleInfo.Data;
-				*Buffer = inw(SMBUS_DATA);
-			}
+		}
+		else {
+			PULONG Buffer = (PULONG)HalpSmbusCycleInfo.Data;
+			*Buffer = inw(SMBUS_DATA);
 		}
 	}
 
@@ -231,7 +299,7 @@ NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmo
 		Buffer[i] = HalpSmbusCycleInfo.Data[i];
 	}
 
-	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
+	HalpServiceNextSMBusInterrupt();
 	KeLeaveCriticalRegion();
 
 	return Status;
@@ -254,8 +322,20 @@ NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteA
 
 	NTSTATUS Status = HalpSmbusCycleInfo.Status;
 
-	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
+	HalpServiceNextSMBusInterrupt();
 	KeLeaveCriticalRegion();
 
 	return Status;
+}
+
+VOID XBOXAPI HalpSciDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2)
+{
+	// Defer the processing if another SMBUS cycle is in progress
+	if (!HalpSmbusCycleInfo.EventLock.Header.SignalState) {
+		HalpSciInterruptPending = TRUE;
+		return;
+	}
+
+	HalpSmbusCycleInfo.EventLock.Header.SignalState = 0;
+	HalpReadSciInterruptReason();
 }

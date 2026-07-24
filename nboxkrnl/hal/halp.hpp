@@ -47,6 +47,11 @@
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+// LPC bridge/ACPI ports, registers and values
+#define LPCBRIDGE_IO_REGISTER_BASE 0x8000
+#define ACPI_GPE0_STATUS_REGISTER  0x20
+#define ACPI_GPE0_EXTSMI_STATUS    0x02
+
 // SMBUS ports
 #define SMBUS_STATUS 0xC000
 #define SMBUS_CONTROL 0xC002
@@ -73,8 +78,12 @@
 #define CONEXANT_WRITE_ADDR 0x8A
 #define CONEXANT_READ_ADDR 0x8B
 
+// SMC commands
+#define SMC_COMMAND_TRAY_STATE        0x03
+#define SMC_COMMAND_VIDEO_MODE        0x04
+#define SMC_COMMAND_INTERRUPT_REASON  0x11
+
 // SMC video mode values
-#define SMC_VIDEO_MODE_COMMAND   0x04
 #define SMC_VIDEO_MODE_SCART     0x00
 #define SMC_VIDEO_MODE_HDTV      0x01
 #define SMC_VIDEO_MODE_VGA       0x02
@@ -83,15 +92,40 @@
 #define SMC_VIDEO_MODE_STANDARD  0x06
 #define SMC_VIDEO_MODE_NONE      0x07
 
+// SMC tray state values
+#define SMC_TRAY_STATE_ACTIVITY      0x01
+#define SMC_TRAY_STATE_STATE_MASK    0x70
+#define SMC_TRAY_STATE_CLOSED        0x00
+#define SMC_TRAY_STATE_OPEN          0x10
+#define SMC_TRAY_STATE_UNLOADING     0x20
+#define SMC_TRAY_STATE_OPENING       0x30
+#define SMC_TRAY_STATE_NO_MEDIA      0x40
+#define SMC_TRAY_STATE_CLOSING       0x50
+#define SMC_TRAY_STATE_MEDIA_DETECT  0x60
+#define SMC_TRAY_STATE_RESET         0x70
 
+// SMC interrupt reason values
+#define SMC_INTERRUPT_REASON_SHUTDOWN       0x01
+#define SMC_INTERRUPT_REASON_TRAY_DETECTED  0x02
+#define SMC_INTERRUPT_REASON_TRAY_OPENED    0x04
+#define SMC_INTERRUPT_REASON_NEW_AV_PACK    0x08
+#define SMC_INTERRUPT_REASON_NO_AV_PACK     0x10
+#define SMC_INTERRUPT_REASON_TRAY_EJECT     0x20
+#define SMC_INTERRUPT_REASON_TRAY_CLOSED    0x40
+
+
+inline ULONG HalpTrayState = MAXULONG;
+inline ULONG HalpTrayStateChangeCount = 0;
+inline KDPC HalpSciDpcObject;
 inline KDPC HalpSmbusDpcObject;
+
 inline struct SMBUS_CYCLE_INFO {
 	NTSTATUS Status;
 	BYTE Data[32];
 	UCHAR BlockAmount;
 	BOOLEAN IsWrite;
-	KEVENT EventLock;
-	KEVENT EventComplete;
+	KEVENT EventLock; // used by both SMBUS and SCI
+	KEVENT EventComplete; // only used by SMBUS
 } HalpSmbusCycleInfo;
 
 VOID XBOXAPI HalpSwIntApc();
@@ -116,6 +150,7 @@ VOID XBOXAPI HalpHwInt15();
 VOID XBOXAPI HalpInterruptCommon();
 VOID XBOXAPI HalpClockIsr();
 VOID XBOXAPI HalpSmbusIsr();
+VOID XBOXAPI HalpSciIsr();
 
 inline constexpr VOID(XBOXAPI *const SwIntHandlers[])() = {
 	&KiUnexpectedInterrupt,
@@ -146,6 +181,7 @@ VOID HalpInitPIT();
 VOID HalpInitSMCstate();
 VOID HalpReadCmosTime(PTIME_FIELDS TimeFields);
 VOID HalpCheckUnmaskedInt();
+VOID XBOXAPI HalpSciDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
 VOID XBOXAPI HalpSmbusDpcRoutine(PKDPC Dpc, PVOID DeferredContext, PVOID SystemArgument1, PVOID SystemArgument2);
 VOID HalpExecuteReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN ReadWordValue);
 VOID HalpExecuteWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, BOOLEAN WriteWordValue, ULONG DataValue);
@@ -153,6 +189,7 @@ VOID HalpExecuteBlockReadSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode);
 VOID HalpExecuteBlockWriteSmbusCycle(UCHAR SlaveAddress, UCHAR CommandCode, PBYTE Data);
 NTSTATUS HalpReadSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR ReadAmount, BYTE *Buffer);
 NTSTATUS HalpWriteSMBusBlock(UCHAR SlaveAddress, UCHAR CommandCode, UCHAR WriteAmount, BYTE *Buffer);
+VOID HalpServiceNextSMBusInterrupt();
 BOOLEAN HalpCalibrateStallExecution();
 BYTE HalpReadCmosRegister(BYTE Register);
 VOID HalpWriteCmosRegister(BYTE Register, BYTE Data);
