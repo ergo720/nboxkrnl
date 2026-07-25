@@ -59,7 +59,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&FscGetCacheSize),                         // 0x0023 (35)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&FscInvalidateIdleBlocks),                 // 0x0024 (36)
 	(ULONG)FUNC(&FscSetCacheSize),                         // 0x0025 (37)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalClearSoftwareInterrupt),               // 0x0026 (38)
+	(ULONG)FUNC(&HalClearSoftwareInterrupt),               // 0x0026 (38)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&HalDisableSystemInterrupt),               // 0x0027 (39)
 	(ULONG)VARIABLE(&HalDiskCachePartitionCount),          // 0x0028 (40)  A.k.a. "IdexDiskPartitionPrefixBuffer"
 	(ULONG)FUNC(nullptr), //(ULONG)VARIABLE(&HalDiskModelNumber),                  // 0x0029 (41)

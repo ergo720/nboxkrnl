@@ -193,4 +193,3 @@ VOID HalpServiceNextSMBusInterrupt();
 BOOLEAN HalpCalibrateStallExecution();
 BYTE HalpReadCmosRegister(BYTE Register);
 VOID HalpWriteCmosRegister(BYTE Register, BYTE Data);
-VOID FASTCALL HalpClearSwInt(KIRQL Irql);

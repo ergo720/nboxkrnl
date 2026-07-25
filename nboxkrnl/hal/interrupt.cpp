@@ -267,12 +267,6 @@ VOID XBOXAPI HalpHwInt15()
 }
 // clang-format on
 
-VOID FASTCALL HalpClearSwInt(KIRQL Irql)
-{
-	// On entry, interrupts must be disabled
-	HalpIntDisabled &= ~(1 << Irql);
-}
-
 VOID HalpCheckUnmaskedInt()
 {
 	// On entry, interrupts must be disabled
@@ -750,6 +744,12 @@ BOOLEAN HalpCalibrateStallExecution()
 	HalCounterPerMicroseconds += ((LoopCount % 125000) ? 1 : 0);
 
 	return TRUE;
+}
+
+EXPORTNUM(38) VOID FASTCALL HalClearSoftwareInterrupt(KIRQL Irql)
+{
+	// On entry, interrupts must be disabled
+	HalpPendingInt &= ~(1 << Irql);
 }
 
 EXPORTNUM(43) VOID XBOXAPI HalEnableSystemInterrupt

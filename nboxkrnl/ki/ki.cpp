@@ -3,7 +3,7 @@
  */
 
 #include "ki.hpp"
-#include "halp.hpp"
+#include "hal.hpp"
 #include "..\kernel.hpp"
 
 
@@ -72,7 +72,7 @@ VOID KiIdleLoopThread()
 		if (!IsListEmpty(&KiPcr.PrcbData.DpcListHead)) {
 			__asm {
 				mov cl, DISPATCH_LEVEL
-				call HalpClearSwInt
+				call HalClearSoftwareInterrupt
 				push dword ptr [KiPcr]KPCR.NtTib.ExceptionList
 				mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2
 				mov eax, esp
