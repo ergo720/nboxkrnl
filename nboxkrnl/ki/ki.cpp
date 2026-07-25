@@ -3,8 +3,8 @@
  */
 
 #include "ki.hpp"
+#include "halp.hpp"
 #include "..\kernel.hpp"
-#include "rtl.hpp"
 
 
 KPCR KiPcr = { 0 };
@@ -58,5 +58,56 @@ VOID KiInitializeProcess(PKPROCESS Process, KPRIORITY BasePriority, LONG ThreadQ
 
 VOID KiIdleLoopThread()
 {
-	RIP_UNIMPLEMENTED();
+	// clang-format off
+	while (true) {
+		// Temporarily enable interrupts to service them if any are pending
+		__asm {
+			sti
+			nop
+			nop
+			cli
+		}
+
+		// Check for pending DPCs
+		if (!IsListEmpty(&KiPcr.PrcbData.DpcListHead)) {
+			__asm {
+				mov cl, DISPATCH_LEVEL
+				call HalpClearSwInt
+				push dword ptr [KiPcr]KPCR.NtTib.ExceptionList
+				mov dword ptr [KiPcr]KPCR.NtTib.ExceptionList, EXCEPTION_CHAIN_END2
+				mov eax, esp
+				mov esp, dword ptr [KiPcr]KPCR.PrcbData.DpcStack // switch to DPC stack
+				push eax
+				call KiExecuteDpcQueue
+				pop esp
+				pop dword ptr [KiPcr]KPCR.NtTib.ExceptionList
+			}
+		}
+
+		// Check if a new thread was scheduled
+		if (PKTHREAD NextThread = KiPcr.PrcbData.NextThread; NextThread) {
+			__asm {
+				// Save non-volatile registers
+				push esi
+				push edi
+				push ebx
+				push ebp
+				mov edi, NextThread
+				mov esi, dword ptr [KiPcr]KPCR.PrcbData.CurrentThread
+				mov ecx, esi
+				call KeAddThreadToTailOfReadyList
+				mov dword ptr [KiPcr]KPCR.PrcbData.CurrentThread, edi
+				mov dword ptr [KiPcr]KPCR.PrcbData.NextThread, 0
+				mov ebx, APC_LEVEL // WaitIrql of IdleThread is DISPATCH_LEVEL, so never check for APCs
+				call KiSwapThreadContext // when this returns, it means this thread was switched back again
+				// IdleThread should never have pending APCs, so skip the check
+				// Restore non-volatile registers
+				pop ebp
+				pop ebx
+				pop edi
+				pop esi
+			}
+		}
+	}
+	// clang-format on
 }

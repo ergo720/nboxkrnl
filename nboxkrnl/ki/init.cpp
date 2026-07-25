@@ -181,7 +181,7 @@ VOID KiInitializeKernel()
 
 	KiIdleThread.Priority = LOW_PRIORITY;
 	KiIdleThread.State = Running;
-	KiIdleThread.WaitIrql = PASSIVE_LEVEL;
+	KiIdleThread.WaitIrql = DISPATCH_LEVEL;
 
 	KiPcr.Prcb->NpxThread = nullptr;
 	KiPcr.Prcb->NextThread = nullptr;
@@ -206,6 +206,9 @@ VOID KiInitializeKernel()
 	if (PsInitSystem() == FALSE) {
 		KeBugCheckEx(INIT_FAILURE, PS_FAILURE, 0, 0, 0);
 	}
+
+	// The initialization code runs at PASSIVE_LEVEL, while the idle thread must run at DISPATCH_LEVEL, so raise the IRQL
+	KeRaiseIrqlToDpcLevel();
 
 	KiIdleLoopThread(); // won't return
 }
