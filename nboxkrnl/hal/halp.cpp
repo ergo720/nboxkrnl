@@ -175,11 +175,11 @@ static VOID HalpServiceNextSMBusInterruptReason(BYTE InterruptReason)
 
 static VOID HalpReadSciInterruptReasonCompletion()
 {
-	if (!NT_SUCCESS(HalpSmbusCycleInfo.Status)) {
-		return;
+	if (NT_SUCCESS(HalpSmbusCycleInfo.Status)) {
+		HalpServiceNextSMBusInterruptReason(inb(SMBUS_DATA));
 	}
 
-	HalpServiceNextSMBusInterruptReason(inb(SMBUS_DATA));
+	KeSetEvent(&HalpSmbusCycleInfo.EventLock, 0, FALSE);
 }
 
 static VOID HalpReadSciInterruptReason()
