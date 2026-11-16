@@ -70,6 +70,40 @@ EXPORTNUM(203) NTSTATUS XBOXAPI NtOpenSymbolicLinkObject
 	return ObOpenObjectByName(ObjectAttributes, &ObSymbolicLinkObjectType, nullptr, LinkHandle);
 }
 
+EXPORTNUM(215) NTSTATUS XBOXAPI NtQuerySymbolicLinkObject
+(
+	HANDLE LinkHandle,
+	PSTRING LinkTarget,
+	PULONG ReturnedLength
+)
+{
+	POBJECT_SYMBOLIC_LINK SymbolicLink;
+	NTSTATUS Status = ObReferenceObjectByHandle(LinkHandle, &ObSymbolicLinkObjectType, (PVOID *)&SymbolicLink);
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	ULONG LinkLength = SymbolicLink->LinkTarget.Length, BytesToCopy;
+	if (LinkLength > LinkTarget->MaximumLength) {
+		Status = STATUS_BUFFER_TOO_SMALL;
+		BytesToCopy = LinkTarget->MaximumLength;
+	}
+	else {
+		Status = STATUS_SUCCESS;
+		BytesToCopy = LinkLength;
+	}
+
+	memcpy(LinkTarget->Buffer, SymbolicLink->LinkTarget.Buffer, BytesToCopy);
+	LinkTarget->Length = BytesToCopy;
+	ObfDereferenceObject(SymbolicLink);
+
+	if (ReturnedLength) {
+		*ReturnedLength = LinkLength;
+	}
+
+	return Status;
+}
+
 EXPORTNUM(233) NTSTATUS XBOXAPI NtWaitForSingleObject
 (
 	HANDLE Handle,

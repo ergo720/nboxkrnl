@@ -106,6 +106,13 @@ EXPORTNUM(211) DLLEXPORT NTSTATUS XBOXAPI NtQueryInformationFile
 	FILE_INFORMATION_CLASS FileInformationClass
 );
 
+EXPORTNUM(215) DLLEXPORT NTSTATUS XBOXAPI NtQuerySymbolicLinkObject
+(
+	HANDLE LinkHandle,
+	PSTRING LinkTarget,
+	PULONG ReturnedLength
+);
+
 EXPORTNUM(218) DLLEXPORT NTSTATUS XBOXAPI NtQueryVolumeInformationFile
 (
 	HANDLE FileHandle,
