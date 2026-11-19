@@ -76,7 +76,7 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(&InterlockedDecrement),              // 0x0034 (52)
 	(ULONG)FUNC(&InterlockedIncrement),              // 0x0035 (53)
 	(ULONG)FUNC(&InterlockedExchange),               // 0x0036 (54)
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&InterlockedExchangeAdd),            // 0x0037 (55)
+	(ULONG)FUNC(&InterlockedExchangeAdd),            // 0x0037 (55)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&InterlockedFlushSList),             // 0x0038 (56)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&InterlockedPopEntrySList),          // 0x0039 (57)
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&InterlockedPushEntrySList),         // 0x003A (58)

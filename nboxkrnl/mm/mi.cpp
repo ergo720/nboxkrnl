@@ -511,7 +511,7 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 
 	KIRQL OldIrql = MiLock();
 
-	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
+	ULONG NumberOfPages = BYTES_TO_PAGES(NumberOfBytes);
 	PPTEREGION PteRegion;
 	if (BusyType != Debugger) {
 		PteRegion = &MiSystemPteRegion;

@@ -180,3 +180,34 @@ EXPORTNUM(54) LONG FASTCALL InterlockedExchange
 	}
 	// clang-format on
 }
+
+EXPORTNUM(55) LONG FASTCALL InterlockedExchangeAdd
+(
+	volatile PLONG Addend,
+	LONG Value
+)
+{
+	// clang-format off
+	__asm {
+		xadd [ecx], edx
+		mov eax, edx
+	}
+	// clang-format on
+}
+
+PVOID XBOXAPI InterlockedCompareExchangePointer(PVOID volatile *Destination, PVOID Exchange, PVOID Comparand)
+{
+	PVOID Result;
+
+	// clang-format off
+	__asm {
+		mov edx, Destination
+		mov ecx, Exchange
+		mov eax, Comparand
+		cmpxchg [edx], ecx
+		mov Result, eax
+	}
+	// clang-format on
+
+	return Result;
+}

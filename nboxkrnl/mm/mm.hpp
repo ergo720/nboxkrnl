@@ -46,16 +46,17 @@
 #define PAGE_DIRECTORY_PHYSICAL_ADDRESS     0x0F000
 #define MAX_VIRTUAL_ADDRESS                 0xFFFFFFFF
 
- // Common page calculations
-#define ROUND_UP_4K(size)                   (((size) + PAGE_MASK) & (~PAGE_MASK))
-#define ROUND_UP(size, alignment)           (((size) + (alignment - 1)) & (~(alignment - 1)))
-#define ROUND_DOWN_4K(size)                 ((size) & (~PAGE_MASK))
-#define ROUND_DOWN(size, alignment)         ((size) & (~(alignment - 1)))
+// Common page calculations
+#define ROUND_UP_4K(size)                   (((ULONG_PTR)(size) + PAGE_MASK) & (~PAGE_MASK)) // WARN: this macro fails on the last page because the addition overflows
+#define ROUND_UP(size, alignment)           (((ULONG_PTR)(size) + ((ULONG_PTR)(alignment) - 1)) & (~((ULONG_PTR)(alignment) - 1)))
+#define ROUND_DOWN_4K(size)                 ((ULONG_PTR)(size) & (~PAGE_MASK))
+#define ROUND_DOWN(size, alignment)         ((ULONG_PTR)(size) & (~((ULONG_PTR)(alignment) - 1)))
 #define PAGES_SPANNED(Va, Size)             ((ULONG)((((ULONG_PTR)(Va) & (PAGE_SIZE - 1)) + (Size) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
 #define PAGES_SPANNED_LARGE(Va, Size)       ((ULONG)((((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)) + (Size) + (PAGE_LARGE_SIZE - 1)) >> PAGE_LARGE_SHIFT))
 #define CHECK_ALIGNMENT(size, alignment)    (((ULONG_PTR)(size) % (alignment)) == 0)
 #define BYTE_OFFSET(Va)                     ((ULONG)((ULONG_PTR)(Va) & (PAGE_SIZE - 1)))
 #define BYTE_LARGE_OFFSET(Va)               ((ULONG)((ULONG_PTR)(Va) & (PAGE_LARGE_SIZE - 1)))
+#define BYTES_TO_PAGES(size)                (((ULONG_PTR)(size) >> PAGE_SHIFT) + (((ULONG_PTR)(size) & PAGE_MASK) != 0))
 
 // Memory size per system
 #define XBOX_MEMORY_SIZE                    (MiB(64))

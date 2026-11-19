@@ -17,6 +17,7 @@
 
 #define MAXLONG     0x7fffffff
 #define MAXULONG    0xffffffff
+#define SIZE_MAX    MAXULONG
 
 #define XBOXAPI  __stdcall
 #define FASTCALL __fastcall
@@ -24,6 +25,8 @@
 
 #define EXPORTNUM(n)
 #define DLLEXPORT __declspec(dllexport)
+
+#define DBG_UNREFERENCED_LOCAL_VARIABLE(L) ((void)(L))
 
 #define ANSI_NULL ((CHAR)0)
 #define UNICODE_NULL ((WCHAR)0)
@@ -71,6 +74,8 @@ using LONG_PTR = intptr_t;
 using PULONG_PTR = ULONG_PTR *;
 using SIZE_T = ULONG_PTR;
 using PSIZE_T = SIZE_T *;
+using SSIZE_T = LONG_PTR;
+using PSSIZE_T = SSIZE_T *;
 using DWORDLONG = uint64_t;
 using NTSTATUS = LONG;
 using KPRIORITY = LONG;

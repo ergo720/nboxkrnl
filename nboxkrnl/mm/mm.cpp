@@ -249,6 +249,10 @@ BOOLEAN MmInitSystem()
 		return FALSE;
 	}
 
+	if (!ExInitializePool()){
+		return FALSE;
+	}
+
 	if (!NT_SUCCESS(FscSetCacheSize(16))) {
 		return FALSE;
 	}
@@ -284,7 +288,7 @@ EXPORTNUM(166) PVOID XBOXAPI MmAllocateContiguousMemoryEx
 		return nullptr;
 	}
 
-	ULONG NumberOfPages = ROUND_UP_4K(NumberOfBytes) >> PAGE_SHIFT;
+	ULONG NumberOfPages = BYTES_TO_PAGES(NumberOfBytes);
 	ULONG LowestPfn = LowestAcceptableAddress >> PAGE_SHIFT;
 	ULONG HighestPfn = HighestAcceptableAddress >> PAGE_SHIFT;
 	ULONG PfnAlignment = Alignment >> PAGE_SHIFT;

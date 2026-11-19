@@ -234,9 +234,19 @@ EXPORTNUM(54) DLLEXPORT LONG FASTCALL InterlockedExchange
 	LONG Value
 );
 
+EXPORTNUM(55) DLLEXPORT LONG FASTCALL InterlockedExchangeAdd
+(
+	volatile PLONG Addend,
+	LONG Value
+);
+
 #ifdef __cplusplus
 }
 #endif
 
 
+BOOLEAN ExInitializePool();
 VOID XBOXAPI ExpDeleteMutant(PVOID Object);
+PVOID XBOXAPI InterlockedCompareExchangePointer(PVOID volatile *Destination, PVOID Exchange, PVOID Comparand);
+
+#define InterlockedExchangeAddSizeT(a, b) InterlockedExchangeAdd((LONG *)a, b)

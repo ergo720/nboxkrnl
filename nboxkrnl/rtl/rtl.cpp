@@ -734,6 +734,28 @@ EXPORTNUM(352) VOID XBOXAPI RtlRip
 	HalpShutdownSystem();
 }
 
+/*
+* Multiplies two SIZE_T values and stores the result in *Result
+* Returns STATUS_INTEGER_OVERFLOW if the product does not fit in SIZE_T
+* On failure, *Result is left unchanged
+*/
+NTSTATUS RtlSizeTMult(SIZE_T Multiplicand, SIZE_T Multiplier, SIZE_T *Result)
+{
+	if (Result == nullptr) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	ULONGLONG Product = (ULONGLONG)Multiplicand * (ULONGLONG)Multiplier;
+
+	if (Product > (ULONGLONG)SIZE_MAX) {
+		return STATUS_INTEGER_OVERFLOW;
+	}
+
+	*Result = (SIZE_T)Product;
+
+	return STATUS_SUCCESS;
+}
+
 VOID CDECL RipWithMsg(const char *Func, const char *Msg, ...)
 {
 	char buff[512];
