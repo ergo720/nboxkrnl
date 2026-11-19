@@ -1,18 +1,32 @@
 /*
- * Nikos Mavroyanopoulos     Copyright (c) 2001
- * Hans Leidekker            Copyright (c) 2004
- * Filip Navara              Copyright (c) 2004
- */
+* Copyright 2001 Nikos Mavroyanopoulos
+* Copyright 2004 Hans Leidekker
+* Copyright 2004 Filip Navara
+*
+* This library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public
+* License as published by the Free Software Foundation; either
+* version 2.1 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public
+* License along with this library; if not, write to the Free Software
+* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+*/
 
 #include "xc.hpp"
 #include <string.h>
 
-static_assert(sizeof(SHA_CTX) == 116);
-
 /* SHA1 algorithm
- *
- * Based on public domain SHA code by Steve Reid <steve@edmweb.com>
- */
+*
+* Based on public domain SHA code by Steve Reid <steve@edmweb.com>
+*/
+
+static_assert(sizeof(SHA_CTX) == 116);
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 /* FIXME: This definition of DWORD2BE is little endian specific! */
@@ -90,7 +104,6 @@ static void SHA1Transform(ULONG State[5], UCHAR Buffer[64])
  * RETURNS
  *  Nothing
  */
- // Source: Wine project
 void XBOXAPI A_SHAInit(PSHA_CTX Context)
 {
 	/* SHA1 initialization constants */
@@ -116,7 +129,6 @@ void XBOXAPI A_SHAInit(PSHA_CTX Context)
  * RETURNS
  *  Nothing
  */
- // Source: Wine project
 void XBOXAPI A_SHAUpdate(PSHA_CTX Context, const unsigned char *Buffer, UINT BufferSize)
 {
 	ULONG BufferContentSize;
@@ -159,7 +171,6 @@ void XBOXAPI A_SHAUpdate(PSHA_CTX Context, const unsigned char *Buffer, UINT Buf
  * RETURNS
  *  Nothing
  */
- // Source: Wine project
 void XBOXAPI A_SHAFinal(PSHA_CTX Context, PULONG Result)
 {
 	INT Pad, Index;
