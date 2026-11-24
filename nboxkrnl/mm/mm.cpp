@@ -24,6 +24,8 @@
 #include "fsc.hpp"
 #include "mm.hpp"
 #include "mi.hpp"
+#include "hal.hpp"
+#include "halp.hpp"
 #include "vad_tree.hpp"
 #include <assert.h>
 
@@ -57,9 +59,20 @@ BOOLEAN MmInitSystem()
 		MiPfnAddress = CHIHIRO_PFN_ADDRESS;
 	}
 	else if (MiLayoutDevkit) {
-		MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
-		MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
-		RequiredPt += 2;
+		ULONG DevkitMaxMem;
+		HalReadWritePCISpace(0, 0, CPU_MAX_MEM, &DevkitMaxMem, sizeof(DevkitMaxMem), FALSE);
+		MiHighestPage = (((DevkitMaxMem >> 24) + 1) << PAGE_SHIFT) - 1;
+
+		// If the devkit has only 64 MiB of ram, put all of its pages in the retail region
+		if (MiHighestPage < X64M_PHYSICAL_PAGE) {
+			MiDevkitPteRegion.PagesAvailable = &MiRetailRegion.PagesAvailable;
+			MiDevkitPteRegion.AllocationRoutine = MiRemoveRetailPageFromFreeList;
+		}
+		else {
+			MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
+			MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
+			RequiredPt += 2;
+		}
 	}
 
 	// Calculate how large is the kernel image, so that we can keep its allocation and unmap all the other large pages we were booted with
@@ -83,7 +96,7 @@ BOOLEAN MmInitSystem()
 		}
 		else if (MiLayoutDevkit) {
 			DatabasePfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
-			DatabasePfnEnd = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 32 - 1;
+			DatabasePfnEnd = XBOX_PFN_DATABASE_PHYSICAL_PAGE + (MiHighestPage > X64M_PHYSICAL_PAGE ? 32 : 16) - 1;
 		}
 		else {
 			DatabasePfn = CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE;
@@ -163,7 +176,7 @@ BOOLEAN MmInitSystem()
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
 		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
 		NextPageTableAddr += PAGE_SIZE;
-		if (MiLayoutDevkit) {
+		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
 			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
@@ -230,7 +243,7 @@ BOOLEAN MmInitSystem()
 		}
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
 
-		if (MiLayoutDevkit) {
+		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
 
 			Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
@@ -441,7 +454,7 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 				++Pte;
 			}
 
-			if (MiLayoutDevkit) {
+			if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
 				// Devkits have also another nv2a instance memory at the top of memory, so free also that
 				// 3fe0: nv2a; 3ff0: pfn; 4000 + 3fe0: nv2a; 4000 + 3fe0 + 10: free
 

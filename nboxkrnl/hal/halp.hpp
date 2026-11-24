@@ -68,6 +68,13 @@
 #define ACPI_GPE0_STATUS_REGISTER  0x20
 #define ACPI_GPE0_EXTSMI_STATUS    0x02
 
+// Host bridge PCI registers and values
+#define CPU_MAX_MEM        0x84
+#define CPU_MAX_MEM_64MB   0x03
+#define CPU_MAX_MEM_128MB  0x07
+#define CPU_MAX_MEM_256MB  0x0F
+#define CPU_MAX_MEM_RESV   0xFFFFFF
+
 // SMBUS ports
 #define SMBUS_STATUS 0xC000
 #define SMBUS_CONTROL 0xC002

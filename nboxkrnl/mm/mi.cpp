@@ -570,7 +570,16 @@ PVOID MiAllocateSystemMemory(ULONG NumberOfBytes, ULONG Protect, PageType BusyTy
 
 	MiUnlock(OldIrql);
 
-	return (PVOID)GetVAddrMappedByPte(StartPte);
+	PVOID Addr = (PVOID)GetVAddrMappedByPte(StartPte);
+	if (BusyType == Debugger) {
+		PBYTE StartAddr = (PBYTE)Addr;
+		if (AddGuardPage) {
+			StartAddr -= (NumberOfPages << PAGE_SHIFT);
+		}
+		RtlFillMemoryUlong(StartAddr, NumberOfPages << PAGE_SHIFT, 0);
+	}
+
+	return Addr;
 }
 
 ULONG MiFreeSystemMemory(PVOID BaseAddress, ULONG NumberOfBytes)
