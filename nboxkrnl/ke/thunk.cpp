@@ -411,9 +411,9 @@ ULONG KernelThunkTable[379] =
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&XProfpGetData),                           // 0x0173 (371) PROFILING
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IrtClientInitFast),                       // 0x0174 (372) PROFILING
 	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&IrtSweep),                                // 0x0175 (373) PROFILING
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmDbgAllocateMemory),                     // 0x0176 (374) DEVKIT ONLY!
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmDbgFreeMemory),                         // 0x0177 (375) DEVKIT ONLY!
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmDbgQueryAvailablePages),                // 0x0178 (376) DEVKIT ONLY!
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmDbgReleaseAddress),                     // 0x0179 (377) DEVKIT ONLY!
-	(ULONG)FUNC(nullptr), //(ULONG)FUNC(&MmDbgWriteCheck),                         // 0x017A (378) DEVKIT ONLY!
+	(ULONG)FUNC(&MmDbgAllocateMemory),                     // 0x0176 (374) DEVKIT ONLY!
+	(ULONG)FUNC(&MmDbgFreeMemory),                         // 0x0177 (375) DEVKIT ONLY!
+	(ULONG)FUNC(&MmDbgQueryAvailablePages),                // 0x0178 (376) DEVKIT ONLY!
+	(ULONG)FUNC(&MmDbgReleaseAddress),                     // 0x0179 (377) DEVKIT ONLY!
+	(ULONG)FUNC(&MmDbgWriteCheck),                         // 0x017A (378) DEVKIT ONLY!
 };

@@ -240,6 +240,32 @@ EXPORTNUM(181) DLLEXPORT NTSTATUS XBOXAPI MmQueryStatistics
 	PMM_STATISTICS MemoryStatistics
 );
 
+EXPORTNUM(374) DLLEXPORT PVOID XBOXAPI MmDbgAllocateMemory
+(
+	SIZE_T NumberOfBytes,
+	ULONG Protect
+);
+
+EXPORTNUM(375) DLLEXPORT ULONG XBOXAPI MmDbgFreeMemory
+(
+	PVOID BaseAddress,
+	SIZE_T NumberOfBytes
+);
+
+EXPORTNUM(376) DLLEXPORT ULONG XBOXAPI MmDbgQueryAvailablePages();
+
+EXPORTNUM(377) DLLEXPORT VOID XBOXAPI MmDbgReleaseAddress
+(
+	PVOID VirtualAddress,
+	PULONG Opaque
+);
+
+EXPORTNUM(378) DLLEXPORT PVOID XBOXAPI MmDbgWriteCheck
+(
+	PVOID VirtualAddress,
+	PULONG Opaque
+);
+
 #ifdef __cplusplus
 }
 #endif

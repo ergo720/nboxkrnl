@@ -621,3 +621,73 @@ EXPORTNUM(181) NTSTATUS XBOXAPI MmQueryStatistics
 
 	return STATUS_SUCCESS;
 }
+
+EXPORTNUM(374) PVOID XBOXAPI MmDbgAllocateMemory
+(
+	SIZE_T NumberOfBytes,
+	ULONG Protect
+)
+{
+	return MiAllocateSystemMemory(NumberOfBytes, Protect, Debugger, FALSE);
+}
+
+EXPORTNUM(375) ULONG XBOXAPI MmDbgFreeMemory
+(
+	PVOID BaseAddress,
+	SIZE_T NumberOfBytes
+)
+{
+	return MiFreeSystemMemory(BaseAddress, NumberOfBytes);
+}
+
+EXPORTNUM(376) ULONG XBOXAPI MmDbgQueryAvailablePages()
+{
+	return *MiDevkitPteRegion.PagesAvailable;
+}
+
+EXPORTNUM(377) VOID XBOXAPI MmDbgReleaseAddress
+(
+	PVOID VirtualAddress,
+	PULONG Opaque
+)
+{
+	assert(KeGetCurrentIrql() >= DISPATCH_LEVEL);
+
+	PMMPTE InputPte = (PMMPTE)Opaque;
+	if (InputPte->Hw) {
+		PMMPTE Pte = GetPdeAddress(VirtualAddress);
+		if ((Pte->Hw & PTE_PAGE_LARGE_MASK) == 0) {
+			Pte = GetPteAddress(VirtualAddress);
+		}
+		WritePte(Pte, InputPte->Hw);
+		MiFlushTlbForPage(VirtualAddress);
+	}
+}
+
+EXPORTNUM(378) PVOID XBOXAPI MmDbgWriteCheck
+(
+	PVOID VirtualAddress,
+	PULONG Opaque
+)
+{
+	assert(KeGetCurrentIrql() >= DISPATCH_LEVEL);
+
+	PMMPTE InputPte = (PMMPTE)Opaque;
+	if (!MmIsAddressValid(VirtualAddress)) {
+		InputPte->Hw = 0;
+		return nullptr;
+	}
+
+	PMMPTE Pte = GetPdeAddress(VirtualAddress);
+	if ((Pte->Hw & PTE_PAGE_LARGE_MASK) == 0) {
+		Pte = GetPteAddress(VirtualAddress);
+	}
+
+	if ((Pte->Hw & PTE_WRITE_MASK) == 0) {
+		InputPte->Hw = Pte->Hw;
+		Pte->Hw |= PTE_WRITE_MASK;
+		MiFlushTlbForPage(VirtualAddress);
+	}
+
+	return VirtualAddress;
+}
