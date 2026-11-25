@@ -6,7 +6,7 @@ Note that it's not a goal of this project to be able to run on xbox emulators su
 
 ## Building
 
-Cmake version 3.4.3 or higher is required.\
+Cmake version 4.2.3 or higher is required.\
 Visual Studio 2022.\
 Only Windows builds are supported.
 

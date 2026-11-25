@@ -39,9 +39,6 @@ jobs:
         with:
           submodules: recursive
       - name: Generate CMake Files
-        # NOTES:
-        # -Werror=dev is used to validate CMakeLists.txt for any faults.
-        # TODO: re-add -Werror=dev when submodule is updated to minimal requirement of CMake 3.5
         run: cmake -B build ${{ matrix.cmake-generator }}
       - name: Build
         run: cmake --build build --config ${{ matrix.configuration }} ${{ matrix.cmake-build-param }}

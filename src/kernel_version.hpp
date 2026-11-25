@@ -1,3 +1,3 @@
 #pragma once
 
-#define _NBOXKRNL_VERSION "8821682f0a7fd152d6a094522f04fab8b3a47f23"
+#define _NBOXKRNL_VERSION "b9260ccc0ad192e9362eaf7d98ba0b30bdcb89ab"

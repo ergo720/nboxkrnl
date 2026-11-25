@@ -6,4 +6,4 @@
 .vs/
 
 #Test files
-nboxkrnl/kernel_version.hpp
+src/kernel_version.hpp
