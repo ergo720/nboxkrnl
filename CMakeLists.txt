@@ -25,6 +25,7 @@ add_custom_target(gen_git_hash ALL
 )
 
 add_compile_definitions(
+ "$<$<CONFIG:Debug>:ENABLE_POOL_TAG_TRACKING>"
  _PDCLIB_STATIC_DEFINE
  __STDC_NO_THREADS__
  _HAS_EXCEPTIONS=0

@@ -69,6 +69,7 @@ typedef enum _POOL_TYPE
 	NonPagedPool,
 } POOL_TYPE;
 
+#ifdef ENABLE_POOL_TAG_TRACKING
 typedef struct _POOL_TRACKER_TABLE
 {
 	ULONG Key;
@@ -87,6 +88,7 @@ typedef struct _POOL_TRACKER_BIG_PAGES
 	ULONG NumberOfPages;
 	PVOID QuotaObject;
 } POOL_TRACKER_BIG_PAGES, *PPOOL_TRACKER_BIG_PAGES;
+#endif
 
 typedef struct _POOL_DESCRIPTOR
 {
@@ -131,6 +133,7 @@ typedef struct _POOL_HEADER
 
 // Only the non-paged pool is supported on Xbox
 static POOL_DESCRIPTOR NonPagedPoolDescriptor;
+#ifdef ENABLE_POOL_TAG_TRACKING
 static SIZE_T PoolTrackTableSize, PoolTrackTableMask;
 static SIZE_T PoolBigPageTableSize, PoolBigPageTableHash;
 static PPOOL_TRACKER_BIG_PAGES PoolBigPageTable;
@@ -140,6 +143,7 @@ static ULONG PoolHitTag;
 static PPOOL_TRACKER_TABLE PoolTrackTable;
 static BOOLEAN ExStopBadTags;
 static ULONG ExPoolFailures;
+#endif
 
 
 static PLIST_ENTRY ExpEncodePoolLink(PLIST_ENTRY Link)
@@ -152,8 +156,14 @@ static PLIST_ENTRY ExpDecodePoolLink(PLIST_ENTRY Link)
 	return (PLIST_ENTRY)((ULONG_PTR)Link & ~1);
 }
 
+static BOOLEAN ExpIsPoolListEmpty(PLIST_ENTRY ListHead)
+{
+	return (ExpDecodePoolLink(ListHead->Flink) == ListHead);
+}
+
 static VOID ExpCheckPoolIrqlLevel(POOL_TYPE PoolType, SIZE_T NumberOfBytes, PVOID Entry)
 {
+#if _DEBUG
 	//
 	// Validate IRQL: It must be APC_LEVEL or lower for Paged Pool, and it must
 	// be DISPATCH_LEVEL or lower for Non Paged Pool
@@ -169,10 +179,12 @@ static VOID ExpCheckPoolIrqlLevel(POOL_TYPE PoolType, SIZE_T NumberOfBytes, PVOI
 			PoolType,
 			!Entry ? NumberOfBytes : (ULONG_PTR)Entry);
 	}
+#endif
 }
 
 static VOID ExpCheckPoolHeader(PPOOL_HEADER Entry)
 {
+#if _DEBUG
 	PPOOL_HEADER PreviousEntry, NextEntry;
 
 	/* Is there a block before this one? */
@@ -270,10 +282,12 @@ static VOID ExpCheckPoolHeader(PPOOL_HEADER Entry)
 				(ULONG_PTR)Entry);
 		}
 	}
+#endif
 }
 
 static VOID ExpCheckPoolLinks(PLIST_ENTRY ListHead)
 {
+#if _DEBUG
 	if ((ExpDecodePoolLink(ExpDecodePoolLink(ListHead->Flink)->Blink) != ListHead) ||
 		(ExpDecodePoolLink(ExpDecodePoolLink(ListHead->Blink)->Flink) != ListHead))
 	{
@@ -283,10 +297,12 @@ static VOID ExpCheckPoolLinks(PLIST_ENTRY ListHead)
 			(ULONG_PTR)ExpDecodePoolLink(ExpDecodePoolLink(ListHead->Flink)->Blink),
 			(ULONG_PTR)ExpDecodePoolLink(ExpDecodePoolLink(ListHead->Blink)->Flink));
 	}
+#endif
 }
 
 static VOID ExpCheckPoolBlocks(PVOID Block)
 {
+#if _DEBUG
 	BOOLEAN FoundBlock = FALSE;
 	SIZE_T Size = 0;
 	PPOOL_HEADER Entry;
@@ -321,8 +337,53 @@ static VOID ExpCheckPoolBlocks(PVOID Block)
 		/* Otherwise, the blocks are messed up */
 		KeBugCheckEx(BAD_POOL_HEADER, 10, (ULONG_PTR)Block, __LINE__, (ULONG_PTR)Entry);
 	}
+#endif
 }
 
+static PLIST_ENTRY ExpRemovePoolHeadList(PLIST_ENTRY ListHead)
+{
+	PLIST_ENTRY Entry, Flink;
+	Entry = ExpDecodePoolLink(ListHead->Flink);
+	Flink = ExpDecodePoolLink(Entry->Flink);
+	ListHead->Flink = ExpEncodePoolLink(Flink);
+	Flink->Blink = ExpEncodePoolLink(ListHead);
+	return Entry;
+}
+
+static VOID ExpRemovePoolEntryList(PLIST_ENTRY Entry)
+{
+	PLIST_ENTRY Blink, Flink;
+	Flink = ExpDecodePoolLink(Entry->Flink);
+	Blink = ExpDecodePoolLink(Entry->Blink);
+	Flink->Blink = ExpEncodePoolLink(Blink);
+	Blink->Flink = ExpEncodePoolLink(Flink);
+}
+
+static VOID ExpInsertPoolHeadList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
+{
+	PLIST_ENTRY Flink;
+	ExpCheckPoolLinks(ListHead);
+	Flink = ExpDecodePoolLink(ListHead->Flink);
+	Entry->Flink = ExpEncodePoolLink(Flink);
+	Entry->Blink = ExpEncodePoolLink(ListHead);
+	Flink->Blink = ExpEncodePoolLink(Entry);
+	ListHead->Flink = ExpEncodePoolLink(Entry);
+	ExpCheckPoolLinks(ListHead);
+}
+
+static VOID ExpInsertPoolTailList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
+{
+	PLIST_ENTRY Blink;
+	ExpCheckPoolLinks(ListHead);
+	Blink = ExpDecodePoolLink(ListHead->Blink);
+	Entry->Flink = ExpEncodePoolLink(ListHead);
+	Entry->Blink = ExpEncodePoolLink(Blink);
+	Blink->Flink = ExpEncodePoolLink(Entry);
+	ListHead->Blink = ExpEncodePoolLink(Entry);
+	ExpCheckPoolLinks(ListHead);
+}
+
+#ifdef ENABLE_POOL_TAG_TRACKING
 static ULONG ExpComputePartialHashForAddress(PVOID BaseAddress)
 {
 	ULONG Result;
@@ -350,30 +411,6 @@ static ULONG ExpComputeHashForTag(ULONG Tag, SIZE_T BucketMask)
 	//
 	ULONGLONG Result = (ULONGLONG)40543 * Tag;
 	return (ULONG)BucketMask & ((ULONG)Result ^ (Result >> 32));
-}
-
-static BOOLEAN ExpIsPoolListEmpty(PLIST_ENTRY ListHead)
-{
-	return (ExpDecodePoolLink(ListHead->Flink) == ListHead);
-}
-
-static PLIST_ENTRY ExpRemovePoolHeadList(PLIST_ENTRY ListHead)
-{
-	PLIST_ENTRY Entry, Flink;
-	Entry = ExpDecodePoolLink(ListHead->Flink);
-	Flink = ExpDecodePoolLink(Entry->Flink);
-	ListHead->Flink = ExpEncodePoolLink(Flink);
-	Flink->Blink = ExpEncodePoolLink(ListHead);
-	return Entry;
-}
-
-static VOID ExpRemovePoolEntryList(PLIST_ENTRY Entry)
-{
-	PLIST_ENTRY Blink, Flink;
-	Flink = ExpDecodePoolLink(Entry->Flink);
-	Blink = ExpDecodePoolLink(Entry->Blink);
-	Flink->Blink = ExpEncodePoolLink(Blink);
-	Blink->Flink = ExpEncodePoolLink(Flink);
 }
 
 static VOID ExpRemovePoolTracker(ULONG Key, SIZE_T NumberOfBytes)
@@ -453,30 +490,6 @@ static VOID ExpRemovePoolTracker(ULONG Key, SIZE_T NumberOfBytes)
 	// ignore the tag
 	//
 	DbgPrint("Out of pool tag space, ignoring...");
-}
-
-static VOID ExpInsertPoolHeadList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
-{
-	PLIST_ENTRY Flink;
-	ExpCheckPoolLinks(ListHead);
-	Flink = ExpDecodePoolLink(ListHead->Flink);
-	Entry->Flink = ExpEncodePoolLink(Flink);
-	Entry->Blink = ExpEncodePoolLink(ListHead);
-	Flink->Blink = ExpEncodePoolLink(Entry);
-	ListHead->Flink = ExpEncodePoolLink(Entry);
-	ExpCheckPoolLinks(ListHead);
-}
-
-static VOID ExpInsertPoolTailList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
-{
-	PLIST_ENTRY Blink;
-	ExpCheckPoolLinks(ListHead);
-	Blink = ExpDecodePoolLink(ListHead->Blink);
-	Entry->Flink = ExpEncodePoolLink(ListHead);
-	Entry->Blink = ExpEncodePoolLink(Blink);
-	Blink->Flink = ExpEncodePoolLink(Entry);
-	ListHead->Blink = ExpEncodePoolLink(Entry);
-	ExpCheckPoolLinks(ListHead);
 }
 
 static VOID ExpInsertPoolTracker(ULONG Key, SIZE_T NumberOfBytes)
@@ -988,6 +1001,7 @@ static VOID ExpSeedHotTags()
 		}
 	}
 }
+#endif
 
 static VOID ExInitializePoolDescriptor(PPOOL_DESCRIPTOR PoolDescriptor, ULONG PoolIndex, ULONG Threshold, PVOID PoolLock)
 {
@@ -1029,14 +1043,20 @@ static VOID ExInitializePoolDescriptor(PPOOL_DESCRIPTOR PoolDescriptor, ULONG Po
 
 BOOLEAN ExInitializePool()
 {
+#ifdef ENABLE_POOL_TAG_TRACKING
 	ULONG i;
 
 	//
 	// Allocate the tracker table
 	//
 	PoolTrackTableSize = 1024;
-	PoolTrackTable = (PPOOL_TRACKER_TABLE)MiAllocateSystemMemory((PoolTrackTableSize + 1) * sizeof(POOL_TRACKER_TABLE), PAGE_READWRITE, Pool, FALSE);
-	if (!PoolTrackTable) return FALSE;
+	PoolTrackTable = (PPOOL_TRACKER_TABLE)MmDbgAllocateMemory((PoolTrackTableSize + 1) * sizeof(POOL_TRACKER_TABLE), PAGE_READWRITE);
+	if (!PoolTrackTable) {
+		PoolTrackTable = (PPOOL_TRACKER_TABLE)MiAllocateSystemMemory((PoolTrackTableSize + 1) * sizeof(POOL_TRACKER_TABLE), PAGE_READWRITE, Pool, FALSE);
+		if (!PoolTrackTable) {
+			return FALSE;
+		}
+	}
 
 	//
 	// Add one entry, compute the hash, and zero the table
@@ -1056,8 +1076,13 @@ BOOLEAN ExInitializePool()
 	// We now do the exact same thing with the tracker table for big pages
 	//
 	PoolBigPageTableSize = 4096;
-	PoolBigPageTable = (PPOOL_TRACKER_BIG_PAGES)MiAllocateSystemMemory(PoolBigPageTableSize * sizeof(POOL_TRACKER_BIG_PAGES), PAGE_READWRITE, Pool, FALSE);
-	if (!PoolBigPageTable) return FALSE;
+	PoolBigPageTable = (PPOOL_TRACKER_BIG_PAGES)MmDbgAllocateMemory(PoolBigPageTableSize * sizeof(POOL_TRACKER_BIG_PAGES), PAGE_READWRITE);
+	if (!PoolBigPageTable) {
+		PoolBigPageTable = (PPOOL_TRACKER_BIG_PAGES)MiAllocateSystemMemory(PoolBigPageTableSize * sizeof(POOL_TRACKER_BIG_PAGES), PAGE_READWRITE, Pool, FALSE);
+		if (!PoolBigPageTable) {
+			return FALSE;
+		}
+	}
 
 	//
 	// An extra entry is not needed for for the big pool tracker, so just
@@ -1085,6 +1110,7 @@ BOOLEAN ExInitializePool()
 	ExpInsertPoolTracker('looP',
 		ROUND_UP_4K(PoolBigPageTableSize *
 			sizeof(POOL_TRACKER_BIG_PAGES)));
+#endif
 
 	//
 	// Initialize the nonpaged pool descriptor
@@ -1133,10 +1159,12 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 		Entry = (PPOOL_HEADER)MiAllocateSystemMemory(NumberOfBytes, PAGE_READWRITE, Pool, FALSE);
 		if (!Entry)
 		{
+#ifdef ENABLE_POOL_TAG_TRACKING
 			//
 			// Internal debugging
 			//
 			ExPoolFailures++;
+#endif
 
 			return NULL;
 		}
@@ -1149,6 +1177,7 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 		InterlockedExchangeAddSizeT(&PoolDesc->TotalBytes, NumberOfBytes);
 		InterlockedIncrement((PLONG)&PoolDesc->RunningAllocs);
 
+#ifdef ENABLE_POOL_TAG_TRACKING
 		//
 		// Add a tag for the big page allocation and switch to the generic "BIG"
 		// tag if we failed to do so, then insert a tracker for this allocation.
@@ -1160,6 +1189,7 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 			Tag = ' GIB';
 		}
 		ExpInsertPoolTracker(Tag, ROUND_UP_4K(NumberOfBytes));
+#endif
 		return Entry;
 	}
 
@@ -1352,11 +1382,13 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 			InterlockedExchangeAddSizeT(&PoolDesc->TotalBytes, Entry->BlockSize * POOL_BLOCK_SIZE);
 			InterlockedIncrement((PLONG)&PoolDesc->RunningAllocs);
 
+#ifdef ENABLE_POOL_TAG_TRACKING
 			//
 			// Track this allocation
 			//
 			ExpInsertPoolTracker(Tag,
 				Entry->BlockSize * POOL_BLOCK_SIZE);
+#endif
 
 			//
 			// Return the pool allocation
@@ -1374,10 +1406,12 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 	Entry = (PPOOL_HEADER)MiAllocateSystemMemory(PAGE_SIZE, PAGE_READWRITE, Pool, FALSE);
 	if (!Entry)
 	{
+#ifdef ENABLE_POOL_TAG_TRACKING
 		//
 		// Internal debugging
 		//
 		ExPoolFailures++;
+#endif
 
 		//
 		// Return NULL to the caller in all other cases
@@ -1448,8 +1482,10 @@ EXPORTNUM(15) PVOID XBOXAPI ExAllocatePoolWithTag
 	// Increment performance counters and track this allocation
 	//
 	InterlockedIncrement((PLONG)&PoolDesc->RunningAllocs);
+#ifdef ENABLE_POOL_TAG_TRACKING
 	ExpInsertPoolTracker(Tag,
 		Entry->BlockSize * POOL_BLOCK_SIZE);
+#endif
 
 	//
 	// And return the pool allocation
@@ -1469,7 +1505,6 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 	KIRQL OldIrql;
 	POOL_TYPE PoolType;
 	PPOOL_DESCRIPTOR PoolDesc;
-	ULONG Tag;
 	BOOLEAN Combined = FALSE;
 	PFN_NUMBER PageCount, RealPageCount;
 
@@ -1492,7 +1527,8 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 		//
 		PoolType = NonPagedPool;
 		ExpCheckPoolIrqlLevel(PoolType, 0, P);
-		Tag = ExpFindAndRemoveTagBigPages(P, &PageCount);
+#ifdef ENABLE_POOL_TAG_TRACKING
+		ULONG Tag = ExpFindAndRemoveTagBigPages(P, &PageCount);
 		if (!Tag)
 		{
 			DbgPrint("We do not know the size of this allocation. This is not yet supported");
@@ -1526,6 +1562,19 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 		InterlockedExchangeAdd((PLONG)&PoolDesc->TotalBigPages,
 			-(LONG)RealPageCount);
 		return;
+#else
+		//
+		// Do the real free now and update the last counters with the big page count
+		//
+		PoolDesc = &NonPagedPoolDescriptor;
+		RealPageCount = PageCount = MiFreeSystemMemory(P, 0);
+		InterlockedIncrement((PLONG)&PoolDesc->RunningDeAllocs);
+		InterlockedExchangeAddSizeT(&PoolDesc->TotalBytes,
+			-(LONG_PTR)(PageCount << PAGE_SHIFT));
+		InterlockedExchangeAdd((PLONG)&PoolDesc->TotalBigPages,
+			-(LONG)RealPageCount);
+		return;
+#endif
 	}
 
 	//
@@ -1548,11 +1597,11 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 	// Make sure that the IRQL makes sense
 	//
 	ExpCheckPoolIrqlLevel(PoolType, 0, P);
-
+#ifdef ENABLE_POOL_TAG_TRACKING
 	//
 	// Get the pool tag and get rid of the PROTECTED_POOL flag
 	//
-	Tag = Entry->PoolTag;
+	ULONG Tag = Entry->PoolTag;
 	if (Tag & PROTECTED_POOL) Tag &= ~PROTECTED_POOL;
 
 	//
@@ -1560,6 +1609,7 @@ EXPORTNUM(17) VOID XBOXAPI ExFreePool
 	//
 	ExpRemovePoolTracker(Tag,
 		BlockSize * POOL_BLOCK_SIZE);
+#endif
 
 	// NOTE: pool quotas are not supported on Xbox
 	// NOTE: there's no lookaside list support on the Xbox
