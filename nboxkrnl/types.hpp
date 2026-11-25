@@ -102,6 +102,7 @@ using ACCESS_MASK = ULONG;
 using PACCESS_MASK = ACCESS_MASK *;
 
 #include "ntstatus.hpp"
+#include "hal/hw_io.hpp"
 
 #define CONTAINING_RECORD(address, type, field) ((type *)((PCHAR)(address) - (ULONG_PTR)offsetof(type, field)))
 

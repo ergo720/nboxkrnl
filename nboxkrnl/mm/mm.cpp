@@ -25,7 +25,6 @@
 #include "mm.hpp"
 #include "mi.hpp"
 #include "hal.hpp"
-#include "halp.hpp"
 #include "vad_tree.hpp"
 #include <assert.h>
 

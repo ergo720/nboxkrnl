@@ -23,20 +23,6 @@
 #include <assert.h>
 #include <string.h>
 
-// PIT i/o ports
-#define PIT_CHANNEL0_DATA  0x40
-#define PIT_PORT_CMD       0x43
-
-// PIT initialization commands
-#define PIT_COUNT_BINARY   0x00
-#define PIT_COUNT_MODE     0x04
-#define PIT_COUNT_16BIT    0x30
-#define PIT_COUNT_CHAN0    0x00
-
-// PIT counter required to trigger IRQ0 every one ms
-// NOTE: on the xbox, the pit frequency is 6% lower than the default one, see https://xboxdevwiki.net/Porting_an_Operating_System_to_the_Xbox_HOWTO#Timer_Frequency
-#define PIT_COUNTER_1MS    1125
-
 
 // Set when an SCI interrupt is triggered while another SMBUS transaction is in progress
 static BOOLEAN HalpSciInterruptPending = FALSE;

@@ -23,7 +23,6 @@
 #include "ki.hpp"
 #include "..\kernel.hpp"
 #include "mm.hpp"
-#include "halp.hpp"
 #include "rtl.hpp"
 #include "ps.hpp"
 #include "hal.hpp"

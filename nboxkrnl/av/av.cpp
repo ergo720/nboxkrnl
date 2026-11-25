@@ -21,7 +21,6 @@
 
 #include "ex.hpp"
 #include "hal.hpp"
-#include "halp.hpp"
 #include "rtl.hpp"
 #include "av.hpp"
 

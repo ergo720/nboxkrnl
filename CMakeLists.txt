@@ -87,6 +87,7 @@ file (GLOB HEADERS
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/ex/ex.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hal.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/halp.hpp"
+ "${NBOXKRNL_ROOT_DIR}/nboxkrnl/hal/hw_io.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/fsc.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/io.hpp"
  "${NBOXKRNL_ROOT_DIR}/nboxkrnl/io/iop.hpp"
