@@ -369,22 +369,34 @@ EXPORTNUM(166) PVOID XBOXAPI MmAllocateContiguousMemoryEx
 	}
 
 	Pte = StartPte;
-	ULONG PageTablePfn = CurrentPfn - 1; // skip the candidate contiguous range we found and grab the first free page(s) we find
 	while (Pte <= PteEnd) {
 		if ((Pte == StartPte) || IsPteOnPdeBoundary(Pte)) {
 			PMMPTE Pde = GetPteAddress(Pte);
 			if ((Pde->Hw & PTE_VALID_MASK) == 0) {
-				while (true) {
-					PXBOX_PFN Pf = GetPfnElement(PageTablePfn);
-					if (Pf->Busy.Busy) {
-						--PageTablePfn;
-						continue;
+				// Look for any retail page that's not inside our free contiguous range we found above
+				PFN_NUMBER PageTablePfn = 0xFFFFFFFF;
+				for (PFN_COUNT ListIdx = 0; ListIdx < PFN_NUM_LISTS; ++ListIdx) {
+					PFNFREE CandidatePf = MiRetailRegion.FreeListHead[ListIdx];
+					while (true) {
+						assert(XBOX_PFN(CandidatePf).Busy.Busy == 0); // linked free entries must not be in use
+						if (CandidatePf.Blink != PFN_LIST_END) {
+							PFN_NUMBER CandidatePfn = DecodeFreePfn(CandidatePf.Blink, ListIdx);
+							if ((CandidatePfn < CurrentPfn) || (CandidatePfn > (CurrentPfn + NumberOfPages - 1))) { // is the PFN outside our free range?
+								PageTablePfn = CandidatePfn;
+								goto FoundPageTablePfn;
+							}
+							else {
+								CandidatePf = GetPfnElement(CandidatePfn)->Free; // it's not, move to the previous free PFN entry
+								continue;
+							}
+						}
+						break; // reached the end of this list, move to another
 					}
-					WritePte(Pde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
-					MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, Pde);
-					--PageTablePfn;
-					break;
 				}
+				FoundPageTablePfn:
+				assert(PageTablePfn != 0xFFFFFFFF); // must have found a free entry because of the above check for available free page
+				WritePte(Pde, ValidKernelPdeBits | SetPfn(ConvertPfnToContiguous(PageTablePfn)));
+				MiRemoveAndZeroPageTableFromFreeList(PageTablePfn, VirtualPageTable, Pde);
 			}
 		}
 		assert((GetPteAddress(Pte)->Hw & PTE_VALID_MASK) == 1);
