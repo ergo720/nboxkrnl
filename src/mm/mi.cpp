@@ -60,7 +60,7 @@ PageType MiInsertPageInFreeListNoBusy(PFN_NUMBER Pfn)
 	PXBOX_PFN Pf = GetPfnElement(Pfn);
 	PageType BusyType = (PageType)Pf->Busy.BusyType;
 	PPFNREGION Region;
-	if (MiLayoutDevkit && (Pfn >= DEBUGKIT_FIRST_UPPER_HALF_PAGE)) {
+	if (MiLayoutDevkit && (Pfn >= (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift))) {
 		Region = &MiDevkitRegion;
 	}
 	else {
@@ -120,7 +120,7 @@ PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn)
 	PFN_COUNT ListIdx = GetPfnListIdx(Pfn);
 	PXBOX_PFN Pf = GetPfnElement(Pfn);
 	PPFNREGION Region;
-	if (MiLayoutDevkit && (Pfn >= DEBUGKIT_FIRST_UPPER_HALF_PAGE)) {
+	if (MiLayoutDevkit && (Pfn >= (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift))) {
 		Region = &MiDevkitRegion;
 	}
 	else {

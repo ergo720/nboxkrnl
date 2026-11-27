@@ -51,7 +51,7 @@
 // Indicates that the pfn entry is not linked to other entries
 #define PFN_LIST_END (USHORT)0x7FFF
 // Define how many free lists a pfn region has
-#define PFN_LIST_SHIFT 1
+#define PFN_LIST_SHIFT 2
 #define PFN_NUM_LISTS (1 << PFN_LIST_SHIFT)
 #define PFN_LIST_MASK (PFN_NUM_LISTS - 1)
 
@@ -199,6 +199,8 @@ inline INITIALIZE_GLOBAL_CRITICAL_SECTION(MiVadLock);
 inline BOOLEAN MiAllowNonDebuggerOnTop64MiB = FALSE;
 // Amount of virtual memory reserved with NtAllocateVirtualMemory
 inline ULONG MiVirtualMemoryBytesReserved = 0;
+// The shift to apply to DEBUGKIT_FIRST_UPPER_HALF_PAGE to reach the first page of the second half of memory of a devkit
+inline ULONG MiDevkitUpperHalfShift = 0;
 
 #define VadLock() RtlEnterCriticalSectionAndRegion(&MiVadLock)
 #define VadUnlock() RtlLeaveCriticalSectionAndRegion(&MiVadLock)

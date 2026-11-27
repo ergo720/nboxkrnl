@@ -77,6 +77,14 @@
 // Memory size per system
 #define XBOX_MEMORY_SIZE                    (MiB(64))
 #define CHIHIRO_MEMORY_SIZE                 (MiB(128))
+#define MB256_MEMORY_SIZE                   (MiB(256))
+
+// Page frame database and nv2a instance memory configuration for the different systems
+// nv2a_inst 3fe0 3fef pfn_data  3ff0 3fff                      xbox
+// pfn_data  7fd0 7fef nv2a_inst 7ff0 7fff                      chihiro
+// nv2a_inst 3fe0 3fef pfn_data  3ff0 400f nv2a_inst2 7fe0 7fef devkit_128 (devkit_64 == xbox)
+// nv2a_inst ffb0 ffbf pfn_data  ffc0 ffff                      xbox_256 == chihiro_256
+// nv2a_inst 7fe0 7fef pfn_data  7ff0 802f nv2a_inst2 ffe0 ffef devkit_256
 
 // Define page frame numbers used by the system
 #define XBOX_CONTIGUOUS_MEMORY_LIMIT        0x03FDF
@@ -91,6 +99,11 @@
 #define CHIHIRO_INSTANCE_PHYSICAL_PAGE      0x07FF0
 #define CHIHIRO_HIGHEST_PHYSICAL_PAGE       0x07FFF
 
+#define MB256_CONTIGUOUS_MEMORY_LIMIT       0x0FFAF // non-devkit only
+#define MB256_INSTANCE_PHYSICAL_PAGE        0x0FFB0 // non-devkit only
+#define MB256_PFN_DATABASE_PHYSICAL_PAGE    0x0FFC0 // non-devkit only
+#define MB256_HIGHEST_PHYSICAL_PAGE         0x0FFFF
+
 // Memory ranges
 #define LOWEST_USER_ADDRESS                 0x00010000
 #define HIGHEST_USER_ADDRESS                0x7FFEFFFF
@@ -104,6 +117,7 @@
 #define CONTIGUOUS_MEMORY_BASE              PHYSICAL_MAP_BASE
 #define XBOX_CONTIGUOUS_MEMORY_SIZE         XBOX_MEMORY_SIZE
 #define CHIHIRO_CONTIGUOUS_MEMORY_SIZE      CHIHIRO_MEMORY_SIZE
+#define MB256_CONTIGUOUS_MEMORY_SIZE        MB256_MEMORY_SIZE
 
 #define DEVKIT_MEMORY_BASE                  0xB0000000
 #define DEVKIT_MEMORY_SIZE                  (MiB(256)) // = 0x10000000
@@ -129,6 +143,7 @@
 
 #define XBOX_PFN_ADDRESS                    ((XBOX_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
 #define CHIHIRO_PFN_ADDRESS                 ((CHIHIRO_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE)
+#define MB256_PFN_ADDRESS                   ((MB256_PFN_DATABASE_PHYSICAL_PAGE << PAGE_SHIFT) + (PCHAR)PHYSICAL_MAP_BASE) // xbox/chihiro only, for devkit it's xbox+0x4000000
 
 // These macros check if the supplied address is inside a known range
 #define IS_PHYSICAL_ADDRESS(Va) (((ULONG)(Va) - PHYSICAL_MAP_BASE) <= (PHYSICAL_MAP_END - PHYSICAL_MAP_BASE))

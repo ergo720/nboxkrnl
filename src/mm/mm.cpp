@@ -49,28 +49,49 @@ BOOLEAN MmInitSystem()
 	MiLayoutChihiro = (XboxType == CONSOLE_CHIHIRO);
 	MiLayoutDevkit = (XboxType == CONSOLE_DEVKIT);
 
-	// Set up general memory variables according to the xbe type
-	if (MiLayoutChihiro) {
-		MiMaxContiguousPfn = CHIHIRO_CONTIGUOUS_MEMORY_LIMIT;
-		MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
-		MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
-		MiNV2AInstancePage = CHIHIRO_INSTANCE_PHYSICAL_PAGE;
-		MiPfnAddress = CHIHIRO_PFN_ADDRESS;
-	}
-	else if (MiLayoutDevkit) {
-		ULONG DevkitMaxMem;
-		HalReadWritePCISpace(0, 0, CPU_MAX_MEM, &DevkitMaxMem, sizeof(DevkitMaxMem), FALSE);
-		MiHighestPage = (((DevkitMaxMem >> 24) + 1) << PAGE_SHIFT) - 1;
+	ULONG SysMaxMem;
+	HalReadWritePCISpace(0, 0, CPU_MAX_MEM, &SysMaxMem, sizeof(SysMaxMem), FALSE);
+	MiHighestPage = (((SysMaxMem >> 24) + 1) << PAGE_SHIFT) - 1;
+	assert((MiHighestPage == XBOX_HIGHEST_PHYSICAL_PAGE) ||
+		(MiHighestPage == CHIHIRO_HIGHEST_PHYSICAL_PAGE) ||
+		(MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE));
 
-		// If the devkit has only 64 MiB of ram, put all of its pages in the retail region
-		if (MiHighestPage < X64M_PHYSICAL_PAGE) {
-			MiDevkitPteRegion.PagesAvailable = &MiRetailRegion.PagesAvailable;
-			MiDevkitPteRegion.AllocationRoutine = MiRemoveRetailPageFromFreeList;
+	// Set up general memory variables according to the xbe type and the amount of memory we have
+	if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
+		MmSystemMaxMemory = MB256_MEMORY_SIZE;
+		if (!MiLayoutDevkit) {
+			// xbox or chihiro with 256 MB
+			MiMaxContiguousPfn = MB256_CONTIGUOUS_MEMORY_LIMIT;
+			MiNV2AInstancePage = MB256_INSTANCE_PHYSICAL_PAGE;
+			MiPfnAddress = MB256_PFN_ADDRESS;
 		}
 		else {
-			MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
-			MiHighestPage = CHIHIRO_HIGHEST_PHYSICAL_PAGE;
+			// devkit with 256 MB
+			MiNV2AInstancePage += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+			MiMaxContiguousPfn = MiNV2AInstancePage - 1;
+			MiPfnAddress += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << PAGE_SHIFT);
+			MiDevkitUpperHalfShift = 1;
 			RequiredPt += 2;
+		}
+	}
+	else {
+		if (MiLayoutChihiro) {
+			// chihiro with 128 MB
+			MiMaxContiguousPfn = CHIHIRO_CONTIGUOUS_MEMORY_LIMIT;
+			MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
+			MiNV2AInstancePage = CHIHIRO_INSTANCE_PHYSICAL_PAGE;
+			MiPfnAddress = CHIHIRO_PFN_ADDRESS;
+		}
+		else if (MiLayoutDevkit) {
+			// If the devkit has only 64 MiB of ram, put all of its pages in the retail region
+			if (MiHighestPage < X64M_PHYSICAL_PAGE) {
+				MiDevkitPteRegion.PagesAvailable = &MiRetailRegion.PagesAvailable;
+				MiDevkitPteRegion.AllocationRoutine = MiRemoveRetailPageFromFreeList;
+			}
+			else {
+				MmSystemMaxMemory = CHIHIRO_MEMORY_SIZE;
+				RequiredPt += 2;
+			}
 		}
 	}
 
@@ -89,7 +110,11 @@ BOOLEAN MmInitSystem()
 	// Mark all the entries in the pfn database as free
 	PFN DatabasePfn, DatabasePfnEnd;
 	{
-		if (MiLayoutRetail) {
+		if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
+			DatabasePfn = ((ULONG_PTR)MiPfnAddress - PHYSICAL_MAP_BASE) >> PAGE_SHIFT;
+			DatabasePfnEnd = (((ULONG_PTR)MiPfnAddress - PHYSICAL_MAP_BASE) >> PAGE_SHIFT) + 64 - 1;
+		}
+		else if (MiLayoutRetail) {
 			DatabasePfn = XBOX_PFN_DATABASE_PHYSICAL_PAGE;
 			DatabasePfnEnd = XBOX_PFN_DATABASE_PHYSICAL_PAGE + 16 - 1;
 		}
@@ -177,8 +202,8 @@ BOOLEAN MmInitSystem()
 		NextPageTableAddr += PAGE_SIZE;
 		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
 			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
-			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
-			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
+			WritePte(GetPdeAddress(ROUND_UP(Addr, MiB(4))), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
+			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(ROUND_UP(Addr, MiB(4))));
 			NextPageTableAddr += PAGE_SIZE;
 		}
 		TempPte = ValidKernelPteBits | PTE_PERSIST_MASK | SetPfn(Addr);
@@ -222,7 +247,11 @@ BOOLEAN MmInitSystem()
 	{
 		// Map the nv2a instance memory
 		PFN Pfn, PfnEnd;
-		if (MiLayoutRetail || MiLayoutDevkit) {
+		if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
+			Pfn = MiNV2AInstancePage;
+			PfnEnd = MiNV2AInstancePage + NV2A_INSTANCE_PAGE_COUNT - 1;
+		}
+		else if (MiLayoutRetail || MiLayoutDevkit) {
 			Pfn = XBOX_INSTANCE_PHYSICAL_PAGE;
 			PfnEnd = XBOX_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT - 1;
 		}
@@ -245,8 +274,8 @@ BOOLEAN MmInitSystem()
 		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
 
-			Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+			Pfn += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift);
+			PfnEnd += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift);
 			Addr = reinterpret_cast<ULONG>ConvertPfnToContiguous(Pfn);
 			WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the second instance memory
 			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
@@ -431,11 +460,14 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 	// Note that, even though devkits have 128 MiB, there's no need to have a different case for those, since the instance
 	// memory is still located 0x10000 bytes from the top of memory just like retail consoles
 
-	if (MiLayoutChihiro) {
+	if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
+		*NumberOfPaddingBytes = !MiLayoutDevkit ? 0x40000 : 0x10000;
+	}
+	else if (MiLayoutChihiro) {
 		*NumberOfPaddingBytes = 0;
 	}
 	else {
-		*NumberOfPaddingBytes = ConvertPfnToContiguous(X64M_PHYSICAL_PAGE) - ConvertPfnToContiguous(XBOX_INSTANCE_PHYSICAL_PAGE + NV2A_INSTANCE_PAGE_COUNT);
+		*NumberOfPaddingBytes = 0x10000;
 	}
 
 	if (NumberOfBytes != MAXULONG_PTR) {
@@ -469,8 +501,8 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 				// Devkits have also another nv2a instance memory at the top of memory, so free also that
 				// 3fe0: nv2a; 3ff0: pfn; 4000 + 3fe0: nv2a; 4000 + 3fe0 + 10: free
 
-				Pfn += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-				PfnEnd += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
+				Pfn += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift);
+				PfnEnd += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift);
 				Pte = GetPteAddress(ConvertPfnToContiguous(Pfn));
 				PteEnd = GetPteAddress(ConvertPfnToContiguous(PfnEnd));
 
