@@ -44,6 +44,15 @@ VOID MiFlushTlbForPage(PVOID Addr)
 
 PageType MiInsertPageInFreeListNoBusy(PFN_NUMBER Pfn)
 {
+	/*
+	* Example of adding and removing PFN 0 and 4 to list 0
+	* head f=end,b=end                            empty
+	* head f=0,b=0 -> 0 f=end,b=end               add PFN 0
+	* head f=0,b=4 -> 0 f=4,b=end -> 4 f=end,b=0  add PFN 4
+	* head f=0,b=0 -> 0 f=end,b=end               remove PFN 4
+	* head f=end,b=end                            remove PFN 0
+	*/
+
 	assert(Pfn <= MiHighestPage);
 
 	PFN_COUNT ListIdx = GetPfnListIdx(Pfn);
@@ -57,18 +66,6 @@ PageType MiInsertPageInFreeListNoBusy(PFN_NUMBER Pfn)
 	else {
 		Region = &MiRetailRegion;
 	}
-
-	/*
-	Performs a tail insertion from the list head
-	Before:
-	1 - 51
-	head f 1, b 51
-	After:
-	1 - 51 - 3
-	3 f null, b 51
-	51 f 3, b unchanged
-	head f unchanged, b 3
-	*/
 
 	if (Region->FreeListHead[ListIdx].Flink != PFN_LIST_END) {
 		Pf->Free.Flink = PFN_LIST_END;
@@ -109,6 +106,15 @@ VOID MiInsertPageRangeInFreeListNoBusy(PFN_NUMBER Pfn, PFN_NUMBER PfnEnd)
 
 PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn)
 {
+	/*
+	* Example of adding and removing PFN 0 and 4 to list 0
+	* head f=end,b=end                            empty
+	* head f=0,b=0 -> 0 f=end,b=end               add PFN 0
+	* head f=0,b=4 -> 0 f=4,b=end -> 4 f=end,b=0  add PFN 4
+	* head f=0,b=0 -> 0 f=end,b=end               remove PFN 4
+	* head f=end,b=end                            remove PFN 0
+	*/
+
 	assert(Pfn <= MiHighestPage);
 
 	PFN_COUNT ListIdx = GetPfnListIdx(Pfn);
@@ -123,7 +129,13 @@ PXBOX_PFN MiRemovePageFromFreeList(PFN_NUMBER Pfn)
 
 	assert(Pf->Busy.Busy == 0);
 
-	if (Pf->Free.Flink == PFN_LIST_END) {
+	if ((Pf->Free.Flink == PFN_LIST_END) && (Pf->Free.Blink == PFN_LIST_END)) {
+		// This is the only element remaining in the list
+
+		Region->FreeListHead[ListIdx].Flink = PFN_LIST_END;
+		Region->FreeListHead[ListIdx].Blink = PFN_LIST_END;
+	}
+	else if (Pf->Free.Flink == PFN_LIST_END) {
 		// This is the last element, so update Blink of head
 
 		Region->FreeListHead[ListIdx].Blink = Pf->Free.Blink;
