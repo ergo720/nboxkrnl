@@ -59,19 +59,13 @@ BOOLEAN MmInitSystem()
 	// Set up general memory variables according to the xbe type and the amount of memory we have
 	if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
 		MmSystemMaxMemory = MB256_MEMORY_SIZE;
-		if (!MiLayoutDevkit) {
-			// xbox or chihiro with 256 MB
-			MiMaxContiguousPfn = MB256_CONTIGUOUS_MEMORY_LIMIT;
-			MiNV2AInstancePage = MB256_INSTANCE_PHYSICAL_PAGE;
-			MiPfnAddress = MB256_PFN_ADDRESS;
-		}
-		else {
+		MiMaxContiguousPfn = MB256_CONTIGUOUS_MEMORY_LIMIT;
+		MiNV2AInstancePage = MB256_INSTANCE_PHYSICAL_PAGE;
+		MiPfnAddress = MB256_PFN_ADDRESS;
+		RequiredPt++;
+		if (MiLayoutDevkit) {
 			// devkit with 256 MB
-			MiNV2AInstancePage += DEBUGKIT_FIRST_UPPER_HALF_PAGE;
-			MiMaxContiguousPfn = MiNV2AInstancePage - 1;
-			MiPfnAddress += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << PAGE_SHIFT);
 			MiDevkitUpperHalfShift = 1;
-			RequiredPt += 2;
 		}
 	}
 	else {
@@ -200,8 +194,8 @@ BOOLEAN MmInitSystem()
 		WritePte(GetPdeAddress(Addr), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 1
 		MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(Addr));
 		NextPageTableAddr += PAGE_SIZE;
-		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
-			// on devkits, the pfn database crosses a 4 MiB boundary, so it needs another pt
+		if ((MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) || (MmSystemMaxMemory == MB256_MEMORY_SIZE)) {
+			// on devkits and 256 MiB systems, the pfn database crosses a 4 MiB boundary, so it needs another pt
 			WritePte(GetPdeAddress(ROUND_UP(Addr, MiB(4))), ValidKernelPdeBits | SetPfn(NextPageTableAddr)); // write pde for the pfn database 2
 			MiRemoveAndZeroPageTableFromFreeList(GetPfnFromContiguous(NextPageTableAddr), VirtualPageTable, GetPdeAddress(ROUND_UP(Addr, MiB(4))));
 			NextPageTableAddr += PAGE_SIZE;
@@ -271,7 +265,7 @@ BOOLEAN MmInitSystem()
 		}
 		PteEnd->Hw |= PTE_GUARD_END_MASK;
 
-		if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
+		if (MiLayoutDevkit && (MmSystemMaxMemory == CHIHIRO_MEMORY_SIZE)) {
 			// Devkits have two nv2a instance memory, another one at the top of the second 64 MiB block
 
 			Pfn += (DEBUGKIT_FIRST_UPPER_HALF_PAGE << MiDevkitUpperHalfShift);
@@ -459,11 +453,11 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 {
 	// Note that, even though devkits have 128 MiB, there's no need to have a different case for those, since the instance
 	// memory is still located 0x10000 bytes from the top of memory just like retail consoles
+	// NOTE: we are lying here for 256 MiB systems, as NumberOfPaddingBytes is supposed to be the number of bytes to skip to reach
+	// the instance memory from the memory top, which would be 0x90000000. However, placing the instance memory above 128 MiB seems
+	// break accessing it, so we will caclulate the value from 0x88000000 instead
 
-	if (MiHighestPage == MB256_HIGHEST_PHYSICAL_PAGE) {
-		*NumberOfPaddingBytes = !MiLayoutDevkit ? 0x40000 : 0x10000;
-	}
-	else if (MiLayoutChihiro) {
+	if (MiLayoutChihiro) {
 		*NumberOfPaddingBytes = 0;
 	}
 	else {
@@ -497,7 +491,7 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 				++Pte;
 			}
 
-			if (MiLayoutDevkit && (MiHighestPage > X64M_PHYSICAL_PAGE)) {
+			if (MiLayoutDevkit && (MmSystemMaxMemory == CHIHIRO_MEMORY_SIZE)) {
 				// Devkits have also another nv2a instance memory at the top of memory, so free also that
 				// 3fe0: nv2a; 3ff0: pfn; 4000 + 3fe0: nv2a; 4000 + 3fe0 + 10: free
 
@@ -531,7 +525,12 @@ EXPORTNUM(168) PVOID XBOXAPI MmClaimGpuInstanceMemory
 		MiUnlock(OldIrql);
 	}
 
-	return ConvertPfnToContiguous(MiHighestPage + 1) - *NumberOfPaddingBytes;
+	if (MmSystemMaxMemory == MB256_MEMORY_SIZE) {
+		return ConvertPfnToContiguous(MB256_PFN_DATABASE_PHYSICAL_PAGE);
+	}
+	else {
+		return ConvertPfnToContiguous(MiHighestPage + 1) - *NumberOfPaddingBytes;
+	}
 }
 
 EXPORTNUM(169) PVOID XBOXAPI MmCreateKernelStack

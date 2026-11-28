@@ -83,8 +83,11 @@
 // nv2a_inst 3fe0 3fef pfn_data  3ff0 3fff                      xbox
 // pfn_data  7fd0 7fef nv2a_inst 7ff0 7fff                      chihiro
 // nv2a_inst 3fe0 3fef pfn_data  3ff0 400f nv2a_inst2 7fe0 7fef devkit_128 (devkit_64 == xbox)
-// nv2a_inst ffb0 ffbf pfn_data  ffc0 ffff                      xbox_256 == chihiro_256
-// nv2a_inst 7fe0 7fef pfn_data  7ff0 802f nv2a_inst2 ffe0 ffef devkit_256
+// nv2a_inst 7fe0 7fef pfn_data  7ff0 802f                      xbox_256 == chihiro_256 == devkit_256
+
+// NOTE: the maximum contiguous address that can be allocated must be below 128 MiB, as the DMA instance object of the GPU has a limit set to slightly below
+// 128 MiB. Thus the GPU will flag an exception if it's placed above that limit. It's also necessary that the NV2A instance memory (aka RAMIN) is placed below
+// the same limit too, as putting above it seems to break RAMIN accesses
 
 // Define page frame numbers used by the system
 #define XBOX_CONTIGUOUS_MEMORY_LIMIT        0x03FDF
@@ -99,9 +102,9 @@
 #define CHIHIRO_INSTANCE_PHYSICAL_PAGE      0x07FF0
 #define CHIHIRO_HIGHEST_PHYSICAL_PAGE       0x07FFF
 
-#define MB256_CONTIGUOUS_MEMORY_LIMIT       0x0FFAF // non-devkit only
-#define MB256_INSTANCE_PHYSICAL_PAGE        0x0FFB0 // non-devkit only
-#define MB256_PFN_DATABASE_PHYSICAL_PAGE    0x0FFC0 // non-devkit only
+#define MB256_CONTIGUOUS_MEMORY_LIMIT       0x07FDF
+#define MB256_INSTANCE_PHYSICAL_PAGE        0x07FE0
+#define MB256_PFN_DATABASE_PHYSICAL_PAGE    0x07FF0
 #define MB256_HIGHEST_PHYSICAL_PAGE         0x0FFFF
 
 // Memory ranges
