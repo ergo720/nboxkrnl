@@ -115,6 +115,7 @@
 #define SMC_COMMAND_TRAY_STATE        0x03
 #define SMC_COMMAND_VIDEO_MODE        0x04
 #define SMC_COMMAND_INTERRUPT_REASON  0x11
+#define SMC_COMMAND_INTERRUPT_ENABLE  0x1A
 
 // SMC video mode values
 #define SMC_VIDEO_MODE_SCART     0x00

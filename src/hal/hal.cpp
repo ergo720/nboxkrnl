@@ -66,7 +66,12 @@ BOOLEAN HalInitSystem()
 	HalEnableSystemInterrupt(12, LevelSensitive);
 
 	ULONG Dummy;
-	if (NTSTATUS Status = HalReadSMCTrayState(&Dummy, nullptr); !NT_SUCCESS(Status)) {
+	if (!NT_SUCCESS(HalReadSMCTrayState(&Dummy, nullptr))) {
+		return FALSE;
+	}
+
+	// Ready to receive interrupts from the SMC
+	if (!NT_SUCCESS(HalWriteSMBusValue(SMC_WRITE_ADDR, SMC_COMMAND_INTERRUPT_ENABLE, FALSE, 1))) {
 		return FALSE;
 	}
 
